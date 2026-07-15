@@ -18,18 +18,15 @@
 
 import { createHash } from "node:crypto";
 import type { NutrientObservation, SourceReference } from "@t1dine/domain";
-import type { CanonicalFood, FoodType, LocalisedName } from "@t1dine/food-schema";
+import type { CanonicalFood, LocalisedName } from "@t1dine/food-schema";
 import { collectCanonicalFoodErrors } from "@t1dine/food-schema";
-
-interface NameInput {
-  name: string;
-  synonyms?: string[];
-}
-
-interface NamesInput {
-  pt: NameInput;
-  en: NameInput;
-}
+import type { FoodInput, NamesInput } from "./catalogTypes.js";
+import { PT_STAPLES } from "./catalogData/portugalStaples.js";
+import { PT_PRODUCE } from "./catalogData/portugalProduce.js";
+import { PT_PROTEIN } from "./catalogData/portugalProtein.js";
+import { PT_DISHES } from "./catalogData/portugalDishes.js";
+import { PT_SWEETS } from "./catalogData/portugalSweets.js";
+import { PT_PANTRY } from "./catalogData/portugalPantry.js";
 
 function names(input: NamesInput): LocalisedName[] {
   return [
@@ -87,26 +84,6 @@ function nutrients(
       source: shared,
     },
   ];
-}
-
-interface FoodInput {
-  id: string;
-  type: FoodType;
-  names: NamesInput;
-  /** ISO 3166-1 alpha-2 country codes this food is associated with. The
-   * first entry is used as the record's provenance `market`. Also doubles
-   * as `markets` (the two are identical for this synthetic seed data). */
-  countries: string[];
-  /** Grams of available carbohydrate per 100 g. */
-  carbGrams: number;
-  /** Kilocalories per 100 g. */
-  energyKcal: number;
-  confidence: NutrientObservation["confidence"];
-  method: NutrientObservation["method"];
-  cuisineTags?: string[];
-  dietaryPatternTags?: string[];
-  mealContextTags?: string[];
-  status?: CanonicalFood["status"];
 }
 
 function food(input: FoodInput): CanonicalFood {
@@ -1525,6 +1502,13 @@ const PL_MORE: FoodInput[] = [
 
 const CATALOG_INPUTS: FoodInput[] = [
   ...PT,
+  // Portugal — deep coverage by category (see ./catalogData/*).
+  ...PT_STAPLES,
+  ...PT_PRODUCE,
+  ...PT_PROTEIN,
+  ...PT_DISHES,
+  ...PT_SWEETS,
+  ...PT_PANTRY,
   ...ES,
   ...ES_MORE,
   ...IT,
@@ -1543,7 +1527,20 @@ const CATALOG_INPUTS: FoodInput[] = [
 
 export const CATALOG: CanonicalFood[] = CATALOG_INPUTS.map(food);
 
+// Guard: ids must be globally unique. The food store upserts by id, so a
+// duplicate id would silently overwrite an earlier record (and shrink the
+// catalog) rather than fail — fatal here instead, since it usually means two
+// data files collided on an id prefix.
+const seenIds = new Map<string, number>();
 CATALOG.forEach((item, index) => {
+  const priorIndex = seenIds.get(item.id);
+  if (priorIndex !== undefined) {
+    throw new Error(
+      `Duplicate catalog id "${item.id}" (indexes ${priorIndex} and ${index}); ids must be unique.`,
+    );
+  }
+  seenIds.set(item.id, index);
+
   const errors = collectCanonicalFoodErrors(item);
   if (errors.length > 0) {
     throw new Error(
