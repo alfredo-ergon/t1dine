@@ -106,18 +106,130 @@ A minimal but real accounts + sync foundation (the "accounts" half of Slice 5). 
 
 ### `DATABASE_URL` behaviour for accounts + sync
 
-`src/server.ts` resolves meal, user, and sync-state persistence together, via a SINGLE shared `pg`
-`Pool` when `DATABASE_URL` is set (not three separate pools):
+`src/server.ts` resolves meal, user, sync-state, and food-catalog persistence together, via a
+SINGLE shared `pg` `Pool` when `DATABASE_URL` is set (not four separate pools):
 
-- **`DATABASE_URL` unset** — all three use their in-memory adapter.
+- **`DATABASE_URL` unset** — all four use their in-memory adapter (the food repository is
+  pre-seeded synchronously with the synthetic catalog — see
+  [Food catalog store + admin review queue](#food-catalog-store--admin-review-queue-current)
+  below).
 - **`DATABASE_URL` set** — one `Pool` is created and each adapter's idempotent `migrate()` runs in
   dependency order: meals, then users, then `user_data` (which has a foreign key on `users(id)`
-  and therefore must migrate last).
-- **Any connection or migration step fails** — the server logs a short, non-sensitive message
-  (never the connection string, never the raw error) and falls back to in-memory **for all
-  three** adapters. A partial fallback (e.g. meals on Postgres but accounts in-memory) would
+  and therefore must migrate last), then `foods` (no dependency). The catalog is then upserted via
+  `foodRepository.seedApproved(CATALOG)` — idempotent, never duplicates a row across restarts.
+- **Any connection, migration, or seed step fails** — the server logs a short, non-sensitive
+  message (never the connection string, never the raw error) and falls back to in-memory **for
+  all four** adapters. A partial fallback (e.g. meals on Postgres but accounts in-memory) would
   silently break the `user_data` → `users` foreign key contract, so this is deliberately
   all-or-nothing.
+
+## Food catalog store + admin review queue (current)
+
+The food catalog is now a real, growable, Postgres-backed database with user submissions, an
+admin review queue, and an offline AI-assist for candidate generation — not a fixed in-memory
+list. See [Endpoints](#endpoints) for the exact request/response shapes.
+
+### Governance model
+
+Every stored food carries a review lifecycle, independent of persistence backend:
+
+- **`status`**: `"candidate"` | `"approved"` | `"retired"`. Only `"approved"` foods are ever
+  returned by the public `GET /catalog/foods` / `GET /catalog/foods/:id` routes — a `candidate` or
+  `retired` record never appears there, and `GET /catalog/foods/:id` returns the same `404`
+  whether the id is unknown, still a candidate, or retired (it never reveals the existence of an
+  unapproved record).
+- **`source`**: `"seed"` | `"user"` | `"ai"` | `"admin"` — where the record came from, preserved
+  forever as provenance.
+- **The (status, source) pair is hardcoded per insert path, not caller-chosen** — this is the
+  code-level guarantee (CLAUDE.md / `.claude/rules/food-data.md`: "AI extraction creates a
+  candidate record, never an automatically trusted canonical record") that a user submission or
+  an AI candidate is **NEVER auto-approved**, no matter what its own embedded `status` field
+  claims:
+  - `FoodRepository.insertSubmission` -> always `status: "candidate"`, `source: "user"`.
+  - `FoodRepository.insertAiCandidate` -> always `status: "candidate"`, `source: "ai"`.
+  - `FoodRepository.insertAdminFood` -> always `status: "approved"`, `source: "admin"` (an
+    authenticated admin's manual addition is trusted immediately).
+  - `FoodRepository.seedApproved` -> always `status: "approved"`, `source: "seed"`, and is an
+    **idempotent upsert by id** — safe to call on every process startup, never duplicates a row.
+  - A human must explicitly call `POST /admin/foods/:id/approve` before a candidate (user or AI)
+    is ever visible through the public catalog.
+- Both adapters keep the food's own embedded `status` field in sync with the outer `StoredFood`
+  status on every insert/approve/reject/seed, so a `CanonicalFood` returned from
+  `/catalog/foods` never disagrees with the review state that made it visible.
+- A food's **region** is *derived* from its `countries[]` via `regionForCountry` /
+  `AREA_TAXONOMY` (`@t1dine/food-schema`) — never stored as a separate field. `region` filters
+  (public search and the admin queue) apply this mapping in one shared, adapter-independent place
+  (`src/catalogFilters.ts`).
+
+### Seed catalog (`src/catalog.ts`)
+
+56 synthetic-but-plausible approved foods covering Portugal and wider Europe, each a valid
+`CanonicalFood` (validated with `collectCanonicalFoodErrors` at module load — an invalid entry
+throws immediately) with pt-PT + English names/synonyms, per-100 g `CHOAVL` (available
+carbohydrate) + `ENERC` (energy) observations, and a synthetic `SourceReference`:
+
+| Region (`southern-europe` = Mediterranean) | Countries covered | Approx. count |
+| --- | --- | --- |
+| Southern Europe / Mediterranean | Portugal (PT), Spain (ES), Italy (IT), Greece (GR) | 34 |
+| Western Europe | France (FR), Germany (DE) | 12 |
+| Northern Europe | United Kingdom (GB) | 6 |
+| Eastern Europe | Poland (PL) | 4 |
+
+Seeded as `status: "approved"`, `source: "seed"` on every startup via
+`FoodRepository.seedApproved` — idempotent (upsert by id), so restarting the process never
+duplicates a row. `src/catalog.ts`'s `CATALOG` export is also used directly by
+`src/modules/meals.ts` to resolve a meal line's `foodId`, so meal assembly's behaviour is
+unaffected by anything later added to the food store via submissions/admin/AI.
+
+### Admin access (`requireAdmin`)
+
+`requireAdmin` (in `src/modules/admin.ts`) is `requireAuth` (see
+[Accounts + user-scoped cloud sync](#accounts--user-scoped-cloud-sync-current)) followed by a
+membership check against the `ADMIN_EMAILS` allowlist (comma-separated, case-insensitive,
+defaults to `admin@t1dine.local`):
+
+- No/invalid bearer token -> `401` (same as every other `requireAuth`-protected route).
+- Valid token, but the account's email is not in `ADMIN_EMAILS` -> `403 forbidden`.
+- Valid token and the account's email is in `ADMIN_EMAILS` -> the route runs.
+
+`src/server.ts` also ensures a **demo admin account** exists on every startup (`ensureDemoAdmin`):
+if no account exists yet for `ADMIN_EMAILS`'s first entry, it registers one with
+`ADMIN_PASSWORD` (or the fixed, clearly-insecure dev default `t1dine-admin-dev`) so the admin
+portal always has something to log in with locally. It never overwrites an existing admin's
+password and never logs the email or password — only a short, non-sensitive status line.
+
+### AI-assist (`src/foodAi.ts`) — fully offline, deterministic, always a candidate
+
+`POST /admin/foods/ai-generate` produces candidate foods through a pluggable `FoodAiProvider`
+interface. The default (and only shipped) implementation, `MockFoodAiProvider`, is **fully
+offline and deterministic** — it never makes a network or AI API call:
+
+- Names are drawn from a fixed per-cuisine seed list (`portuguese`, `spanish`, `italian`, `greek`,
+  `french`, `german`, `british`, `polish`, `mediterranean`, with a generic `european` fallback),
+  indexed by a caller-supplied `startIndex` (derived from how many AI candidates already exist in
+  the store — never `Math.random()`/`Date.now()`).
+- Nutrient values are derived from a seeded periodic function (mirrors the Nightscout mock mode's
+  approach) within a plausible per-food range — again, never `Math.random()`/`Date.now()`.
+- Every generated food carries `confidence: "unverified"`, `method: "estimated"`, and a
+  provenance `source.sourceId` of `"AI-CANDIDATE"`.
+- **A real LLM/HTTP-backed adapter would implement `FoodAiProvider` and be injected in place of
+  `MockFoodAiProvider`** (see the code seam and comments in `src/foodAi.ts`) without changing the
+  route contract. This codebase never calls any external AI/HTTP API.
+- Regardless of what a provider returns, `POST /admin/foods/ai-generate` always stores the result
+  through `FoodRepository.insertAiCandidate`, which **hardcodes** `status: "candidate"`,
+  `source: "ai"` — a second, independent enforcement point of the "never auto-approved" rule, not
+  just a convention.
+
+### Persistence (`src/repositories/foodRepository.ts`)
+
+`FoodRepository` PORT — `InMemoryFoodRepository` (the default, synchronously pre-seeded at
+construction with `CATALOG`) and `PostgresFoodRepository` (used when `DATABASE_URL` is set),
+following the exact same ports-and-adapters shape as `MealRepository`/`UserRepository`. Postgres
+table: `foods (id text PRIMARY KEY, record jsonb NOT NULL, status text NOT NULL, source text NOT
+NULL, submitted_by text NULL, reviewed_by text NULL, created_at timestamptz DEFAULT now(),
+reviewed_at timestamptz NULL)`, with an index on `status`. The food's own `id` (part of the
+`CanonicalFood` contract) IS the table's primary key — a duplicate id raises `FoodIdTakenError`
+(`409 id_taken`), never a silent overwrite.
 
 ## Slice 6 — Nightscout read-only glucose display (current)
 

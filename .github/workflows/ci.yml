@@ -42,10 +42,7 @@ jobs:
       - name: Repository validation
         run: pnpm validate
 
-      # Non-blocking: the frozen deterministic dose engine has a known strict-type
-      # defect (number|null not narrowed) that must be fixed under clinical
-      # change-control, not in an ordinary change. Surfaced here, tracked as
-      # SAFE-003 in docs/delivery/traceability.csv, but does not gate Core CI.
-      - name: Dose-engine strict typecheck (known-failing, informational)
-        continue-on-error: true
+      # The deterministic dose engine (unreleased-0.2) now passes strict typecheck
+      # and is unit-tested (SAFE-002/003/004 VERIFIED). This is a required gate.
+      - name: Dose-engine strict typecheck
         run: pnpm typecheck:dose-engine

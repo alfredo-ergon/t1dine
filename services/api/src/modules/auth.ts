@@ -56,7 +56,11 @@ async function derive(password: string, salt: Buffer): Promise<Buffer> {
   return derivedKey as Buffer;
 }
 
-async function hashPassword(password: string): Promise<{ passwordHash: string; salt: string }> {
+/** Exported for `src/server.ts`'s demo-admin startup seed only (see
+ * `ensureDemoAdmin`) — every other caller of the password-hashing contract
+ * stays inside this module. Same PASSWORD HANDLING CONTRACT applies to any
+ * caller: never log the input or the result. */
+export async function hashPassword(password: string): Promise<{ passwordHash: string; salt: string }> {
   const salt = randomBytes(SALT_BYTES);
   const derivedKey = await derive(password, salt);
   return { passwordHash: derivedKey.toString("hex"), salt: salt.toString("hex") };
@@ -167,6 +171,26 @@ export function requireAuth(secret: string) {
     }
 
     request.userId = verified.userId;
+  };
+}
+
+/** Fastify preHandler factory for routes where auth is OPTIONAL (currently
+ * only `POST /catalog/submissions`): when a well-formed, validly-signed
+ * bearer token is present it sets `request.userId`, exactly like
+ * `requireAuth`; otherwise it proceeds anonymously — a missing header, a
+ * malformed token, or an invalid signature are all treated the same as "no
+ * token supplied" rather than a `401`. Never throws and never replies. */
+export function optionalAuth(secret: string) {
+  return async function optionalAuthPreHandler(request: FastifyRequest): Promise<void> {
+    const header = request.headers.authorization;
+    const BEARER_PREFIX = "Bearer ";
+    if (!header || !header.startsWith(BEARER_PREFIX)) return;
+
+    const token = header.slice(BEARER_PREFIX.length).trim();
+    const verified = verifyToken(token, secret);
+    if (verified) {
+      request.userId = verified.userId;
+    }
   };
 }
 

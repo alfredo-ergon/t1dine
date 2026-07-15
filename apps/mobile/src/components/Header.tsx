@@ -11,13 +11,16 @@ interface HeaderProps {
   onBack: () => void;
   onCreateFood: () => void;
   onOpenProfile: () => void;
+  /** Opens the "Conta" screen (Slice: accounts + multi-device sync). */
+  onOpenAccount: () => void;
 }
 
 // Persistent top bar: brand mark (Tino + wordmark) or Back (when a stacked
-// screen is open), a quick "new custom food" entry point, a "Perfil" entry
-// point (Slice 5 — export/delete data), and the PT | EN language switch —
-// always reachable regardless of which tab is active.
-export function Header({ showBack, onBack, onCreateFood, onOpenProfile }: HeaderProps) {
+// screen is open), a quick "new custom food" entry point, a "Conta" entry
+// point (Slice: accounts + multi-device sync), a "Perfil" entry point
+// (Slice 5 — export/delete data), and the PT | EN language switch — always
+// reachable regardless of which tab is active.
+export function Header({ showBack, onBack, onCreateFood, onOpenProfile, onOpenAccount }: HeaderProps) {
   const { t } = useLanguage();
 
   return (
@@ -44,6 +47,14 @@ export function Header({ showBack, onBack, onCreateFood, onOpenProfile }: Header
               style={({ pressed }) => [styles.createButton, pressed && styles.createButtonPressed]}
             >
               <Text style={styles.createButtonText}>+ {t("create.openCta")}</Text>
+            </Pressable>
+            <Pressable
+              onPress={onOpenAccount}
+              accessibilityRole="button"
+              accessibilityLabel={t("account.openLabel")}
+              style={({ pressed }) => [styles.accountButton, pressed && styles.accountButtonPressed]}
+            >
+              <Text style={styles.accountButtonText}>{t("account.openLabel")}</Text>
             </Pressable>
             <Pressable
               onPress={onOpenProfile}
@@ -88,6 +99,16 @@ const styles = StyleSheet.create({
   },
   createButtonPressed: { backgroundColor: colors.accentSoft },
   createButtonText: { color: colors.accent, fontSize: 13, fontWeight: "700" },
+  accountButton: {
+    minHeight: MIN_TAP_TARGET,
+    justifyContent: "center",
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.pill,
+    borderWidth: 1.5,
+    borderColor: colors.borderStrong,
+  },
+  accountButtonPressed: { backgroundColor: colors.surfaceAlt },
+  accountButtonText: { color: colors.textSecondary, fontSize: 13, fontWeight: "700" },
   profileButton: {
     minWidth: MIN_TAP_TARGET,
     minHeight: MIN_TAP_TARGET,

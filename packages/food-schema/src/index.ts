@@ -24,3 +24,4 @@ export interface CanonicalFood {
 }
 
 export * from "./validation.js";
+export * from "./regions.js";

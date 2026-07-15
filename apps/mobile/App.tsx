@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { SafeAreaView, StyleSheet, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
-import type { CanonicalFood } from "@t1dine/food-schema";
+import type { CanonicalFood, ContinentGroup } from "@t1dine/food-schema";
+import { AREA_TAXONOMY } from "@t1dine/food-schema";
 import type { MealLine } from "@t1dine/nutrition";
 import { summariseMeal } from "@t1dine/nutrition";
 
-import { fetchCatalog } from "./src/api";
+import { fetchCatalog, getSyncState, isConnectivityError, login, putSyncState, register, type SyncState } from "./src/api";
+import { availableCuisineTags, filterByArea } from "./src/areaFilter";
+import { clearSession, loadSession, saveSession, type StoredSession } from "./src/auth";
 import { Header } from "./src/components/Header";
 import { Splash } from "./src/components/Splash";
 import { TabBar, type TabKey } from "./src/components/TabBar";
@@ -15,6 +18,7 @@ import { DEFAULT_DOSE_PROFILE, type DoseProfile } from "./src/dose/profile";
 import { bumpProfileVersion, loadDoseProfile, saveDoseProfile } from "./src/dose/profileStorage";
 import { LanguageProvider, useLanguage } from "./src/i18n";
 import { searchFoods } from "./src/search";
+import { AccountScreen } from "./src/screens/AccountScreen";
 import { CreateFoodScreen } from "./src/screens/CreateFoodScreen";
 import { DetailScreen } from "./src/screens/DetailScreen";
 import { DoseReviewScreen } from "./src/screens/DoseReviewScreen";
@@ -24,14 +28,21 @@ import { MealScreen } from "./src/screens/MealScreen";
 import { ProfileScreen, type DoseProfileFormValues } from "./src/screens/ProfileScreen";
 import { SearchScreen } from "./src/screens/SearchScreen";
 import { loadCustomFoods, loadFavouriteIds, loadRecentIds, RECENTS_LIMIT, saveCustomFoods, saveFavouriteIds, saveRecentIds } from "./src/storage";
+import { mergeSyncState, type SyncStatus } from "./src/sync";
 import { colors, spacing } from "./src/theme";
 
-// Detail, Create-Food, Profile, and the Dose Assist "Estimativa de dose"
-// review are stacked overlays reachable from any tab; Search, Meal,
+// Detail, Create-Food, Profile, Account, and the Dose Assist "Estimativa de
+// dose" review are stacked overlays reachable from any tab; Search, Meal,
 // Favourites, and Glucose are the peer sections underneath them. This
 // mirrors a simple push-navigation stack without pulling in a navigation
 // library — Pressable + state, as the existing app already does.
-type Overlay = { kind: "detail"; food: CanonicalFood } | { kind: "create" } | { kind: "profile" } | { kind: "doseReview" } | null;
+type Overlay =
+  | { kind: "detail"; food: CanonicalFood }
+  | { kind: "create" }
+  | { kind: "profile" }
+  | { kind: "account" }
+  | { kind: "doseReview" }
+  | null;
 
 function AppShell() {
   const { isLoaded: languageLoaded, language } = useLanguage();
@@ -53,6 +64,19 @@ function AppShell() {
   // the Perfil screen's "Perfil clínico" section.
   const [doseProfile, setDoseProfile] = useState<DoseProfile>(DEFAULT_DOSE_PROFILE);
   const [hasSavedDoseProfile, setHasSavedDoseProfile] = useState(false);
+
+  // Browse-by-area filters (Slice: browse by area + cuisine) — independent
+  // axes, both optional, applied to the CATALOG only (never to a user's own
+  // custom foods — see areaFilter.ts).
+  const [selectedRegionId, setSelectedRegionId] = useState<string | null>(null);
+  const [selectedCuisine, setSelectedCuisine] = useState<string | null>(null);
+
+  // Accounts + multi-device sync (Slice: accounts + multi-device sync).
+  // `session` is `null` until loaded/signed-in — every other piece of state
+  // in this app keeps working with no session at all (offline-first).
+  const [session, setSession] = useState<StoredSession | null>(null);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>("idle");
+  const [syncVersion, setSyncVersion] = useState(0);
 
   // Online catalog with offline-first fallback (Slice: API client). The
   // bundled local CATALOG is always the guaranteed baseline — it never waits
@@ -79,14 +103,15 @@ function AppShell() {
   // was persisted from a previous session (see the `dataLoaded` guards below).
   useEffect(() => {
     let cancelled = false;
-    Promise.all([loadFavouriteIds(), loadRecentIds(), loadCustomFoods(), loadDoseProfile()])
-      .then(([loadedFavourites, loadedRecents, loadedCustomFoods, loadedDoseProfile]) => {
+    Promise.all([loadFavouriteIds(), loadRecentIds(), loadCustomFoods(), loadDoseProfile(), loadSession()])
+      .then(([loadedFavourites, loadedRecents, loadedCustomFoods, loadedDoseProfile, loadedSession]) => {
         if (cancelled) return;
         setFavouriteIds(loadedFavourites);
         setRecentIds(loadedRecents);
         setCustomFoods(loadedCustomFoods);
         setDoseProfile(loadedDoseProfile.profile);
         setHasSavedDoseProfile(loadedDoseProfile.hasSavedProfile);
+        setSession(loadedSession);
       })
       .finally(() => {
         if (!cancelled) setDataLoaded(true);
@@ -113,9 +138,25 @@ function AppShell() {
 
   const baseCatalog = remoteFoods ?? CATALOG;
   const catalogSource: "online" | "offline" = remoteFoods !== null ? "online" : "offline";
+  // Every food this app knows about right now, UNFILTERED by area — this is
+  // what favourites/recents resolve against, so an active area/cuisine
+  // filter in Search never hides an already-favourited or recently-viewed
+  // food elsewhere in the app.
   const allFoods = useMemo(() => [...baseCatalog, ...customFoods], [baseCatalog, customFoods]);
+
+  // Browse-by-area (Slice: browse by area + cuisine). The filter is applied
+  // to the CATALOG only, before combining with the user's own custom foods
+  // (which have no countries/cuisineTags of their own and must never be
+  // hidden by a geography/cuisine filter) — see areaFilter.ts.
+  const regionGroups: ContinentGroup[] = AREA_TAXONOMY;
+  const cuisines = useMemo(() => availableCuisineTags(baseCatalog), [baseCatalog]);
+  const searchableFoods = useMemo(() => {
+    const areaFiltered = filterByArea(baseCatalog, { regionId: selectedRegionId, cuisine: selectedCuisine });
+    return [...areaFiltered, ...customFoods];
+  }, [baseCatalog, customFoods, selectedRegionId, selectedCuisine]);
+
   const favouriteIdSet = useMemo(() => new Set(favouriteIds), [favouriteIds]);
-  const results = useMemo(() => searchFoods(query, allFoods), [query, allFoods]);
+  const results = useMemo(() => searchFoods(query, searchableFoods), [query, searchableFoods]);
   // Single source of truth for meal totals — same summariseMeal() used here
   // for the quick-glance search bar and in MealScreen for the full breakdown.
   const mealSummary = useMemo(() => summariseMeal(meal), [meal]);
@@ -209,6 +250,125 @@ function AppShell() {
     setHasSavedDoseProfile(true);
   }, []);
 
+  // Accounts + multi-device sync (Slice: accounts + multi-device sync).
+  //
+  // MERGE RULE — CLAUDE.md: "Never merge conflicting food values by silently
+  // averaging them." A sync is always a UNION over favourites/customFoods
+  // (see src/sync.ts's mergeSyncState), never a pick-one-and-discard —
+  // logging in on a second device must never silently drop data that exists
+  // only locally or only in the cloud.
+  //
+  // `performSyncBootstrap` pulls the cloud snapshot right after a successful
+  // login/register, merges it with THIS device's current local data, applies
+  // the merge locally immediately (so the merge is visible even if the
+  // follow-up push below fails), then pushes the merged result back —
+  // re-merging and retrying exactly once if the push hits a version conflict
+  // (CLAUDE.md: "a sync conflict must be surfaced and reconciled explicitly,
+  // never overwritten blindly").
+  const performSyncBootstrap = useCallback(async (token: string, localFavourites: string[], localCustomFoods: CanonicalFood[]) => {
+    setSyncStatus("syncing");
+    try {
+      const remote = await getSyncState(token);
+      const merged = mergeSyncState({ favouriteIds: localFavourites, customFoods: localCustomFoods }, remote.state);
+      setFavouriteIds(merged.favourites);
+      setCustomFoods(merged.customFoods);
+
+      let putResult = await putSyncState(token, merged, remote.version);
+      if (putResult.outcome === "conflict") {
+        const remerged = mergeSyncState({ favouriteIds: merged.favourites, customFoods: merged.customFoods }, putResult.snapshot.state);
+        setFavouriteIds(remerged.favourites);
+        setCustomFoods(remerged.customFoods);
+        putResult = await putSyncState(token, remerged, putResult.snapshot.version);
+      }
+
+      if (putResult.outcome === "ok") {
+        setSyncVersion(putResult.version);
+        setSyncStatus("synced");
+      } else {
+        // Conflict persisted after one retry — the local data is still safe
+        // (already merged as a union and applied above); the next sync
+        // (manual "Sincronizar agora" or the background push) will retry.
+        setSyncStatus("offline");
+      }
+    } catch (error) {
+      setSyncStatus(isConnectivityError(error) ? "offline" : "error");
+    }
+  }, []);
+
+  const handleLogin = useCallback(
+    async (email: string, password: string) => {
+      // Throws a typed ApiError on failure — the caller (AccountScreen)
+      // catches it and shows a message; nothing here is touched on failure.
+      const { token } = await login(email, password);
+      const nextSession: StoredSession = { token, email };
+      setSession(nextSession);
+      void saveSession(nextSession);
+      void performSyncBootstrap(token, favouriteIds, customFoods);
+    },
+    [favouriteIds, customFoods, performSyncBootstrap],
+  );
+
+  const handleRegister = useCallback(
+    async (email: string, password: string) => {
+      const { token } = await register(email, password);
+      const nextSession: StoredSession = { token, email };
+      setSession(nextSession);
+      void saveSession(nextSession);
+      void performSyncBootstrap(token, favouriteIds, customFoods);
+    },
+    [favouriteIds, customFoods, performSyncBootstrap],
+  );
+
+  const handleLogout = useCallback(() => {
+    // Deliberately does NOT touch favourites/recents/customFoods — those are
+    // local-first data the user keeps on this device after logging out
+    // (see src/auth.ts's clearSession).
+    setSession(null);
+    setSyncStatus("idle");
+    setSyncVersion(0);
+    void clearSession();
+  }, []);
+
+  // Pushes the CURRENT local favourites/customFoods to the cloud. Used both
+  // by the "Sincronizar agora" button and by the debounced background-push
+  // effect below — always best-effort: a network failure only ever changes
+  // `syncStatus`, never throws into the UI.
+  const pushSyncState = useCallback(async () => {
+    if (!session) return;
+    setSyncStatus("syncing");
+    try {
+      const state: SyncState = { favourites: favouriteIds, customFoods };
+      let putResult = await putSyncState(session.token, state, syncVersion);
+      if (putResult.outcome === "conflict") {
+        const merged = mergeSyncState({ favouriteIds, customFoods }, putResult.snapshot.state);
+        setFavouriteIds(merged.favourites);
+        setCustomFoods(merged.customFoods);
+        putResult = await putSyncState(session.token, merged, putResult.snapshot.version);
+      }
+      if (putResult.outcome === "ok") {
+        setSyncVersion(putResult.version);
+        setSyncStatus("synced");
+      } else {
+        setSyncStatus("offline");
+      }
+    } catch (error) {
+      setSyncStatus(isConnectivityError(error) ? "offline" : "error");
+    }
+  }, [session, favouriteIds, customFoods, syncVersion]);
+
+  // Best-effort background push: while signed in, any local change to
+  // favourites/customFoods is (debounced) synced to the cloud. Never blocks
+  // the UI and never drops local data on failure — a failed push just leaves
+  // `syncStatus` as "offline"/"error" until the next successful attempt.
+  useEffect(() => {
+    if (!dataLoaded || !session || syncStatus === "syncing") return;
+    const timer = setTimeout(() => {
+      void pushSyncState();
+    }, 1500);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [favouriteIds, customFoods, session, dataLoaded]);
+
   if (!languageLoaded || !dataLoaded) {
     return <Splash />;
   }
@@ -223,6 +383,7 @@ function AppShell() {
         onBack={() => setOverlay(null)}
         onCreateFood={() => setOverlay({ kind: "create" })}
         onOpenProfile={() => setOverlay({ kind: "profile" })}
+        onOpenAccount={() => setOverlay({ kind: "account" })}
       />
 
       {overlay?.kind === "detail" && (
@@ -231,6 +392,7 @@ function AppShell() {
           isFavourite={favouriteIdSet.has(overlay.food.id)}
           onToggleFavourite={handleToggleFavourite}
           onAdd={handleAddToMeal}
+          authToken={session?.token ?? null}
         />
       )}
 
@@ -247,6 +409,17 @@ function AppShell() {
           doseProfile={doseProfile}
           hasSavedDoseProfile={hasSavedDoseProfile}
           onSaveDoseProfile={handleSaveDoseProfile}
+        />
+      )}
+
+      {overlay?.kind === "account" && (
+        <AccountScreen
+          session={session}
+          syncStatus={syncStatus}
+          onLogin={handleLogin}
+          onRegister={handleRegister}
+          onLogout={handleLogout}
+          onSyncNow={() => void pushSyncState()}
         />
       )}
 
@@ -272,6 +445,12 @@ function AppShell() {
               catalogSource={catalogSource}
               catalogLoading={catalogLoading}
               onRefreshCatalog={refreshCatalog}
+              regionGroups={regionGroups}
+              cuisines={cuisines}
+              selectedRegionId={selectedRegionId}
+              selectedCuisine={selectedCuisine}
+              onSelectRegion={setSelectedRegionId}
+              onSelectCuisine={setSelectedCuisine}
             />
           )}
 

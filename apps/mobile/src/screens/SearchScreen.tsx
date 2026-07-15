@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import type { CanonicalFood } from "@t1dine/food-schema";
+import type { CanonicalFood, ContinentGroup } from "@t1dine/food-schema";
 
+import { AreaFilterPanel } from "../components/AreaFilterPanel";
 import { FoodRow } from "../components/FoodRow";
 import { Mascot } from "../components/Mascot";
 import { tPlural, useLanguage } from "../i18n";
@@ -20,6 +22,13 @@ export interface SearchScreenProps {
   catalogSource: "online" | "offline";
   catalogLoading: boolean;
   onRefreshCatalog: () => void;
+  /** Browse-by-area filters (Slice: browse by area). */
+  regionGroups: ContinentGroup[];
+  cuisines: string[];
+  selectedRegionId: string | null;
+  selectedCuisine: string | null;
+  onSelectRegion: (regionId: string | null) => void;
+  onSelectCuisine: (cuisine: string | null) => void;
 }
 
 export function SearchScreen({
@@ -35,13 +44,22 @@ export function SearchScreen({
   catalogSource,
   catalogLoading,
   onRefreshCatalog,
+  regionGroups,
+  cuisines,
+  selectedRegionId,
+  selectedCuisine,
+  onSelectRegion,
+  onSelectCuisine,
 }: SearchScreenProps) {
   const { t } = useLanguage();
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const sourceText = catalogLoading
     ? t("catalog.refreshing")
     : catalogSource === "online"
       ? t("catalog.sourceOnline")
       : t("catalog.sourceOffline");
+  const activeFilterCount = (selectedRegionId ? 1 : 0) + (selectedCuisine ? 1 : 0);
+  const filtersLabel = activeFilterCount > 0 ? t("filters.toggleActive", { count: activeFilterCount }) : t("filters.toggle");
 
   return (
     <View style={styles.screen}>
@@ -63,6 +81,15 @@ export function SearchScreen({
         <View style={[styles.sourceDot, catalogSource === "online" ? styles.sourceDotOnline : styles.sourceDotOffline]} />
         <Text style={styles.sourceText}>{sourceText}</Text>
         <Pressable
+          onPress={() => setFiltersOpen((open) => !open)}
+          accessibilityRole="button"
+          accessibilityState={{ expanded: filtersOpen }}
+          accessibilityLabel={filtersLabel}
+          style={({ pressed }) => [styles.filtersButton, activeFilterCount > 0 && styles.filtersButtonActive, pressed && styles.filtersButtonPressed]}
+        >
+          <Text style={[styles.filtersButtonText, activeFilterCount > 0 && styles.filtersButtonTextActive]}>{filtersLabel}</Text>
+        </Pressable>
+        <Pressable
           onPress={onRefreshCatalog}
           disabled={catalogLoading}
           accessibilityRole="button"
@@ -73,6 +100,17 @@ export function SearchScreen({
           <Text style={styles.refreshButtonText}>⟳</Text>
         </Pressable>
       </View>
+
+      {filtersOpen && (
+        <AreaFilterPanel
+          regionGroups={regionGroups}
+          cuisines={cuisines}
+          selectedRegionId={selectedRegionId}
+          selectedCuisine={selectedCuisine}
+          onSelectRegion={onSelectRegion}
+          onSelectCuisine={onSelectCuisine}
+        />
+      )}
 
       <Text style={styles.resultMeta}>
         {tPlural(t, "search.results", results.length)} • {t("common.catalogLabel")}
@@ -138,6 +176,18 @@ const styles = StyleSheet.create({
   sourceDotOnline: { backgroundColor: colors.success },
   sourceDotOffline: { backgroundColor: colors.textFaint },
   sourceText: { fontSize: 12, color: colors.textMuted, flex: 1 },
+  filtersButton: {
+    minHeight: MIN_TAP_TARGET,
+    justifyContent: "center",
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+  },
+  filtersButtonActive: { backgroundColor: colors.accentSoft, borderColor: colors.accent },
+  filtersButtonPressed: { opacity: 0.8 },
+  filtersButtonText: { fontSize: 12, fontWeight: "700", color: colors.textSecondary },
+  filtersButtonTextActive: { color: colors.accent },
   refreshButton: {
     minWidth: MIN_TAP_TARGET,
     minHeight: MIN_TAP_TARGET,

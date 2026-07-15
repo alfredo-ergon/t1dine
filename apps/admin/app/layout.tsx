@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { t } from "../lib/i18n";
+import { CuratorBadge } from "./ui/CuratorBadge";
 import { Mascot } from "./ui/Mascot";
 import { NavLinks } from "./ui/NavLinks";
 import "./globals.css";
@@ -77,6 +78,7 @@ export default function RootLayout({ children }: { children: ReactNode }): JSX.E
               </span>
             </Link>
             <NavLinks />
+            <CuratorBadge />
           </div>
         </header>
         <main className="site-main">{children}</main>

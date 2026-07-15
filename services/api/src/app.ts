@@ -11,16 +11,20 @@ import Fastify, { type FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
 import { healthRoutes } from "./modules/health.js";
 import { catalogRoutes } from "./modules/catalog.js";
+import { adminRoutes, resolveAdminEmails } from "./modules/admin.js";
 import { mealsRoutes } from "./modules/meals.js";
 import { nightscoutRoutes, type NightscoutDeps } from "./modules/nightscout.js";
 import { authRoutes, resolveAuthSecret } from "./modules/auth.js";
 import { syncRoutes } from "./modules/sync.js";
+import { CATALOG } from "./catalog.js";
 import { InMemoryMealRepository } from "./repositories/inMemoryMealRepository.js";
 import type { MealRepository } from "./repositories/mealRepository.js";
 import { InMemoryUserRepository } from "./repositories/inMemoryUserRepository.js";
 import type { UserRepository } from "./repositories/userRepository.js";
 import { InMemoryUserDataRepository } from "./repositories/inMemoryUserDataRepository.js";
 import type { UserDataRepository } from "./repositories/userDataRepository.js";
+import { InMemoryFoodRepository } from "./repositories/inMemoryFoodRepository.js";
+import type { FoodRepository } from "./repositories/foodRepository.js";
 
 export interface BuildAppOptions {
   /** Injectable fetch/clock for the read-only Nightscout module — lets tests
@@ -45,11 +49,23 @@ export interface BuildAppOptions {
    * `./repositories/postgresUserDataRepository.ts`) to persist sync state in
    * a real database. */
   userDataRepository?: UserDataRepository;
+  /** Injectable food-catalog persistence PORT. Defaults to a fresh
+   * `InMemoryFoodRepository`, synchronously pre-seeded (at construction —
+   * see that class' doc comment) with the synthetic seed catalog from
+   * `./catalog.ts` (status `approved`, source `seed`). Inject a
+   * `PostgresFoodRepository` (see `./repositories/postgresFoodRepository.ts`)
+   * to persist the catalog in a real database. */
+  foodRepository?: FoodRepository;
   /** Injectable HMAC secret used to sign/verify bearer tokens. Defaults to
    * `resolveAuthSecret()` (the `AUTH_SECRET` env var, or a fixed, clearly
    * insecure dev fallback with a one-line startup warning). Tests may inject
    * a fixed value for determinism; this never affects any other module. */
   authSecret?: string;
+  /** Injectable admin-email allowlist for `requireAdmin` (see
+   * `./modules/admin.ts`). Defaults to `resolveAdminEmails()` (the
+   * `ADMIN_EMAILS` env var, comma-separated, or a single fixed dev default).
+   * Tests may inject a fixed list for determinism. */
+  adminEmails?: string[];
 }
 
 export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
@@ -60,10 +76,13 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const mealRepository = options.mealRepository ?? new InMemoryMealRepository();
   const userRepository = options.userRepository ?? new InMemoryUserRepository();
   const userDataRepository = options.userDataRepository ?? new InMemoryUserDataRepository();
+  const foodRepository = options.foodRepository ?? new InMemoryFoodRepository(CATALOG);
   const authSecret = options.authSecret ?? resolveAuthSecret();
+  const adminEmails = options.adminEmails ?? resolveAdminEmails();
 
   void app.register(healthRoutes);
-  void app.register(catalogRoutes);
+  void app.register(catalogRoutes({ foodRepository, secret: authSecret }));
+  void app.register(adminRoutes({ foodRepository, userRepository, secret: authSecret, adminEmails }));
   void app.register(mealsRoutes(mealRepository));
   void app.register(nightscoutRoutes(options.nightscout ?? {}));
   void app.register(authRoutes({ repository: userRepository, secret: authSecret }));

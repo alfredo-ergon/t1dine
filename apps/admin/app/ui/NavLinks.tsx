@@ -7,6 +7,10 @@ import { t } from "../../lib/i18n";
 const LINKS = [
   { href: "/", label: t.nav.dashboard },
   { href: "/alimentos", label: t.nav.foods },
+  { href: "/areas", label: t.nav.areas },
+  { href: "/revisao", label: t.nav.review },
+  { href: "/adicionar", label: t.nav.add },
+  { href: "/ia", label: t.nav.ai },
   { href: "/fontes", label: t.nav.sources },
 ] as const;
 
