@@ -24,6 +24,9 @@ import type { UserDataRepository } from "./repositories/userDataRepository.js";
 import { InMemoryFoodRepository } from "./repositories/inMemoryFoodRepository.js";
 import { PostgresFoodRepository } from "./repositories/postgresFoodRepository.js";
 import type { FoodRepository } from "./repositories/foodRepository.js";
+import { MockFoodAiProvider } from "./foodAi.js";
+import type { FoodAiProvider } from "./foodAi.js";
+import { AnthropicFoodAiProvider } from "./anthropicFoodAi.js";
 
 interface Repositories {
   mealRepository: MealRepository;
@@ -145,12 +148,31 @@ async function ensureDemoAdmin(userRepository: UserRepository, adminEmails: stri
   }
 }
 
+/**
+ * Resolves the `POST /admin/foods/ai-generate` provider for this process:
+ * the real, network-calling `AnthropicFoodAiProvider` when `ANTHROPIC_API_KEY`
+ * is configured, otherwise the fully offline, deterministic
+ * `MockFoodAiProvider` (the same default `buildApp()` uses when no provider
+ * is injected at all). Logs a single short, non-sensitive line noting which
+ * one is active — never the key itself, and never anything derived from a
+ * prompt or model response.
+ */
+function resolveAiProvider(): FoodAiProvider {
+  if (process.env["ANTHROPIC_API_KEY"]) {
+    console.log("[t1dine-api] food AI provider: anthropic (ANTHROPIC_API_KEY configured)");
+    return new AnthropicFoodAiProvider();
+  }
+  console.log("[t1dine-api] food AI provider: mock (offline, deterministic)");
+  return new MockFoodAiProvider();
+}
+
 async function main(): Promise<void> {
   const { mealRepository, userRepository, userDataRepository, foodRepository } = await resolveRepositories();
   const adminEmails = resolveAdminEmails();
   await ensureDemoAdmin(userRepository, adminEmails);
+  const aiProvider = resolveAiProvider();
 
-  const app = buildApp({ mealRepository, userRepository, userDataRepository, foodRepository, adminEmails });
+  const app = buildApp({ mealRepository, userRepository, userDataRepository, foodRepository, adminEmails, aiProvider });
   const port = Number(process.env["PORT"] ?? 3001);
   const host = "0.0.0.0";
 

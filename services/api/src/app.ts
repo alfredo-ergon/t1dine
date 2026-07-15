@@ -25,6 +25,7 @@ import { InMemoryUserDataRepository } from "./repositories/inMemoryUserDataRepos
 import type { UserDataRepository } from "./repositories/userDataRepository.js";
 import { InMemoryFoodRepository } from "./repositories/inMemoryFoodRepository.js";
 import type { FoodRepository } from "./repositories/foodRepository.js";
+import type { FoodAiProvider } from "./foodAi.js";
 
 export interface BuildAppOptions {
   /** Injectable fetch/clock for the read-only Nightscout module — lets tests
@@ -66,6 +67,14 @@ export interface BuildAppOptions {
    * `ADMIN_EMAILS` env var, comma-separated, or a single fixed dev default).
    * Tests may inject a fixed list for determinism. */
   adminEmails?: string[];
+  /** Injectable AI food-generation provider for `POST
+   * /admin/foods/ai-generate` (see `./modules/admin.ts` / `./foodAi.ts`).
+   * Defaults to whatever `adminRoutes` itself defaults to (the fully
+   * offline, deterministic `MockFoodAiProvider`) when omitted, so existing
+   * callers/tests are unaffected. `src/server.ts` injects the real
+   * `AnthropicFoodAiProvider` (see `./anthropicFoodAi.ts`) here when
+   * `ANTHROPIC_API_KEY` is configured. */
+  aiProvider?: FoodAiProvider;
 }
 
 export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
@@ -82,7 +91,15 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
 
   void app.register(healthRoutes);
   void app.register(catalogRoutes({ foodRepository, secret: authSecret }));
-  void app.register(adminRoutes({ foodRepository, userRepository, secret: authSecret, adminEmails }));
+  void app.register(
+    adminRoutes({
+      foodRepository,
+      userRepository,
+      secret: authSecret,
+      adminEmails,
+      ...(options.aiProvider ? { aiProvider: options.aiProvider } : {}),
+    }),
+  );
   void app.register(mealsRoutes(mealRepository));
   void app.register(nightscoutRoutes(options.nightscout ?? {}));
   void app.register(authRoutes({ repository: userRepository, secret: authSecret }));
