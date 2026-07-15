@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(git status)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(python scripts/validate_repo.py)",
+      "Bash(pnpm lint)",
+      "Bash(pnpm test)",
+      "Bash(pnpm typecheck)",
+      "Bash(pnpm --filter * test *)",
+      "Bash(pytest *)",
+      "Bash(ruff check *)",
+      "Bash(mypy *)"
+    ],
+    "ask": [
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(az deployment *)",
+      "Bash(azd up *)",
+      "Bash(azd deploy *)",
+      "mcp__github__.*write.*",
+      "mcp__azure__.*create.*",
+      "mcp__azure__.*delete.*",
+      "mcp__azure-devops__.*create.*"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./secrets/**)",
+      "Read(~/.ssh/**)",
+      "Read(~/.azure/**)",
+      "Bash(rm -rf *)",
+      "Bash(git push --force*)",
+      "Bash(git reset --hard*)",
+      "Bash(az group delete *)",
+      "Bash(az resource delete *)",
+      "Bash(terraform destroy *)",
+      "Bash(kubectl delete *)",
+      "Bash(docker system prune *)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python ${CLAUDE_PROJECT_DIR}/.claude/hooks/pre_tool_guard.py",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

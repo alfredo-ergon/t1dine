@@ -1,0 +1,678 @@
+/* T1Dine admin portal styling.
+   Colour, radius and elevation come from @t1dine/design-tokens, injected once as
+   CSS custom properties in layout.tsx. This file only *consumes* var(--…) so the
+   shared design system stays the single source of truth.
+
+   Chips always pair colour with a text label, so state is never colour-only
+   (WCAG 1.4.1). */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+  line-height: 1.5;
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--brand-dark);
+}
+
+/* ---------- Header / shell ---------- */
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--surface);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter: saturate(1.4) blur(8px);
+  border-bottom: 1px solid var(--border);
+}
+
+.site-header::before {
+  content: "";
+  display: block;
+  height: 3px;
+  background: linear-gradient(90deg, var(--brand-deep), var(--brand) 55%, var(--accent));
+}
+
+.site-header__inner {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0.7rem 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.site-header__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 1.08rem;
+  letter-spacing: 0.01em;
+}
+
+.site-header__logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: var(--radius-md);
+  background: var(--brand-soft);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brand) 22%, transparent);
+}
+
+.site-header__wordmark {
+  line-height: 1.1;
+}
+
+.site-header__suffix {
+  color: var(--brand-dark);
+  font-weight: 600;
+}
+
+.site-nav {
+  display: flex;
+  gap: 0.2rem;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+.site-nav__link {
+  text-decoration: none;
+  color: var(--text-muted);
+  padding: 0.4rem 0.8rem;
+  border-radius: var(--radius-pill);
+  font-weight: 600;
+  font-size: 0.92rem;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.site-nav__link:hover {
+  background: var(--surface-alt);
+  color: var(--text);
+}
+
+.site-nav__link.is-active {
+  background: var(--brand-soft);
+  color: var(--brand-deep);
+}
+
+.site-nav__link:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.site-main {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 1.75rem 1.25rem 3.5rem;
+}
+
+/* ---------- Headings ---------- */
+
+.page-title {
+  margin: 0 0 0.25rem;
+  font-size: 1.5rem;
+  letter-spacing: -0.01em;
+}
+
+.page-lede {
+  margin: 0 0 1.5rem;
+  color: var(--text-muted);
+  max-width: 62ch;
+}
+
+.section-title {
+  font-size: 1.02rem;
+  margin: 0 0 0.85rem;
+  letter-spacing: -0.01em;
+}
+
+/* ---------- Branded hero (dashboard) ---------- */
+
+.hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 1.6rem 1.85rem;
+  margin: 0 0 1.75rem;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, var(--brand-deep), var(--brand) 78%);
+  color: var(--on-brand);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.hero__content {
+  max-width: 60ch;
+}
+
+.hero__eyebrow {
+  margin: 0 0 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--on-brand) 82%, transparent);
+}
+
+.hero__title {
+  margin: 0 0 0.4rem;
+  font-size: 1.85rem;
+  letter-spacing: -0.02em;
+}
+
+.hero__lede {
+  margin: 0;
+  color: color-mix(in srgb, var(--on-brand) 90%, transparent);
+}
+
+.hero__mascot {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.65rem;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--on-brand) 16%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--on-brand) 24%, transparent);
+}
+
+@media (max-width: 640px) {
+  .hero {
+    flex-direction: row;
+    padding: 1.3rem 1.35rem;
+  }
+  .hero__title {
+    font-size: 1.5rem;
+  }
+}
+
+/* ---------- Notice / banner ---------- */
+
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--warning) 35%, var(--border));
+  background: var(--conf-medium-bg);
+  color: var(--warning);
+  border-radius: var(--radius-md);
+  padding: 0.7rem 0.95rem;
+  font-size: 0.9rem;
+  margin: 0 0 1.25rem;
+}
+
+/* ---------- Data-source badge ---------- */
+
+.data-source-line {
+  margin: 0 0 1.25rem;
+}
+
+.data-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.28rem 0.72rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.4;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.data-badge::before {
+  content: "";
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: currentColor;
+  flex: 0 0 auto;
+}
+
+.data-badge--live {
+  color: var(--success);
+  background: var(--conf-high-bg);
+  border-color: color-mix(in srgb, var(--success) 30%, transparent);
+}
+
+.data-badge--local {
+  color: var(--warning);
+  background: var(--conf-medium-bg);
+  border-color: color-mix(in srgb, var(--warning) 30%, transparent);
+}
+
+/* ---------- Card panels ---------- */
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: 1.15rem 1.3rem;
+  margin: 0 0 1.25rem;
+}
+
+/* ---------- Stat cards ---------- */
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.9rem;
+  margin: 0 0 1.25rem;
+}
+
+.stat-card {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.05rem 1.15rem;
+  box-shadow: var(--shadow-card);
+  transition: box-shadow 0.16s ease, transform 0.16s ease;
+}
+
+.stat-card:hover {
+  box-shadow: var(--shadow-floating);
+  transform: translateY(-1px);
+}
+
+.stat-card__label {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  margin: 0 0 0.4rem;
+}
+
+.stat-card__value {
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--brand-deep);
+}
+
+.stat-card--alert {
+  border-color: color-mix(in srgb, var(--danger) 35%, var(--border));
+  background: var(--conf-unverified-bg);
+}
+
+.stat-card--alert .stat-card__value {
+  color: var(--danger);
+}
+
+.breakdown {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem 1.1rem;
+}
+
+.breakdown__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.9rem;
+}
+
+.breakdown__count {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Tables ---------- */
+
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+table.data {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 720px;
+  font-size: 0.9rem;
+}
+
+table.data th,
+table.data td {
+  text-align: left;
+  padding: 0.68rem 0.8rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+table.data thead th {
+  background: var(--surface-alt);
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  font-weight: 700;
+  border-bottom: 1px solid var(--border-strong);
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+}
+
+table.data tbody tr {
+  transition: background-color 0.12s ease;
+}
+
+table.data tbody tr:hover {
+  background: var(--brand-tint);
+}
+
+table.data tbody tr.provenance:hover {
+  background: var(--surface-alt);
+}
+
+table.data tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.mono {
+  font-family: ui-monospace, "SFMono-Regular", "Consolas", monospace;
+  font-size: 0.82rem;
+  word-break: break-all;
+}
+
+.cell-name {
+  font-weight: 600;
+}
+
+.cell-sub {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* ---------- Empty state ---------- */
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 2.25rem 1rem;
+  text-align: center;
+}
+
+.empty-state .mascot {
+  opacity: 0.9;
+  margin-bottom: 0.25rem;
+}
+
+.empty-state__title {
+  margin: 0;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.empty-state__hint {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--text-muted);
+}
+
+/* ---------- Chips (colour + required text label) ---------- */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+  padding: 0.12rem 0.55rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.5;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.chip::before {
+  content: "";
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: currentColor;
+  flex: 0 0 auto;
+}
+
+.chip--ok {
+  color: var(--success);
+  background: var(--conf-high-bg);
+  border-color: color-mix(in srgb, var(--success) 28%, transparent);
+}
+
+.chip--warn {
+  color: var(--warning);
+  background: var(--conf-medium-bg);
+  border-color: color-mix(in srgb, var(--warning) 28%, transparent);
+}
+
+.chip--danger {
+  color: var(--danger);
+  background: var(--conf-unverified-bg);
+  border-color: color-mix(in srgb, var(--danger) 28%, transparent);
+}
+
+.chip--neutral {
+  color: var(--text-muted);
+  background: var(--surface-alt);
+  border-color: var(--border-strong);
+}
+
+.chip--accent {
+  color: var(--brand-deep);
+  background: var(--brand-soft);
+  border-color: color-mix(in srgb, var(--brand) 30%, transparent);
+}
+
+/* Confidence chips use the dedicated confidence tokens for four distinct steps. */
+.chip--confidence-high {
+  color: var(--conf-high);
+  background: var(--conf-high-bg);
+  border-color: color-mix(in srgb, var(--conf-high) 26%, transparent);
+}
+
+.chip--confidence-medium {
+  color: var(--conf-medium);
+  background: var(--conf-medium-bg);
+  border-color: color-mix(in srgb, var(--conf-medium) 26%, transparent);
+}
+
+.chip--confidence-low {
+  color: var(--conf-low);
+  background: var(--conf-low-bg);
+  border-color: color-mix(in srgb, var(--conf-low) 26%, transparent);
+}
+
+.chip--confidence-unverified {
+  color: var(--conf-unverified);
+  background: var(--conf-unverified-bg);
+  border-color: color-mix(in srgb, var(--conf-unverified) 26%, transparent);
+}
+
+/* ---------- Controls ---------- */
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-end;
+  margin: 0 0 1rem;
+  padding: 0.95rem 1.1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.field label {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.field select {
+  font: inherit;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  min-width: 12rem;
+}
+
+.field select:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 1px;
+  border-color: var(--brand);
+}
+
+.controls__meta {
+  margin-left: auto;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.btn {
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0.34rem 0.7rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  transition: background-color 0.14s ease, border-color 0.14s ease;
+}
+
+.btn:hover {
+  background: var(--surface-alt);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 1px;
+}
+
+.btn--approve {
+  border-color: color-mix(in srgb, var(--success) 40%, transparent);
+  background: var(--conf-high-bg);
+  color: var(--success);
+}
+
+.btn--approve:hover {
+  background: color-mix(in srgb, var(--success) 16%, var(--surface));
+}
+
+.btn--reject {
+  border-color: color-mix(in srgb, var(--danger) 40%, transparent);
+  background: var(--conf-unverified-bg);
+  color: var(--danger);
+}
+
+.btn--reject:hover {
+  background: color-mix(in srgb, var(--danger) 14%, var(--surface));
+}
+
+.btn--link {
+  border: none;
+  background: none;
+  color: var(--brand-dark);
+  padding: 0.2rem 0;
+  text-decoration: underline;
+}
+
+.btn--link:hover {
+  background: none;
+  color: var(--brand-deep);
+}
+
+.actions {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.decision-note {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* ---------- Provenance detail ---------- */
+
+.provenance {
+  background: var(--surface-alt);
+}
+
+.provenance dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.28rem 1rem;
+  font-size: 0.85rem;
+}
+
+.provenance dt {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.provenance dd {
+  margin: 0;
+}
+
+.errors {
+  margin: 0.5rem 0 0;
+  padding-left: 1.1rem;
+  color: var(--danger);
+  font-size: 0.83rem;
+}

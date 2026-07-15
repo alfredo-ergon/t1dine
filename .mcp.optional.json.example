@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "figma": {
+      "type": "http",
+      "url": "${FIGMA_MCP_URL}"
+    },
+    "sentry": {
+      "type": "http",
+      "url": "${SENTRY_MCP_URL}"
+    },
+    "food-catalog-readonly": {
+      "type": "stdio",
+      "command": "python",
+      "args": ["tools/mcp/food-catalog/server.py"],
+      "env": {
+        "POSTGRES_READONLY_URL": "${POSTGRES_READONLY_URL}"
+      }
+    }
+  }
+}

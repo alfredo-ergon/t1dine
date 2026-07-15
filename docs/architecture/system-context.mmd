@@ -1,0 +1,20 @@
+flowchart LR
+  User[Person with T1D] --> Mobile[T1Dine Mobile]
+  Caregiver[Caregiver] --> Mobile
+  Curator[Food Data Curator] --> Admin[Admin Portal]
+  Clinician[Clinical Owner] --> Governance[Clinical and Quality Governance]
+
+  Mobile --> API[Core API]
+  Admin --> API
+  API --> DB[(PostgreSQL)]
+  API --> Search[Azure AI Search]
+  API --> Blob[(Blob Storage)]
+  API --> Nightscout[Nightscout]
+  API --> Dose[Deterministic Dose Engine]
+
+  Sources[National, branded, restaurant and community sources] --> Ingestion[Food Ingestion]
+  Ingestion --> Blob
+  Ingestion --> DB
+  Ingestion --> Search
+
+  Governance --> Dose

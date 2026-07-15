@@ -1,0 +1,27 @@
+{
+  "expo": {
+    "name": "T1Dine",
+    "slug": "t1dine",
+    "version": "0.0.0",
+    "orientation": "portrait",
+    "scheme": "t1dine",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#0B1220",
+    "splash": {
+      "backgroundColor": "#0B1220"
+    },
+    "platforms": ["ios", "android", "web"],
+    "ios": {
+      "bundleIdentifier": "app.t1dine.mobile",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "app.t1dine.mobile",
+      "backgroundColor": "#0B1220"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    }
+  }
+}

@@ -1,0 +1,460 @@
+{
+  "generated": "2026-07-13",
+  "files": [
+    {
+      "path": ".claude/agents/backend-engineer.md",
+      "bytes": 362,
+      "sha256": "3aadb6d8adfab4bf4a5e256e3186173f7124d52abea10c3df1ae7c08daa86215"
+    },
+    {
+      "path": ".claude/agents/clinical-safety-reviewer.md",
+      "bytes": 436,
+      "sha256": "b6247ba1471fc365bd616a510553bd7c38c8f5f1010bcee5dc7b8615c4e70c70"
+    },
+    {
+      "path": ".claude/agents/food-data-engineer.md",
+      "bytes": 466,
+      "sha256": "b156038cc78b9345f3103d9c2947934a66f526f23069901a65b9584440c1d3ea"
+    },
+    {
+      "path": ".claude/agents/mobile-engineer.md",
+      "bytes": 377,
+      "sha256": "90c146988e2d9e40f69ad314d61aebee045de74463f6f3200f5dd2975703a5d2"
+    },
+    {
+      "path": ".claude/agents/product-architect.md",
+      "bytes": 501,
+      "sha256": "9b07f2272f9310b2afa157acbdae274246416fb948fa26a2875004d6310507bb"
+    },
+    {
+      "path": ".claude/agents/quality-regulatory-reviewer.md",
+      "bytes": 447,
+      "sha256": "c4844ef0cf32b42b7456ad4c5f83cbe3d307fe8ef66bab9ec5c6cbe49b07ae03"
+    },
+    {
+      "path": ".claude/agents/security-privacy-reviewer.md",
+      "bytes": 421,
+      "sha256": "7c6fca7b789808aa20ac0908abca3a637ca57fa4efce42d6d50e68d11e119416"
+    },
+    {
+      "path": ".claude/hooks/pre_tool_guard.py",
+      "bytes": 1975,
+      "sha256": "42dd70230a107641e35860609af7d840862e02dd63ce511a4ae5fb0834d6a9e4"
+    },
+    {
+      "path": ".claude/rules/architecture.md",
+      "bytes": 520,
+      "sha256": "55e38bde9e73b8736c9329eb97fb41118c4570c8a881720b47007089f74a7a3e"
+    },
+    {
+      "path": ".claude/rules/clinical-safety.md",
+      "bytes": 602,
+      "sha256": "b2785437508e8fcb7916bff29c4d09e5b873154d93fd34836ac7497f131e05ab"
+    },
+    {
+      "path": ".claude/rules/food-data.md",
+      "bytes": 460,
+      "sha256": "ac0c65b593ca018da1bbbe619b71ba0b1cb498fb0898d372cb8d6a577686146e"
+    },
+    {
+      "path": ".claude/rules/privacy-security.md",
+      "bytes": 447,
+      "sha256": "6329cf27bfa9f2c9c3307dfcee6d9264e8a5ca001a8d11f5a47169b53f9ec90e"
+    },
+    {
+      "path": ".claude/rules/testing.md",
+      "bytes": 442,
+      "sha256": "de5bd33aeca9a8df872b001604d9d37a2fbdf36411446590086e80abee73480b"
+    },
+    {
+      "path": ".claude/settings.json",
+      "bytes": 1429,
+      "sha256": "6881e4c7ac8f55de82477b559731bcdc664018231c5f252e8684d24bef743844"
+    },
+    {
+      "path": ".claude/skills/clinical-change-control/SKILL.md",
+      "bytes": 421,
+      "sha256": "3e76bab62a26a92f85428b5323b4c9d89d4bd80a76b65ec22e0aedd7765d03ef"
+    },
+    {
+      "path": ".claude/skills/onboard-food-source/SKILL.md",
+      "bytes": 493,
+      "sha256": "1a6b40fc9108cc9d1ed5f7556816e053f04421404328e2bc441a9f701b890cfb"
+    },
+    {
+      "path": ".claude/skills/plan-vertical-slice/SKILL.md",
+      "bytes": 558,
+      "sha256": "24146da4b2a72fa5415cc7fcf0c6d8e62cc5008e227c469cdbce576bc27cc938"
+    },
+    {
+      "path": ".claude/skills/release-readiness/SKILL.md",
+      "bytes": 381,
+      "sha256": "c50f6e9754a3f31389967ef1448feddf27207bf19db71d90df0e0b29a5992aaa"
+    },
+    {
+      "path": ".claude/skills/threat-model/SKILL.md",
+      "bytes": 350,
+      "sha256": "a06956c0a4e822eee04073504348bad5fc4ad52b9c0b71cc621691e27a77b0fb"
+    },
+    {
+      "path": ".env.example",
+      "bytes": 459,
+      "sha256": "767b1470f4d7c62e685b600d97259e7b26fe7f62f42d36da737e95adf2d24fab"
+    },
+    {
+      "path": ".gitignore",
+      "bytes": 287,
+      "sha256": "7824f0e467bb5a06b1adc340ffe61ae40f2e8cc0798c289930500d74d76975f7"
+    },
+    {
+      "path": ".mcp.json",
+      "bytes": 921,
+      "sha256": "779581e730d147e325386d9de0824cfc9ff4b16eacbb4a3108dc07634269abe5"
+    },
+    {
+      "path": ".mcp.optional.json.example",
+      "bytes": 402,
+      "sha256": "1b9791c26cdebcbdcd61773eb101a07341e9c3f23962f9c8ea5cfb5594c023fe"
+    },
+    {
+      "path": "BOOTSTRAP-CHECKLIST.md",
+      "bytes": 990,
+      "sha256": "36343bf80536887b8fdb76527587789d40a6032dc508f6713ab5ee60b19075cc"
+    },
+    {
+      "path": "CLAUDE.md",
+      "bytes": 3154,
+      "sha256": "a06702a7d576a34697ea159f180e7957409b8f656a7e3a10fdbe93e67f260437"
+    },
+    {
+      "path": "README.md",
+      "bytes": 3683,
+      "sha256": "c245e0eaa7d761b07d9c6e086818fcd13ff1f46e5782b7098bf55f0736bea813"
+    },
+    {
+      "path": "apps/admin/README.md",
+      "bytes": 276,
+      "sha256": "ddebe7678a95a185a99b2803780b6f23d578fe09be762efec364b21b5ed25a72"
+    },
+    {
+      "path": "apps/mobile/README.md",
+      "bytes": 368,
+      "sha256": "172a457d7863d3dcf4fa67782459b5161eb6cdaed6f820f1755dc0d67bda4d20"
+    },
+    {
+      "path": "docker-compose.yml",
+      "bytes": 422,
+      "sha256": "87a9a2956b348dcc38ff84bc800e5bcaa5132aa9e57c4212372795f54d7900be"
+    },
+    {
+      "path": "docs/architecture/adr/0001-monorepo.md",
+      "bytes": 305,
+      "sha256": "23f0203fd5ddd0e71495dce449101fa0fac98123442a80852c8ca738d218a9ae"
+    },
+    {
+      "path": "docs/architecture/adr/0002-offline-first.md",
+      "bytes": 289,
+      "sha256": "462920b7c635fc8e776a355f40a27e26aab5e31595859287afca158c8cfa6753"
+    },
+    {
+      "path": "docs/architecture/adr/0003-dose-engine-isolation.md",
+      "bytes": 309,
+      "sha256": "e18e2fd39d02a7c64ba94e8ec873c849c5d3580c290769298db42d8612e5d256"
+    },
+    {
+      "path": "docs/architecture/adr/0004-food-provenance.md",
+      "bytes": 272,
+      "sha256": "7d838e8fc468c75462afa58808c076b49bcb9fda14b4ebf13f768ef8c779cd2c"
+    },
+    {
+      "path": "docs/architecture/adr/0005-azure-platform.md",
+      "bytes": 281,
+      "sha256": "20a1ea24c11eb91a4ae46e94df3aec5f8656f3052d6abe05ad615f603b144d4f"
+    },
+    {
+      "path": "docs/architecture/adr/0006-ai-boundary.md",
+      "bytes": 386,
+      "sha256": "e1de4ef87a5a82cafd4de923b0f4bfd65278bb7dcf5a5357b7d6e4b12c0a1bbe"
+    },
+    {
+      "path": "docs/architecture/adr/0007-defer-fhir.md",
+      "bytes": 250,
+      "sha256": "e35caebfaef30d61df442ee8c4a627717d0f63731a4cd0b9d73b03ec1b4c0aa5"
+    },
+    {
+      "path": "docs/architecture/data-flow.mmd",
+      "bytes": 585,
+      "sha256": "2c310646a83a533884fe332eec038d767b602a740a171be80afc2af2a3837c68"
+    },
+    {
+      "path": "docs/architecture/system-context.mmd",
+      "bytes": 617,
+      "sha256": "3150a619fc24a096046694d9dc541a7b4602866dcc5e693b5ae62cd6ad3d9f69"
+    },
+    {
+      "path": "docs/architecture/target-architecture.md",
+      "bytes": 2272,
+      "sha256": "3b11d859f1364eb0c3a1b6ae88aa29e2507eaf47d2ddf3a242fea7b201e5d711"
+    },
+    {
+      "path": "docs/clinical/calculation-contract.md",
+      "bytes": 1129,
+      "sha256": "4e43c69e690ee49e56ac695eae3e9664474ef6f79f0d6e60dff61fdf8be5f351"
+    },
+    {
+      "path": "docs/clinical/hazard-log.md",
+      "bytes": 1202,
+      "sha256": "e4aef5c24b675fde4f8c07b6e4bea058e26fb22e59e9bbf2dcbda25317cb89f0"
+    },
+    {
+      "path": "docs/clinical/intended-use-and-boundary.md",
+      "bytes": 1144,
+      "sha256": "648c0697b7a2b9b42656c0902a59109f2a33a88d4069a0ec7985368976ddec8f"
+    },
+    {
+      "path": "docs/clinical/safety-requirements.md",
+      "bytes": 932,
+      "sha256": "df92fc3539ed0bdfb995527a7765f6851f0b1436fcd4b0f35ce1b3741af13efc"
+    },
+    {
+      "path": "docs/clinical/verification-strategy.md",
+      "bytes": 675,
+      "sha256": "e3f2a02208496dd398e345eaf7a8e44221ca678842c3c90c709631b02c2d3016"
+    },
+    {
+      "path": "docs/data/canonical-food-schema.md",
+      "bytes": 1336,
+      "sha256": "36faf52541074bfb7aedffdfd375ea699c41b7ce04b871d19dcf4e9c0039b256"
+    },
+    {
+      "path": "docs/data/data-quality-policy.md",
+      "bytes": 843,
+      "sha256": "0beb8be1528c3c92d00b4561d18d78cd31501f3bc6c896aa92525ba343a3d76d"
+    },
+    {
+      "path": "docs/data/food-data-strategy.md",
+      "bytes": 1823,
+      "sha256": "89c4004dc540169744fcf196035bf14041fc70f36442fd4683f19190d46a3aa4"
+    },
+    {
+      "path": "docs/data/source-register.md",
+      "bytes": 1110,
+      "sha256": "6e76270e937ecc69f139328071a095d447e52878189e0ef633be7e6cf79ef326"
+    },
+    {
+      "path": "docs/delivery/definition-of-done.md",
+      "bytes": 492,
+      "sha256": "c25e736be69c0c71b5a82218433ef25b75fdc7a0d8862650cdd23932b5f9f946"
+    },
+    {
+      "path": "docs/delivery/first-12-weeks.md",
+      "bytes": 1141,
+      "sha256": "f9e7d0a21ab493853e72cbf9516ffe02fe7b61aecb898055ae589dbba71232d2"
+    },
+    {
+      "path": "docs/delivery/roadmap-and-epics.md",
+      "bytes": 1389,
+      "sha256": "3a20343480f4e6b7bf003595e4da0ddf7f844e820ed9e5be7b7b8325b543fb7f"
+    },
+    {
+      "path": "docs/delivery/traceability.csv",
+      "bytes": 711,
+      "sha256": "87b0b2632cd53d6af28efac0aaea3c93d72eea6556a32e7cfe6028c7cfda08d1"
+    },
+    {
+      "path": "docs/knowledge/authoritative-sources.md",
+      "bytes": 2043,
+      "sha256": "c0605185886623863dfb2629b25ff20947a95acef0c3a2f6808792a777f39e14"
+    },
+    {
+      "path": "docs/knowledge/glossary.md",
+      "bytes": 761,
+      "sha256": "150d7535bd9202fc0e34cfb9a56ecf01f6b0ff73ad40466c5d9fbdd7da18bb4c"
+    },
+    {
+      "path": "docs/knowledge/open-decisions.md",
+      "bytes": 793,
+      "sha256": "dcaffb854752a267d852a99c6de107d26d9c17eebec6484de8c57844e302cbe6"
+    },
+    {
+      "path": "docs/product/current-application-audit.md",
+      "bytes": 2251,
+      "sha256": "5e29df5e9c1fa7a8d2a825e133888916a30965049fc3a017db99a3efdff9480d"
+    },
+    {
+      "path": "docs/product/feature-parity.md",
+      "bytes": 1815,
+      "sha256": "0daee1a5a0e7b97966f3453cbe9992c56ab1a9e1665c32bc4eb002fb4223dfdf"
+    },
+    {
+      "path": "docs/product/naming-and-brand.md",
+      "bytes": 620,
+      "sha256": "b9d4cd7b9414919a317e1877d856dd6cd98cc75af2fd5e636ba6a0ac733c6575"
+    },
+    {
+      "path": "docs/product/product-vision.md",
+      "bytes": 1405,
+      "sha256": "8925a4e0e1b22d4b7bc5ce2020e6013c348be0adb7e36862e89b7e1c8c0d421e"
+    },
+    {
+      "path": "docs/security/mcp-security.md",
+      "bytes": 1057,
+      "sha256": "2c7a576551d25c1d07327ca4d0003a3f65c1048dae578e5b6b240cd8efa6ba66"
+    },
+    {
+      "path": "docs/security/privacy-and-data-classification.md",
+      "bytes": 989,
+      "sha256": "cf8668f0a8f0664c54593f8c379c88627311f3c4bdf7dcd38dc3408b3c667e3c"
+    },
+    {
+      "path": "docs/security/threat-model.md",
+      "bytes": 1192,
+      "sha256": "7f009a0a77dfa3d931ef2e8374b90f2e378b2e7e8e5b71fb7394900e79899df4"
+    },
+    {
+      "path": "docs/tools/mcp-and-tooling.md",
+      "bytes": 1757,
+      "sha256": "4ffb238c670ba7e21fb57b4ff85c120cd1221f0267cc0f4dc631663ffc3bdb83"
+    },
+    {
+      "path": "docs/ux/core-journeys.md",
+      "bytes": 1023,
+      "sha256": "50c4092d5716579427bc995cf9778903b2122d073f6324ba47ceb35ba32317d3"
+    },
+    {
+      "path": "docs/ux/design-principles.md",
+      "bytes": 577,
+      "sha256": "411f870f1366b477b312bcac0ed4872a6fbe7fd413949d31fd1f1df7169731a4"
+    },
+    {
+      "path": "infra/README.md",
+      "bytes": 487,
+      "sha256": "780c7fddf5b954037406e223bf4078e080fccc359668c4624b8bc54bee36abe3"
+    },
+    {
+      "path": "infra/azure/main.bicep",
+      "bytes": 599,
+      "sha256": "6b36fb2a5afc49b2b5cdddb703407246e268dcead4db356c631e96293b4aa127"
+    },
+    {
+      "path": "package.json",
+      "bytes": 323,
+      "sha256": "6886ea6e7e90cfad55e6aaff4192ff86f8a3b1428eb06cb9e98c710c375316cd"
+    },
+    {
+      "path": "packages/domain/package.json",
+      "bytes": 144,
+      "sha256": "715a1db1a860e982bd7a02881616118591ea534f2db41fb4c5e79f108d65cc44"
+    },
+    {
+      "path": "packages/domain/src/index.ts",
+      "bytes": 692,
+      "sha256": "51bf6859f895e130b0a99fdb93bd35c3cbacf16d3b12b9ba8a197c30ffe65b8e"
+    },
+    {
+      "path": "packages/domain/tsconfig.json",
+      "bytes": 74,
+      "sha256": "88020c5d0c639e9fca3c8cc0425dc6233bbb30b14c5a0cb5dcb7d7530d4b788f"
+    },
+    {
+      "path": "packages/dose-engine/README.md",
+      "bytes": 407,
+      "sha256": "b4f773fdc64b41fd2f9fefac54645870b87f77b12a228b50fb0f8755494dc323"
+    },
+    {
+      "path": "packages/dose-engine/package.json",
+      "bytes": 149,
+      "sha256": "a736cdc98002484db2581f623cea7889b3230af929d515cbd2df4fde08fd705a"
+    },
+    {
+      "path": "packages/dose-engine/src/index.ts",
+      "bytes": 3142,
+      "sha256": "7a86c55a7e0bbc5ca823bd3601aaa73d0b5cf253c5de4d882e4c496f1202d82d"
+    },
+    {
+      "path": "packages/dose-engine/tsconfig.json",
+      "bytes": 74,
+      "sha256": "88020c5d0c639e9fca3c8cc0425dc6233bbb30b14c5a0cb5dcb7d7530d4b788f"
+    },
+    {
+      "path": "packages/food-schema/package.json",
+      "bytes": 149,
+      "sha256": "595c62969717fdb18f467cceb6752596ab6c35f7ca71c7864f81da094f6faa8c"
+    },
+    {
+      "path": "packages/food-schema/src/index.ts",
+      "bytes": 674,
+      "sha256": "b1b99c760d21b910171d5db4db59a27d666022f4f2c452f811f21acb1ddd9153"
+    },
+    {
+      "path": "packages/food-schema/tsconfig.json",
+      "bytes": 74,
+      "sha256": "88020c5d0c639e9fca3c8cc0425dc6233bbb30b14c5a0cb5dcb7d7530d4b788f"
+    },
+    {
+      "path": "pnpm-workspace.yaml",
+      "bytes": 57,
+      "sha256": "b3c32d8dbcc692117640e3986bc0e11f2b5df60e00bd7a9568e90402fa85c5ce"
+    },
+    {
+      "path": "prompts/00-initial-plan-mode.md",
+      "bytes": 4644,
+      "sha256": "0eab842e5bd7d17e376ab5b7fdb9564e26f39c485f24ce9938035102f0f8f391"
+    },
+    {
+      "path": "prompts/01-first-execution-slice.md",
+      "bytes": 759,
+      "sha256": "2ab186dbb158ba586a7a6bd77b374086028eeb65dc6ac6a3e6f6451beb128b8b"
+    },
+    {
+      "path": "scripts/bootstrap.ps1",
+      "bytes": 481,
+      "sha256": "cb7766991abc32940bd7526ceae4d4cabb7824ce36716e13c823325f0491e556"
+    },
+    {
+      "path": "scripts/bootstrap.sh",
+      "bytes": 315,
+      "sha256": "59ed4098a94db4f8aa6129c293ea3255d5a78a4b8428c126befa315a55e6b965"
+    },
+    {
+      "path": "scripts/validate_repo.py",
+      "bytes": 2136,
+      "sha256": "ca34f91f468aee0c8c14685a9408ab993669285c6b62d4d2c1635097d5fd87df"
+    },
+    {
+      "path": "services/api/README.md",
+      "bytes": 199,
+      "sha256": "62553982f9ec9e98ef78323d48d24e6be1ae6e2e830cdb64a3b90061f974fce4"
+    },
+    {
+      "path": "services/food-ingestion/README.md",
+      "bytes": 234,
+      "sha256": "c4ce99b589f140751d4f8d97d10b6d2bbe99ba5a3534f5f484eeca49844eb54a"
+    },
+    {
+      "path": "services/integrations/README.md",
+      "bytes": 189,
+      "sha256": "6155bcf60a1a5764fb13b1e1545d3fcf1cfd8fe748c585c45dbeff298b4d5922"
+    },
+    {
+      "path": "services/search-indexer/README.md",
+      "bytes": 172,
+      "sha256": "285cbdc95fe39ab71c9017a444689d5badf7539ba88fb18d58c80698cca48d0b"
+    },
+    {
+      "path": "tools/mcp/food-catalog/README.md",
+      "bytes": 307,
+      "sha256": "308c793ab8a53aae21e1220f6347750350c3bd54c907c5c3b2b62cb9f81368fb"
+    },
+    {
+      "path": "tools/mcp/food-catalog/server.py",
+      "bytes": 314,
+      "sha256": "aaf6189b64e33791e1e5672649531e89d1da8024a9c6223c9e5764458d94a625"
+    },
+    {
+      "path": "tsconfig.base.json",
+      "bytes": 265,
+      "sha256": "ce8483a8042edb06660819cf8ab4417013ef3b1dcca1df79e2b91a9bf64ff70a"
+    }
+  ]
+}

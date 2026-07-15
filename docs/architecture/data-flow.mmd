@@ -1,0 +1,13 @@
+flowchart TD
+  Source[External food source] --> Snapshot[Immutable raw snapshot]
+  Snapshot --> Validate[Schema and licence validation]
+  Validate --> Normalise[Deterministic nutrient normalisation]
+  Normalise --> Candidate[Candidate food record]
+  Candidate --> Quality[Automated quality checks]
+  Quality --> Review[Human or policy review]
+  Review --> Canonical[(Canonical food catalogue)]
+  Canonical --> Index[Search index]
+  Index --> Device[Offline mobile subset]
+  Device --> Meal[User meal]
+  Meal --> Confirm[User confirmation]
+  Confirm --> History[(Private meal history)]
