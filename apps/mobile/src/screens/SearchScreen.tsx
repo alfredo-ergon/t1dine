@@ -98,6 +98,9 @@ export function SearchScreen({
   const { t } = useLanguage();
   const [filtersOpen, setFiltersOpen] = useState(false);
   const sourceText = catalogSource === "online" ? t("catalog.sourceOnline") : t("catalog.sourceOffline");
+  // Must always agree with `sourceText`/the status dot above — never say
+  // "offline" while the dot is green/"online", and vice versa.
+  const catalogMetaText = catalogSource === "online" ? t("catalog.metaOnline") : t("catalog.metaOffline");
   const activeFilterCount = (selectedRegionId ? 1 : 0) + (selectedCuisine ? 1 : 0);
   const filtersLabel = activeFilterCount > 0 ? t("filters.toggleActive", { count: activeFilterCount }) : t("filters.toggle");
 
@@ -165,7 +168,7 @@ export function SearchScreen({
       )}
 
       <Text style={styles.resultMeta}>
-        {tPlural(t, "search.results", results.length)} • {t("common.catalogLabel")}
+        {tPlural(t, "search.results", results.length)} • {catalogMetaText}
       </Text>
 
       <FlatList
@@ -200,7 +203,7 @@ export function SearchScreen({
 
 const styles = StyleSheet.create({
   screen: { flex: 1, paddingHorizontal: spacing.xl },
-  tagline: { fontSize: typeScale.subheading.size, fontWeight: typeScale.subheading.weight, color: colors.textSecondary, marginTop: 2, marginBottom: 14 },
+  tagline: { fontSize: typeScale.subheading.size, fontWeight: typeScale.subheading.weight, color: colors.textSecondary, marginTop: 2, marginBottom: spacing.md },
   inputWrap: {
     flexDirection: "row",
     alignItems: "center",
@@ -220,7 +223,7 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     minHeight: MIN_TAP_TARGET,
   },
-  sourceRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs, marginTop: 10 },
+  sourceRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs, marginTop: spacing.sm },
   sourceLoadingRow: { flex: 1, minHeight: MIN_TAP_TARGET, justifyContent: "center" },
   sourcePill: {
     flex: 1,
@@ -252,7 +255,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   refreshButtonText: { fontSize: 17, color: colors.textSecondary, fontWeight: "700" },
-  resultMeta: { fontSize: 13, color: colors.textMuted, marginTop: 2, marginBottom: 6 },
+  resultMeta: { fontSize: 13, color: colors.textMuted, marginTop: 2, marginBottom: spacing.xs },
   empty: { padding: spacing.xxl, alignItems: "center" },
   emptyTitle: { fontSize: typeScale.heading.size, fontWeight: fontWeights.bold, color: colors.textPrimary, marginTop: spacing.md },
   emptyBody: { fontSize: 14, color: colors.textMuted, marginTop: 4, textAlign: "center", maxWidth: 280 },

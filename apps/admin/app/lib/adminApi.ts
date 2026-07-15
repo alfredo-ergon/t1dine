@@ -182,20 +182,31 @@ export async function listAdminFoods(token: string, filter: AdminFoodsFilter = {
   return extractFoodsEnvelope(payload).map(coerceSubmission);
 }
 
-/** `POST /admin/foods/:id/approve`. */
+/** `POST /admin/foods/:id/approve`.
+ *
+ * These decision endpoints take no payload, but `authHeaders` sets
+ * `Content-Type: application/json`, and Fastify's JSON body parser rejects an
+ * empty body under that content-type ("Body cannot be empty when content-type
+ * is set to 'application/json'"). Sending an empty JSON object (`{}`) satisfies
+ * the parser while keeping the bearer auth header intact. */
 export async function approveFood(token: string, id: string): Promise<void> {
   const response = await fetch(`${API_BASE_URL}/admin/foods/${encodeURIComponent(id)}/approve`, {
     method: "POST",
     headers: authHeaders(token),
+    body: JSON.stringify({}),
   });
   if (!response.ok) throw await toApiError(response);
 }
 
-/** `POST /admin/foods/:id/reject` (soft-rejects to `retired`). */
+/** `POST /admin/foods/:id/reject` (soft-rejects to `retired`).
+ *
+ * Sends an empty JSON object for the same reason as `approveFood`: the
+ * `application/json` content-type from `authHeaders` requires a non-empty body. */
 export async function rejectFood(token: string, id: string): Promise<void> {
   const response = await fetch(`${API_BASE_URL}/admin/foods/${encodeURIComponent(id)}/reject`, {
     method: "POST",
     headers: authHeaders(token),
+    body: JSON.stringify({}),
   });
   if (!response.ok) throw await toApiError(response);
 }

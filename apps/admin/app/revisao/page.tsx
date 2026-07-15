@@ -1,7 +1,7 @@
 "use client";
 
 import { regionForCountry } from "@t1dine/food-schema";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ApiError,
   approveFood,
@@ -26,7 +26,14 @@ import { Mascot } from "../ui/Mascot";
 type SourceFilter = FoodSource | "all";
 type RegionFilter = string; // region id, or "all"
 
-const COLUMN_COUNT = 8;
+// Name, source, region, confidence, carb, energy, validation, actions + the
+// leading selection checkbox column added for bulk approve/reject.
+const COLUMN_COUNT = 9;
+
+interface BulkProgress {
+  done: number;
+  total: number;
+}
 
 interface ReviewRow {
   submission: AdminSubmission;
@@ -51,6 +58,39 @@ function formatNumber(value: number | null, suffix: string): string {
   return value === null ? "—" : `${value} ${suffix}`;
 }
 
+/** A header checkbox that also renders the tri-state "some selected" look via the
+ * native `indeterminate` DOM property (which has no JSX/HTML attribute, so it is
+ * set imperatively). */
+function SelectAllCheckbox({
+  checked,
+  indeterminate,
+  disabled,
+  onChange,
+  ariaLabel,
+}: {
+  checked: boolean;
+  indeterminate: boolean;
+  disabled: boolean;
+  onChange: () => void;
+  ariaLabel: string;
+}): JSX.Element {
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (ref.current) ref.current.indeterminate = indeterminate && !checked;
+  }, [indeterminate, checked]);
+  return (
+    <input
+      ref={ref}
+      type="checkbox"
+      className="select-checkbox"
+      checked={checked}
+      disabled={disabled}
+      onChange={onChange}
+      aria-label={ariaLabel}
+    />
+  );
+}
+
 function ReviewQueue({ token }: { token: string }): JSX.Element {
   const [rows, setRows] = useState<ReviewRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,6 +101,9 @@ function ReviewQueue({ token }: { token: string }): JSX.Element {
   const [actionError, setActionError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [bulkRunning, setBulkRunning] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState<BulkProgress | null>(null);
 
   const load = useCallback(async (): Promise<void> => {
     setLoading(true);
@@ -105,6 +148,81 @@ function ReviewQueue({ token }: { token: string }): JSX.Element {
       }),
     [rows, sourceFilter, regionFilter],
   );
+
+  // Selection is only ever acted on for rows that are currently visible, so a
+  // stale id left in the set after filtering or a reload can never be approved.
+  const visibleIds = useMemo(() => visible.map((row) => row.submission.id), [visible]);
+  const selectedVisibleIds = useMemo(
+    () => visibleIds.filter((id) => selectedIds.has(id)),
+    [visibleIds, selectedIds],
+  );
+  const selectedCount = selectedVisibleIds.length;
+  const allVisibleSelected = visible.length > 0 && selectedCount === visible.length;
+  const someVisibleSelected = selectedCount > 0 && selectedCount < visible.length;
+
+  function toggleSelected(id: string): void {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAllVisible(): void {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allVisibleSelected) {
+        for (const id of visibleIds) next.delete(id);
+      } else {
+        for (const id of visibleIds) next.add(id);
+      }
+      return next;
+    });
+  }
+
+  function clearSelection(): void {
+    setSelectedIds(new Set());
+  }
+
+  async function bulkDecide(decision: "approve" | "reject"): Promise<void> {
+    const ids = [...selectedVisibleIds];
+    if (ids.length === 0 || bulkRunning) return;
+    setBulkRunning(true);
+    setActionError(null);
+    setToast(null);
+    setBulkProgress({ done: 0, total: ids.length });
+
+    let succeeded = 0;
+    let failed = 0;
+    // Loop client-side over the single-item endpoints; one failure must not
+    // abort the rest (tolerant handling), so each call is caught individually.
+    for (const id of ids) {
+      try {
+        if (decision === "approve") await approveFood(token, id);
+        else await rejectFood(token, id);
+        succeeded += 1;
+      } catch {
+        failed += 1;
+      } finally {
+        setBulkProgress({ done: succeeded + failed, total: ids.length });
+      }
+    }
+
+    if (failed === 0) {
+      const base = decision === "approve" ? t.review.bulkApprovedToast : t.review.bulkRejectedToast;
+      setToast(`${base} (${succeeded}).`);
+    } else {
+      setActionError(
+        `${t.review.bulkPartialLead}: ${succeeded} ${t.review.bulkPartialOk}, ${failed} ${t.review.bulkPartialFail}.`,
+      );
+    }
+
+    clearSelection();
+    setBulkProgress(null);
+    setBulkRunning(false);
+    await load();
+  }
 
   async function decide(id: string, decision: "approve" | "reject"): Promise<void> {
     setBusyId(id);
@@ -194,6 +312,46 @@ function ReviewQueue({ token }: { token: string }): JSX.Element {
         </p>
       )}
 
+      {visible.length > 0 && (
+        <div className="bulk-bar" role="group" aria-label={t.review.bulkBarAria}>
+          <span className="bulk-bar__count" role="status" aria-live="polite">
+            {selectedCount} {t.review.selectedCount}
+          </span>
+          <button
+            type="button"
+            className="btn btn--approve"
+            onClick={() => void bulkDecide("approve")}
+            disabled={selectedCount === 0 || bulkRunning || loading}
+            aria-label={`${t.review.bulkApprove} (${selectedCount})`}
+          >
+            {t.review.bulkApprove} ({selectedCount})
+          </button>
+          <button
+            type="button"
+            className="btn btn--reject"
+            onClick={() => void bulkDecide("reject")}
+            disabled={selectedCount === 0 || bulkRunning || loading}
+            aria-label={`${t.review.bulkReject} (${selectedCount})`}
+          >
+            {t.review.bulkReject} ({selectedCount})
+          </button>
+          <button
+            type="button"
+            className="btn btn--link"
+            onClick={clearSelection}
+            disabled={selectedCount === 0 || bulkRunning}
+          >
+            {t.review.bulkClear}
+          </button>
+          {bulkProgress && (
+            <span className="bulk-bar__progress" role="status" aria-live="polite">
+              <progress value={bulkProgress.done} max={bulkProgress.total} />
+              {t.review.bulkProgress} {bulkProgress.done}/{bulkProgress.total}
+            </span>
+          )}
+        </div>
+      )}
+
       {loading && rows.length === 0 ? (
         <div className="table-wrap" role="status" aria-live="polite" style={{ padding: "1.1rem 1.2rem" }}>
           <p className="muted" style={{ margin: "0 0 0.85rem" }}>
@@ -212,6 +370,15 @@ function ReviewQueue({ token }: { token: string }): JSX.Element {
           <table className="data">
             <thead>
               <tr>
+                <th className="select-cell" scope="col">
+                  <SelectAllCheckbox
+                    checked={allVisibleSelected}
+                    indeterminate={someVisibleSelected}
+                    disabled={bulkRunning || visible.length === 0}
+                    onChange={toggleSelectAllVisible}
+                    ariaLabel={t.review.selectAllAria}
+                  />
+                </th>
                 <th>{t.review.columns.name}</th>
                 <th>{t.review.columns.source}</th>
                 <th>{t.review.columns.region}</th>
@@ -228,7 +395,10 @@ function ReviewQueue({ token }: { token: string }): JSX.Element {
                   key={row.submission.id}
                   row={row}
                   busy={busyId === row.submission.id}
+                  bulkRunning={bulkRunning}
+                  selected={selectedIds.has(row.submission.id)}
                   isOpen={Boolean(expanded[row.submission.id])}
+                  onToggleSelect={() => toggleSelected(row.submission.id)}
                   onApprove={() => void decide(row.submission.id, "approve")}
                   onReject={() => void decide(row.submission.id, "reject")}
                   onToggle={() => toggleExpanded(row.submission.id)}
@@ -256,20 +426,44 @@ function ReviewQueue({ token }: { token: string }): JSX.Element {
 interface ReviewRowGroupProps {
   row: ReviewRow;
   busy: boolean;
+  bulkRunning: boolean;
+  selected: boolean;
   isOpen: boolean;
+  onToggleSelect: () => void;
   onApprove: () => void;
   onReject: () => void;
   onToggle: () => void;
 }
 
-function ReviewRowGroup({ row, busy, isOpen, onApprove, onReject, onToggle }: ReviewRowGroupProps): JSX.Element {
+function ReviewRowGroup({
+  row,
+  busy,
+  bulkRunning,
+  selected,
+  isOpen,
+  onToggleSelect,
+  onApprove,
+  onReject,
+  onToggle,
+}: ReviewRowGroupProps): JSX.Element {
   const { submission, enriched } = row;
   const { food } = enriched;
   const foodType = FOOD_TYPE_LABELS[food.type] ?? String(food.type);
+  const disabled = busy || bulkRunning;
 
   return (
     <>
       <tr>
+        <td className="select-cell">
+          <input
+            type="checkbox"
+            className="select-checkbox"
+            checked={selected}
+            disabled={bulkRunning}
+            onChange={onToggleSelect}
+            aria-label={`${t.review.selectRowAria}: ${enriched.primaryName}`}
+          />
+        </td>
         <td>
           <div className="cell-name">{enriched.primaryName}</div>
           <div className="cell-sub">{foodType}</div>
@@ -295,13 +489,19 @@ function ReviewRowGroup({ row, busy, isOpen, onApprove, onReject, onToggle }: Re
         </td>
         <td>
           <div className="actions">
-            <button type="button" className="btn btn--approve" onClick={onApprove} disabled={busy}>
+            <button type="button" className="btn btn--approve" onClick={onApprove} disabled={disabled}>
               {busy ? t.review.approving : t.review.approve}
             </button>
-            <button type="button" className="btn btn--reject" onClick={onReject} disabled={busy}>
+            <button type="button" className="btn btn--reject" onClick={onReject} disabled={disabled}>
               {busy ? t.review.rejecting : t.review.reject}
             </button>
-            <button type="button" className="btn btn--link" aria-expanded={isOpen} onClick={onToggle}>
+            <button
+              type="button"
+              className="btn btn--link"
+              aria-expanded={isOpen}
+              onClick={onToggle}
+              disabled={bulkRunning}
+            >
               {isOpen ? t.foods.hideDetails : t.foods.details}
             </button>
           </div>

@@ -167,6 +167,22 @@ export const t = {
     invalid: "Inválido",
     provenance: "Proveniência",
     unknownRegion: "Sem área",
+    // Bulk selection + actions
+    selectRowAria: "Selecionar candidato",
+    selectAllLabel: "Selecionar todos os visíveis",
+    selectAllAria: "Selecionar ou anular todos os candidatos visíveis",
+    bulkBarAria: "Ações em lote sobre os candidatos selecionados",
+    selectedCount: "selecionados",
+    bulkApprove: "Aprovar selecionados",
+    bulkReject: "Rejeitar selecionados",
+    bulkClear: "Limpar seleção",
+    bulkRunning: "A processar…",
+    bulkProgress: "A processar",
+    bulkApprovedToast: "Candidatos aprovados e publicados",
+    bulkRejectedToast: "Candidatos rejeitados e retirados",
+    bulkPartialLead: "Concluído",
+    bulkPartialOk: "com sucesso",
+    bulkPartialFail: "com erro",
   },
   add: {
     title: "Adicionar alimento",
@@ -289,6 +305,24 @@ export const t = {
  */
 export const en = {
   nav: { settings: "Settings" },
+  review: {
+    // Bulk selection + actions (mirror of the new PT strings in `t.review`)
+    selectRowAria: "Select candidate",
+    selectAllLabel: "Select all visible",
+    selectAllAria: "Select or clear all visible candidates",
+    bulkBarAria: "Bulk actions on the selected candidates",
+    selectedCount: "selected",
+    bulkApprove: "Approve selected",
+    bulkReject: "Reject selected",
+    bulkClear: "Clear selection",
+    bulkRunning: "Processing…",
+    bulkProgress: "Processing",
+    bulkApprovedToast: "Candidates approved and published",
+    bulkRejectedToast: "Candidates rejected and retired",
+    bulkPartialLead: "Done",
+    bulkPartialOk: "succeeded",
+    bulkPartialFail: "failed",
+  },
   dashboard: {
     title: "Dashboard",
     eyebrow: "Curation portal",

@@ -44,12 +44,16 @@ const pt: Dictionary = {
   "common.gramsUnit": "g",
   "common.carbsPer100gShort": "hidratos /100g",
   "common.gramsCarbsPer100": "gramas de hidratos por 100 gramas",
-  "common.catalogLabel": "catálogo offline (sintético PT)",
 
   "catalog.sourceOnline": "online",
   "catalog.sourceOffline": "offline / catálogo local",
   "catalog.refreshCta": "Atualizar catálogo",
   "catalog.refreshing": "A atualizar…",
+  // Shown next to the result count, right under the online/offline status
+  // dot — must always agree with it (never say "offline" while the dot is
+  // green/"online", and vice versa).
+  "catalog.metaOnline": "catálogo T1Dine · dados em direto (sintético)",
+  "catalog.metaOffline": "catálogo local (sintético)",
 
   "filters.toggle": "Filtros de área",
   "filters.toggleActive": "Filtros de área ({count})",
@@ -292,12 +296,13 @@ const en: Dictionary = {
   "common.gramsUnit": "g",
   "common.carbsPer100gShort": "carbs /100g",
   "common.gramsCarbsPer100": "grams of carbs per 100 grams",
-  "common.catalogLabel": "offline catalog (synthetic PT)",
 
   "catalog.sourceOnline": "online",
   "catalog.sourceOffline": "offline / local catalog",
   "catalog.refreshCta": "Refresh catalog",
   "catalog.refreshing": "Refreshing…",
+  "catalog.metaOnline": "T1Dine catalog · live data (synthetic)",
+  "catalog.metaOffline": "local catalog (synthetic)",
 
   "filters.toggle": "Area filters",
   "filters.toggleActive": "Area filters ({count})",

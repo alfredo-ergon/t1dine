@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import { StyleSheet, Text, View, type LayoutChangeEvent } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 
 import { useLanguage } from "../i18n";
@@ -16,6 +17,17 @@ interface HeaderProps {
   /** Opens the "Conta" screen (Slice: accounts + multi-device sync). */
   onOpenAccount: () => void;
 }
+
+// Below this MEASURED header width, the "+ Novo alimento" / "Conta" pill
+// buttons collapse to icon-only (44x44) so the action cluster never collides
+// with the brand mark. Measured via onLayout on the header row itself —
+// deliberately NOT `useWindowDimensions`, because on web the header can be
+// rendered inside the centred ~480px phone-width column (see App.tsx) while
+// the actual browser window is much wider; only the header's own rendered
+// width tells us what will actually fit. Chosen so real phone widths (and
+// the ~480px web column) always land in the compact branch, and only
+// genuinely wide layouts (large tablets) get the full text labels.
+const COMPACT_BREAKPOINT = 560;
 
 // A translucent "light on dark" overlay palette, used only for the small
 // pill/icon controls that sit on top of the ink gradient header — the rest
@@ -36,10 +48,24 @@ const overlay = {
 // gradient so it reads as one premium, branded surface across every screen.
 export function Header({ showBack, onBack, onCreateFood, onOpenProfile, onOpenAccount }: HeaderProps) {
   const { t } = useLanguage();
+  // Default to `true` (compact) until the first onLayout measurement lands,
+  // so there is never a flash of the wide/text-label layout — compact is the
+  // layout that is guaranteed to fit everywhere.
+  const [headerWidth, setHeaderWidth] = useState(0);
+  const isCompact = headerWidth === 0 || headerWidth < COMPACT_BREAKPOINT;
+
+  const handleLayout = (event: LayoutChangeEvent) => {
+    setHeaderWidth(event.nativeEvent.layout.width);
+  };
+
+  // First letter of the (localised) "Conta"/"Account" label — an avatar-style
+  // monogram for the compact icon button. Plain text glyph (not an emoji), so
+  // it always renders in the header's own colour/weight, unlike a pictogram.
+  const accountInitial = t("account.openLabel").charAt(0).toUpperCase();
 
   return (
     <LinearGradient colors={gradients.ink.colors} start={gradients.ink.start} end={gradients.ink.end} style={styles.gradient}>
-      <View style={styles.header}>
+      <View style={[styles.header, isCompact && styles.headerCompact]} onLayout={handleLayout}>
         <View style={styles.left}>
           {showBack ? (
             <PressableScale
@@ -48,33 +74,49 @@ export function Header({ showBack, onBack, onCreateFood, onOpenProfile, onOpenAc
               accessibilityLabel={t("nav.back")}
               style={({ pressed }) => [styles.backButton, pressed && styles.overlayPressed]}
             >
-              <Text style={styles.backText}>‹ {t("nav.back")}</Text>
+              <Text style={styles.backText} numberOfLines={1}>
+                ‹ {t("nav.back")}
+              </Text>
             </PressableScale>
           ) : (
             <View style={styles.brand}>
-              <Mascot size={32} />
-              <Text style={styles.title}>{t("app.name")}</Text>
+              <Mascot size={isCompact ? 28 : 32} />
+              <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
+                {t("app.name")}
+              </Text>
             </View>
           )}
         </View>
-        <View style={styles.right}>
+        <View style={[styles.right, isCompact && styles.rightCompact]}>
           {!showBack && (
             <>
               <PressableScale
                 onPress={onCreateFood}
                 accessibilityRole="button"
                 accessibilityLabel={t("create.openCta")}
-                style={({ pressed }) => [styles.pillButton, pressed && styles.overlayPressed]}
+                style={({ pressed }) => [isCompact ? styles.iconButton : styles.pillButton, pressed && styles.overlayPressed]}
               >
-                <Text style={styles.pillButtonText}>+ {t("create.openCta")}</Text>
+                {isCompact ? (
+                  <Text style={styles.iconButtonText}>+</Text>
+                ) : (
+                  <Text style={styles.pillButtonText} numberOfLines={1}>
+                    + {t("create.openCta")}
+                  </Text>
+                )}
               </PressableScale>
               <PressableScale
                 onPress={onOpenAccount}
                 accessibilityRole="button"
                 accessibilityLabel={t("account.openLabel")}
-                style={({ pressed }) => [styles.pillButton, pressed && styles.overlayPressed]}
+                style={({ pressed }) => [isCompact ? styles.iconButton : styles.pillButton, pressed && styles.overlayPressed]}
               >
-                <Text style={styles.pillButtonText}>{t("account.openLabel")}</Text>
+                {isCompact ? (
+                  <Text style={styles.iconButtonText}>{accountInitial}</Text>
+                ) : (
+                  <Text style={styles.pillButtonText} numberOfLines={1}>
+                    {t("account.openLabel")}
+                  </Text>
+                )}
               </PressableScale>
               <PressableScale
                 onPress={onOpenProfile}
@@ -103,19 +145,34 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    // `flexWrap` is a pure safety net: the compact/wide split above is tuned
+    // to fit on one line at every realistic width, but if it's ever wrong
+    // (an unusually long translation, an extreme viewport), wrapping to a
+    // second line is what happens instead of the brand and the action
+    // cluster overlapping each other.
+    flexWrap: "wrap",
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.md,
     paddingBottom: spacing.lg,
     gap: spacing.sm,
   },
-  left: { flex: 1 },
-  brand: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  right: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  headerCompact: {
+    paddingHorizontal: spacing.lg,
+  },
+  // `minWidth: 0` overrides the flexbox default of "shrink no smaller than my
+  // content" (the classic overlap bug on web, where react-native-web compiles
+  // straight to CSS flexbox) so the brand mark can truncate/shrink instead of
+  // pushing into — or under — the action cluster.
+  left: { flex: 1, minWidth: 0 },
+  brand: { flexDirection: "row", alignItems: "center", gap: spacing.sm, flexShrink: 1, minWidth: 0 },
+  right: { flexDirection: "row", alignItems: "center", gap: spacing.sm, flexShrink: 0 },
+  rightCompact: { gap: spacing.xs },
   title: {
     fontSize: typeScale.heading.size,
     fontWeight: typeScale.heading.weight,
     letterSpacing: typeScale.heading.letterSpacing,
     color: colors.onBrand,
+    flexShrink: 1,
   },
   backButton: {
     minHeight: MIN_TAP_TARGET,

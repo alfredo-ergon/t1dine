@@ -70,7 +70,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.hairline,
-    marginVertical: 6,
+    marginVertical: 5,
     ...elevation.sm.native,
   },
   row: {
@@ -79,10 +79,13 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     overflow: "hidden",
   },
-  main: { flex: 1, padding: spacing.md },
+  main: { flex: 1, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   name: { fontSize: 17, fontWeight: "700", color: colors.textPrimary },
-  sub: { fontSize: 13, color: colors.textMuted, marginTop: 2, marginBottom: spacing.xs },
-  right: { alignItems: "flex-end", padding: spacing.md, paddingLeft: 0, justifyContent: "space-between" },
+  // Single deliberate gap down to the confidence chip below — the chip
+  // itself carries its own `marginTop` (see ConfidenceBadge), so this row
+  // doesn't stack a second, redundant margin on top of it.
+  sub: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
+  right: { alignItems: "flex-end", paddingHorizontal: spacing.md, paddingVertical: spacing.sm, justifyContent: "space-between" },
   carb: { fontSize: 22, fontWeight: "800", color: colors.brandDark, fontVariant: ["tabular-nums"] },
   carbLabel: { fontSize: 11, color: colors.textFaint },
   star: { minWidth: MIN_TAP_TARGET, minHeight: MIN_TAP_TARGET, alignItems: "center", justifyContent: "center" },

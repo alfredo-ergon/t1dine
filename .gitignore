@@ -29,3 +29,8 @@ secrets/
 /t1dine-*.png
 /mascot-*.png
 *.tsbuildinfo
+
+# Raw licensed source datasets (ingest locally; never redistribute the raw file)
+docs/data/*.xlsx
+docs/data/*.xls
+docs/data/*.csv

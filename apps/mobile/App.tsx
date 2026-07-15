@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { SafeAreaView, StyleSheet, View } from "react-native";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { Platform, SafeAreaView, StyleSheet, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { LinearGradient } from "expo-linear-gradient";
 import type { CanonicalFood, ContinentGroup } from "@t1dine/food-schema";
@@ -489,10 +489,30 @@ function AppShell() {
   );
 }
 
+// T1Dine is a phone app. On native (iOS/Android) it should always fill the
+// device screen exactly as before — this component is a no-op there. On web
+// only, a full-bleed phone UI stretched across a desktop browser window reads
+// as broken rather than "responsive", so we centre it in a fixed, phone-like
+// column (~480px, matching common phone widths) over a neutral backdrop,
+// which is also what lets Header.tsx measure a realistic (narrow) width via
+// onLayout instead of the full, much wider, browser window.
+function WebFrame({ children }: { children: ReactNode }) {
+  if (Platform.OS !== "web") {
+    return <>{children}</>;
+  }
+  return (
+    <View style={styles.webBackdrop}>
+      <View style={styles.webColumn}>{children}</View>
+    </View>
+  );
+}
+
 export default function App() {
   return (
     <LanguageProvider>
-      <AppShell />
+      <WebFrame>
+        <AppShell />
+      </WebFrame>
     </LanguageProvider>
   );
 }
@@ -501,4 +521,6 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   body: { flex: 1 },
   tabBarWrap: { paddingHorizontal: spacing.xl, paddingTop: spacing.md },
+  webBackdrop: { flex: 1, alignItems: "center", backgroundColor: colors.ink },
+  webColumn: { flex: 1, width: "100%", maxWidth: 480 },
 });
