@@ -8,6 +8,7 @@ import type { CanonicalFood } from "@t1dine/food-schema";
 import type { MealLine } from "@t1dine/nutrition";
 
 import type { Language } from "./i18n";
+import type { SavedMeal } from "./savedMeals";
 
 export interface DataExportBundle {
   exportedAt: string;
@@ -16,6 +17,7 @@ export interface DataExportBundle {
   recents: string[];
   customFoods: CanonicalFood[];
   meal: MealLine[];
+  savedMeals: SavedMeal[];
 }
 
 export interface DataExportInput {
@@ -24,6 +26,7 @@ export interface DataExportInput {
   recentIds: string[];
   customFoods: CanonicalFood[];
   meal: MealLine[];
+  savedMeals: SavedMeal[];
 }
 
 /** `now` is injectable so the timestamp is deterministic in tests; defaults to the real clock. */
@@ -35,6 +38,7 @@ export function buildDataExportBundle(input: DataExportInput, now: () => string 
     recents: input.recentIds,
     customFoods: input.customFoods,
     meal: input.meal,
+    savedMeals: input.savedMeals,
   };
 }
 

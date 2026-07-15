@@ -18,7 +18,7 @@ import { buildCustomFood, type CustomFoodInput } from "./src/customFood";
 import { DEFAULT_DOSE_PROFILE, type DoseProfile } from "./src/dose/profile";
 import { bumpProfileVersion, loadDoseProfile, saveDoseProfile } from "./src/dose/profileStorage";
 import { LanguageProvider, useLanguage } from "./src/i18n";
-import { searchFoods } from "./src/search";
+import { displayName, searchFoods } from "./src/search";
 import { AccountScreen } from "./src/screens/AccountScreen";
 import { CreateFoodScreen } from "./src/screens/CreateFoodScreen";
 import { DetailScreen } from "./src/screens/DetailScreen";
@@ -27,8 +27,10 @@ import { FavouritesScreen } from "./src/screens/FavouritesScreen";
 import { GlucoseScreen } from "./src/screens/GlucoseScreen";
 import { MealScreen } from "./src/screens/MealScreen";
 import { ProfileScreen, type DoseProfileFormValues } from "./src/screens/ProfileScreen";
+import { SavedMealsScreen } from "./src/screens/SavedMealsScreen";
 import { SearchScreen } from "./src/screens/SearchScreen";
 import { SubmissionsScreen } from "./src/screens/SubmissionsScreen";
+import { buildSavedMealFromLines, loadSavedMeals, resolveSavedMealToLines, saveSavedMeals, type SavedMeal } from "./src/savedMeals";
 import { loadCustomFoods, loadFavouriteIds, loadRecentIds, RECENTS_LIMIT, saveCustomFoods, saveFavouriteIds, saveRecentIds } from "./src/storage";
 import { mergeSyncState, type SyncStatus } from "./src/sync";
 import { colors, gradients, spacing } from "./src/theme";
@@ -46,6 +48,7 @@ type Overlay =
   | { kind: "account" }
   | { kind: "doseReview" }
   | { kind: "submissions" }
+  | { kind: "savedMeals" }
   | null;
 
 function AppShell() {
@@ -60,6 +63,13 @@ function AppShell() {
   const [customFoods, setCustomFoods] = useState<CanonicalFood[]>([]);
   const [meal, setMeal] = useState<MealLine[]>([]);
   const [dataLoaded, setDataLoaded] = useState(false);
+
+  // "Refeições guardadas" (Slice: refeições repetidas) — a local-first,
+  // user-curated list (like favourites/customFoods above), not an
+  // append-only log like ../src/submissions.ts, so it's persisted the same
+  // way: in-memory state here, written back to AsyncStorage by the
+  // `dataLoaded`-guarded effect below.
+  const [savedMeals, setSavedMeals] = useState<SavedMeal[]>([]);
 
   // Dose Assist clinical profile (Rácio/Fator/Alvo/Incremento/Dose
   // máxima/Limiar) — a separate, deliberately non-food AsyncStorage key
@@ -107,8 +117,8 @@ function AppShell() {
   // was persisted from a previous session (see the `dataLoaded` guards below).
   useEffect(() => {
     let cancelled = false;
-    Promise.all([loadFavouriteIds(), loadRecentIds(), loadCustomFoods(), loadDoseProfile(), loadSession()])
-      .then(([loadedFavourites, loadedRecents, loadedCustomFoods, loadedDoseProfile, loadedSession]) => {
+    Promise.all([loadFavouriteIds(), loadRecentIds(), loadCustomFoods(), loadDoseProfile(), loadSession(), loadSavedMeals()])
+      .then(([loadedFavourites, loadedRecents, loadedCustomFoods, loadedDoseProfile, loadedSession, loadedSavedMeals]) => {
         if (cancelled) return;
         setFavouriteIds(loadedFavourites);
         setRecentIds(loadedRecents);
@@ -116,6 +126,7 @@ function AppShell() {
         setDoseProfile(loadedDoseProfile.profile);
         setHasSavedDoseProfile(loadedDoseProfile.hasSavedProfile);
         setSession(loadedSession);
+        setSavedMeals(loadedSavedMeals);
       })
       .finally(() => {
         if (!cancelled) setDataLoaded(true);
@@ -139,6 +150,11 @@ function AppShell() {
     if (!dataLoaded) return;
     void saveCustomFoods(customFoods);
   }, [customFoods, dataLoaded]);
+
+  useEffect(() => {
+    if (!dataLoaded) return;
+    void saveSavedMeals(savedMeals);
+  }, [savedMeals, dataLoaded]);
 
   const baseCatalog = remoteFoods ?? CATALOG;
   const catalogSource: "online" | "offline" = remoteFoods !== null ? "online" : "offline";
@@ -228,18 +244,64 @@ function AppShell() {
   );
 
   // Slice 5 — local data rights: "Apagar todos os meus dados". Resets every
-  // piece of locally persisted state (favourites, recents, custom foods) via
-  // the same storage helpers used to save them, and clears the in-memory
-  // meal (which has no separate persistence key of its own).
+  // piece of locally persisted state (favourites, recents, custom foods,
+  // saved meals) via the same storage helpers used to save them, and clears
+  // the in-memory meal (which has no separate persistence key of its own).
   const handleDeleteAllData = useCallback(() => {
     setFavouriteIds([]);
     setRecentIds([]);
     setCustomFoods([]);
     setMeal([]);
+    setSavedMeals([]);
     void saveFavouriteIds([]);
     void saveRecentIds([]);
     void saveCustomFoods([]);
+    void saveSavedMeals([]);
   }, []);
+
+  // "Guardar refeição" (Slice: refeições repetidas). Builds a snapshot of the
+  // CURRENT meal — never a reference to it — so later edits to the current
+  // meal, or to the underlying foods, never retroactively change a meal that
+  // was already saved (CLAUDE.md: "Preserve original source values and
+  // transformation history").
+  const handleSaveMeal = useCallback(
+    (name: string) => {
+      const built = buildSavedMealFromLines(name, meal, (food) => displayName(food, language));
+      setSavedMeals((current) => [built, ...current]);
+    },
+    [meal, language],
+  );
+
+  const handleRenameSavedMeal = useCallback((id: string, name: string) => {
+    const trimmed = name.trim();
+    if (trimmed.length === 0) return;
+    setSavedMeals((current) => current.map((savedMeal) => (savedMeal.id === id ? { ...savedMeal, name: trimmed } : savedMeal)));
+  }, []);
+
+  const handleDeleteSavedMeal = useCallback((id: string) => {
+    setSavedMeals((current) => current.filter((savedMeal) => savedMeal.id !== id));
+  }, []);
+
+  // "Usar" and "Clonar e ajustar" both replace the CURRENT meal with a fresh
+  // reconstruction of the saved meal (never a reference to the saved
+  // record's own item objects), then switch to the editable Meal screen —
+  // where quantities are already always editable (see MealScreen) and
+  // "Guardar refeição" always creates a brand-new saved-meal record. That
+  // combination is what makes "Clonar e ajustar" safe by construction: any
+  // post-load quantity edit can never mutate the saved original, whether the
+  // user got there via "Usar" or "Clonar e ajustar". The two actions are
+  // intentionally the same operation today, kept as two named callbacks so
+  // the two clearly-labelled entry points in SavedMealsScreen can diverge
+  // later (e.g. "Usar" skipping straight to Estimativa de dose) without a
+  // breaking change to that screen's props.
+  const handleLoadSavedMealIntoCurrent = useCallback(
+    (savedMeal: SavedMeal) => {
+      setMeal(resolveSavedMealToLines(savedMeal, allFoods));
+      setOverlay(null);
+      setActiveTab("meal");
+    },
+    [allFoods],
+  );
 
   // "Perfil clínico" save: merges the validated form values into the current
   // profile, bumps `version` (so the calculation's audit record reflects
@@ -410,6 +472,7 @@ function AppShell() {
             recentIds={recentIds}
             customFoods={customFoods}
             meal={meal}
+            savedMeals={savedMeals}
             onDeleteAll={handleDeleteAllData}
             doseProfile={doseProfile}
             hasSavedDoseProfile={hasSavedDoseProfile}
@@ -431,6 +494,16 @@ function AppShell() {
         {overlay?.kind === "doseReview" && <DoseReviewScreen totalCarbGrams={mealSummary.totalCarbGrams} profile={doseProfile} />}
 
         {overlay?.kind === "submissions" && <SubmissionsScreen />}
+
+        {overlay?.kind === "savedMeals" && (
+          <SavedMealsScreen
+            savedMeals={savedMeals}
+            onUse={handleLoadSavedMealIntoCurrent}
+            onClone={handleLoadSavedMealIntoCurrent}
+            onRename={handleRenameSavedMeal}
+            onDelete={handleDeleteSavedMeal}
+          />
+        )}
 
         {overlay === null && (
           <>
@@ -467,6 +540,9 @@ function AppShell() {
                 onChangeAmount={handleChangeAmount}
                 onRemove={handleRemoveFromMeal}
                 onEstimateDose={() => setOverlay({ kind: "doseReview" })}
+                savedMealsCount={savedMeals.length}
+                onOpenSavedMeals={() => setOverlay({ kind: "savedMeals" })}
+                onSaveMeal={handleSaveMeal}
               />
             )}
 
