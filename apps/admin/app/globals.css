@@ -807,6 +807,68 @@ table.data tbody tr:last-child td {
   font-style: italic;
 }
 
+/* ---------- Bulk actions (review queue) ---------- */
+
+.bulk-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 0.85rem;
+  margin: 0 0 1rem;
+  padding: 0.8rem 1.1rem;
+  background: var(--surface-elevated);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--elev-sm);
+}
+
+.bulk-bar__count {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.bulk-bar__progress {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.bulk-bar__progress progress {
+  width: 8rem;
+  height: 0.5rem;
+  accent-color: var(--brand);
+}
+
+/* Selection checkboxes in the review table header + rows. */
+.select-cell {
+  width: 2.75rem;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.select-checkbox {
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: var(--brand);
+  cursor: pointer;
+}
+
+.select-checkbox:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.select-checkbox:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
 /* ---------- Provenance detail ---------- */
 
 .provenance {

@@ -3,7 +3,7 @@ import { Animated, StyleSheet, Text, View, type LayoutChangeEvent } from "react-
 
 import { useLanguage } from "../i18n";
 import { durations, easings } from "../motionUtils";
-import { colors, elevation, MIN_TAP_TARGET, radius, spacing } from "../theme";
+import { colors, elevation, MIN_TAP_TARGET, radius, spacing, typeScale } from "../theme";
 import { PressableScale } from "./PressableScale";
 import { useReducedMotion } from "../useReducedMotion";
 
@@ -114,7 +114,14 @@ const styles = StyleSheet.create({
     bottom: BAR_PADDING,
     backgroundColor: colors.brand,
     borderRadius: radius.pill,
-    ...elevation.glow.native,
+    // A tighter, tab-sized glow rather than the shared `elevation.glow` token
+    // (tuned for big CTAs) — at this small pill size a 24px blur reads as an
+    // oversized blob rather than "a clear but tasteful active state".
+    shadowColor: colors.brand,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.28,
+    shadowRadius: 8,
+    elevation: 4,
   },
   tab: {
     flex: 1,
@@ -123,6 +130,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderRadius: radius.pill,
   },
-  tabText: { fontSize: 14, fontWeight: "700", color: colors.textMuted },
-  tabTextActive: { color: colors.onBrand },
+  tabText: {
+    fontSize: typeScale.label.size,
+    fontWeight: "600",
+    letterSpacing: typeScale.label.letterSpacing,
+    color: colors.textMuted,
+  },
+  tabTextActive: { color: colors.onBrand, fontWeight: "700" },
 });
