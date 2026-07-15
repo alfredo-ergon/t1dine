@@ -10,6 +10,7 @@ import { useLanguage } from "../i18n";
 import { colors, elevation, fontWeights, MIN_TAP_TARGET, radius, spacing, typeScale } from "../theme";
 import type { MealLine } from "@t1dine/nutrition";
 import type { CanonicalFood } from "@t1dine/food-schema";
+import type { SavedMeal } from "../savedMeals";
 
 /** The subset of DoseProfile the "Perfil clínico" form can edit — version and
  * glucoseUnit stay under the app's control (version bumps on every save;
@@ -25,6 +26,7 @@ export interface ProfileScreenProps {
   recentIds: string[];
   customFoods: CanonicalFood[];
   meal: MealLine[];
+  savedMeals: SavedMeal[];
   onDeleteAll: () => void;
   doseProfile: DoseProfile;
   hasSavedDoseProfile: boolean;
@@ -42,6 +44,7 @@ export function ProfileScreen({
   recentIds,
   customFoods,
   meal,
+  savedMeals,
   onDeleteAll,
   doseProfile,
   hasSavedDoseProfile,
@@ -52,10 +55,10 @@ export function ProfileScreen({
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleted, setDeleted] = useState(false);
 
-  const hasAnyData = favouriteIds.length > 0 || recentIds.length > 0 || customFoods.length > 0 || meal.length > 0;
+  const hasAnyData = favouriteIds.length > 0 || recentIds.length > 0 || customFoods.length > 0 || meal.length > 0 || savedMeals.length > 0;
 
   const handleExport = () => {
-    const bundle = buildDataExportBundle({ language, favouriteIds, recentIds, customFoods, meal });
+    const bundle = buildDataExportBundle({ language, favouriteIds, recentIds, customFoods, meal, savedMeals });
     setExportJson(formatDataExportJson(bundle));
   };
 

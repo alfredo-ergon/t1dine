@@ -18,6 +18,12 @@ export interface MealScreenProps {
   onRemove: (foodId: string) => void;
   /** Opens the "Estimativa de dose" screen with this meal's confirmed carbohydrate total. */
   onEstimateDose: () => void;
+  /** Count for the "Refeições guardadas" entry point badge — always reachable, even with an empty current meal. */
+  savedMealsCount: number;
+  /** Opens the "Refeições guardadas" screen (Slice: refeições repetidas). */
+  onOpenSavedMeals: () => void;
+  /** Saves the current meal (as-is) under a user-given name. */
+  onSaveMeal: (name: string) => void;
 }
 
 const STEP_GRAMS = 5;
@@ -121,7 +127,139 @@ function MealLineRow({ line, onChangeAmount, onRemove }: MealLineRowProps) {
   );
 }
 
-export function MealScreen({ lines, onChangeAmount, onRemove, onEstimateDose }: MealScreenProps) {
+// Entry point to "Refeições guardadas" (Slice: refeições repetidas) — kept
+// visible regardless of whether the current meal has any items, since
+// browsing/reusing a saved meal is often exactly how a meal gets its first
+// item (mirrors FavouritesScreen's "As minhas contribuições" entry card).
+interface SavedMealsEntryCardProps {
+  count: number;
+  onPress: () => void;
+}
+
+function SavedMealsEntryCard({ count, onPress }: SavedMealsEntryCardProps) {
+  const { t } = useLanguage();
+  const label = count > 0 ? `${t("meal.savedMealsOpenCta")} (${count})` : t("meal.savedMealsOpenCta");
+
+  return (
+    <PressableScale onPress={onPress} accessibilityRole="button" accessibilityLabel={label} style={styles.savedMealsCard}>
+      <View style={styles.savedMealsIconWrap}>
+        <Text style={styles.savedMealsIcon}>⟲</Text>
+      </View>
+      <Text style={styles.savedMealsText}>
+        {t("meal.savedMealsOpenCta")}
+        {count > 0 ? ` (${count})` : ""}
+      </Text>
+      <Text style={styles.savedMealsChevron}>›</Text>
+    </PressableScale>
+  );
+}
+
+interface SaveMealCardProps {
+  onSave: (name: string) => void;
+}
+
+// "Guardar refeição" — a deliberately secondary/outline action (never the
+// brand-gradient CTA reserved for "Estimar dose") so it never competes with
+// the primary food-to-dose flow, per the existing visual hierarchy on this
+// screen. Local-only UI state (editing/name/error/success) — the actual
+// save is delegated to the parent via `onSave`, matching how ProfileScreen's
+// "Perfil clínico" section shows an optimistic success banner right after
+// calling its own `onSave` prop.
+function SaveMealCard({ onSave }: SaveMealCardProps) {
+  const { t } = useLanguage();
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [justSaved, setJustSaved] = useState(false);
+
+  const handleOpen = () => {
+    setEditing(true);
+    setJustSaved(false);
+  };
+
+  const handleCancel = () => {
+    setEditing(false);
+    setName("");
+    setError(null);
+  };
+
+  const handleConfirm = () => {
+    const trimmed = name.trim();
+    if (trimmed.length === 0) {
+      setError(t("meal.saveMealNameError"));
+      return;
+    }
+    onSave(trimmed);
+    setEditing(false);
+    setName("");
+    setError(null);
+    setJustSaved(true);
+  };
+
+  if (editing) {
+    return (
+      <FadeIn>
+        <View style={styles.saveMealCard}>
+          <Text style={styles.saveMealLabel}>{t("meal.saveMealNameLabel")}</Text>
+          <TextInput
+            style={styles.saveMealInput}
+            value={name}
+            onChangeText={(value) => {
+              setName(value);
+              if (error) setError(null);
+            }}
+            placeholder={t("meal.saveMealNamePlaceholder")}
+            placeholderTextColor={colors.textFaint}
+            accessibilityLabel={t("meal.saveMealNameLabel")}
+            autoFocus
+          />
+          {error && <Text style={styles.saveMealError}>{error}</Text>}
+          <View style={styles.saveMealButtonRow}>
+            <PressableScale
+              onPress={handleCancel}
+              accessibilityRole="button"
+              accessibilityLabel={t("meal.saveMealCancel")}
+              style={styles.saveMealCancelButton}
+            >
+              <Text style={styles.saveMealCancelButtonText}>{t("meal.saveMealCancel")}</Text>
+            </PressableScale>
+            <PressableScale
+              onPress={handleConfirm}
+              accessibilityRole="button"
+              accessibilityLabel={t("meal.saveMealConfirm")}
+              style={styles.saveMealConfirmButton}
+            >
+              <Text style={styles.saveMealConfirmButtonText}>{t("meal.saveMealConfirm")}</Text>
+            </PressableScale>
+          </View>
+        </View>
+      </FadeIn>
+    );
+  }
+
+  return (
+    <View>
+      <PressableScale
+        onPress={handleOpen}
+        accessibilityRole="button"
+        accessibilityLabel={t("meal.saveMealCta")}
+        style={styles.saveMealOpenButton}
+      >
+        <Text style={styles.saveMealOpenButtonText}>{t("meal.saveMealCta")}</Text>
+      </PressableScale>
+      {justSaved && (
+        <FadeIn>
+          <View style={styles.saveMealSuccessBanner} accessible accessibilityLabel={t("meal.saveMealSuccess")}>
+            <Text style={styles.saveMealSuccessIcon}>✓</Text>
+            <Text style={styles.saveMealSuccessText}>{t("meal.saveMealSuccess")}</Text>
+          </View>
+        </FadeIn>
+      )}
+    </View>
+  );
+}
+
+export function MealScreen({ lines, onChangeAmount, onRemove, onEstimateDose, savedMealsCount, onOpenSavedMeals, onSaveMeal }: MealScreenProps) {
   const { t } = useLanguage();
   // Deterministic, framework-independent meal maths shared with the API —
   // no clinical authority, just food carbohydrate/energy totals.
@@ -132,6 +270,8 @@ export function MealScreen({ lines, onChangeAmount, onRemove, onEstimateDose }: 
     <View style={styles.screen}>
       <Text style={styles.h1}>{t("meal.title")}</Text>
       <Text style={styles.meta}>{tPlural(t, "meal.items", summary.itemCount)}</Text>
+
+      <SavedMealsEntryCard count={savedMealsCount} onPress={onOpenSavedMeals} />
 
       <FlatList
         data={summary.lines}
@@ -171,6 +311,8 @@ export function MealScreen({ lines, onChangeAmount, onRemove, onEstimateDose }: 
           )}
         </View>
       )}
+
+      {summary.itemCount > 0 && <SaveMealCard onSave={onSaveMeal} />}
 
       <PressableScale
         onPress={onEstimateDose}
@@ -278,4 +420,100 @@ const styles = StyleSheet.create({
   estimateDoseButtonText: { color: colors.onBrand, fontSize: 16, fontWeight: "700" },
   estimateDoseButtonTextDisabled: { color: colors.textFaint },
   estimateDoseDisabledHint: { fontSize: 12.5, color: colors.textMuted, textAlign: "center", marginBottom: spacing.md },
+
+  savedMealsCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    minHeight: MIN_TAP_TARGET,
+    ...elevation.sm.native,
+  },
+  savedMealsIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.md,
+    backgroundColor: colors.brandTint,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  savedMealsIcon: { fontSize: 16, color: colors.brandDark },
+  savedMealsText: { flex: 1, fontSize: 15, fontWeight: "700", color: colors.textPrimary },
+  savedMealsChevron: { fontSize: 20, color: colors.textFaint },
+
+  saveMealOpenButton: {
+    minHeight: MIN_TAP_TARGET,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.pill,
+    borderWidth: 1.5,
+    borderColor: colors.borderStrong,
+    marginBottom: spacing.sm,
+  },
+  saveMealOpenButtonText: { color: colors.textPrimary, fontSize: 15, fontWeight: "700" },
+  saveMealCard: {
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+    ...elevation.sm.native,
+  },
+  saveMealLabel: {
+    fontSize: typeScale.overline.size,
+    fontWeight: typeScale.overline.weight,
+    color: colors.textFaint,
+    marginBottom: spacing.xs,
+    textTransform: "uppercase",
+    letterSpacing: typeScale.overline.letterSpacing,
+  },
+  saveMealInput: {
+    minHeight: MIN_TAP_TARGET,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    borderRadius: radius.md,
+    paddingHorizontal: 14,
+    fontSize: 16,
+    backgroundColor: colors.surface,
+    color: colors.textPrimary,
+  },
+  saveMealError: { color: colors.danger, fontSize: 13, marginTop: 4 },
+  saveMealButtonRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.md },
+  saveMealCancelButton: {
+    flex: 1,
+    minHeight: MIN_TAP_TARGET,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+  },
+  saveMealCancelButtonText: { color: colors.textPrimary, fontSize: 15, fontWeight: "700" },
+  saveMealConfirmButton: {
+    flex: 1,
+    minHeight: MIN_TAP_TARGET,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.pill,
+    backgroundColor: colors.accent,
+    ...elevation.sm.native,
+  },
+  saveMealConfirmButtonText: { color: colors.onBrand, fontSize: 15, fontWeight: "700" },
+  saveMealSuccessBanner: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    backgroundColor: colors.confidenceHighBg,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+    alignItems: "flex-start",
+  },
+  saveMealSuccessIcon: { color: colors.confidenceHigh, fontSize: 16, fontWeight: "700" },
+  saveMealSuccessText: { flex: 1, fontSize: 14, color: colors.textSecondary, fontWeight: "600" },
 });

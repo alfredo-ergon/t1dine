@@ -11,9 +11,15 @@
 //      module additionally never calls `console.*` with the token or any URL
 //      that embeds it.
 //   3. Every Nightscout response is UNTRUSTED external input. It is validated
-//      with zod before any of it is used. On anything malformed, missing, or
-//      unreachable, the handler fails closed (an explicit error or an
-//      `allStale: true` state) — it never fabricates or guesses readings.
+//      with zod before any of it is used. A top-level shape that is not even
+//      a JSON array of entries, an unreachable site, a non-2xx status, or a
+//      response body that is not valid JSON all fail closed with an explicit
+//      error. Individual entries within an otherwise-valid array are
+//      validated one at a time and silently dropped if malformed — a single
+//      corrupt record never discards every other well-formed reading (the
+//      same "validate one item, drop invalid ones" convention used for AI
+//      food candidates in `../anthropicFoodAi.ts`). The handler never
+//      fabricates or guesses a reading's values.
 //   4. This module has ZERO connection to dose calculation. It must not
 //      import `@t1dine/dose-engine`, `@t1dine/nutrition`, or compute anything
 //      dose-related. It only fetches and displays glucose. `pnpm boundaries`
@@ -81,9 +87,27 @@ const nightscoutRawEntrySchema = z.object({
   direction: z.string().trim().min(1).optional(),
 });
 
-const nightscoutRawEntryArraySchema = z.array(nightscoutRawEntrySchema);
-
 export type NightscoutRawEntry = z.infer<typeof nightscoutRawEntrySchema>;
+
+/**
+ * Validates one candidate upstream entry at a time and silently drops
+ * anything malformed, rather than discarding every other, well-formed
+ * reading in the same response over a single bad record. Mirrors the
+ * established "validate one item at a time, drop invalid ones" convention
+ * used for other untrusted external input in this codebase (see
+ * `mapFoods`/`mapSimplifiedFood` in `../anthropicFoodAi.ts`). Never logs a
+ * dropped candidate — it may itself be attacker-controlled.
+ */
+function filterValidEntries(candidates: unknown[]): NightscoutRawEntry[] {
+  const valid: NightscoutRawEntry[] = [];
+  for (const candidate of candidates) {
+    const parsed = nightscoutRawEntrySchema.safeParse(candidate);
+    if (parsed.success) {
+      valid.push(parsed.data);
+    }
+  }
+  return valid;
+}
 
 // ---------------------------------------------------------------------------
 // Normalised, display-only reading
@@ -289,23 +313,13 @@ export function nightscoutRoutes(deps: NightscoutDeps = {}) {
         });
       }
 
-      let rawJson: unknown;
+      // `requestUrl` embeds the token when one was supplied. It is used
+      // only as the `fetchImpl` target and is never logged or returned.
+      const requestUrl = buildEntriesUrl(url, effectiveCount, parsedBody.data.token);
+
+      let response: Response;
       try {
-        // `requestUrl` embeds the token when one was supplied. It is used
-        // only as the `fetchImpl` target and is never logged or returned.
-        const requestUrl = buildEntriesUrl(url, effectiveCount, parsedBody.data.token);
-        const response = await fetchImpl(requestUrl, { method: "GET" });
-
-        if (!response.ok) {
-          // Deliberately generic: never echoes the request URL (which may
-          // carry the token) or any response body back to the caller.
-          return reply.status(502).send({
-            error: "upstream_error",
-            message: `Nightscout responded with HTTP status ${response.status}.`,
-          });
-        }
-
-        rawJson = await response.json();
+        response = await fetchImpl(requestUrl, { method: "GET" });
       } catch {
         // Never log or surface `error` here: on some runtimes a fetch failure
         // includes the request URL (and therefore the token) in its message.
@@ -315,17 +329,52 @@ export function nightscoutRoutes(deps: NightscoutDeps = {}) {
         });
       }
 
-      const parsedEntries = nightscoutRawEntryArraySchema.safeParse(rawJson);
-      if (!parsedEntries.success) {
-        // Fail closed: never fabricate readings from a payload we cannot
-        // trust the shape of.
+      if (!response.ok) {
+        // Deliberately generic: never echoes the request URL (which may
+        // carry the token) or any response body back to the caller.
+        return reply.status(502).send({
+          error: "upstream_error",
+          message: `Nightscout responded with HTTP status ${response.status}.`,
+        });
+      }
+
+      let rawJson: unknown;
+      try {
+        rawJson = await response.json();
+      } catch {
+        // The response body was not valid JSON at all — fail closed rather
+        // than guessing. Distinct from `upstream_unreachable` (the site
+        // itself responded; its payload just cannot be parsed).
         return reply.status(502).send({
           error: "upstream_malformed",
           message: "Nightscout returned glucose data in an unexpected format.",
         });
       }
 
-      const readings = normaliseEntries(parsedEntries.data, nowMs, effectiveStaleAfterMinutes);
+      const parsedShape = z.array(z.unknown()).safeParse(rawJson);
+      if (!parsedShape.success) {
+        // The top-level shape itself is untrustworthy (not even a JSON
+        // array) — this cannot be salvaged entry-by-entry, so fail closed
+        // rather than fabricate readings from a payload we cannot trust the
+        // shape of.
+        return reply.status(502).send({
+          error: "upstream_malformed",
+          message: "Nightscout returned glucose data in an unexpected format.",
+        });
+      }
+
+      // Validate one entry at a time and drop anything malformed (see
+      // `filterValidEntries`) — a single corrupt record must not discard
+      // every other well-formed reading in the same response.
+      const validEntries = filterValidEntries(parsedShape.data);
+
+      // Defense in depth: even though `count` is already sent upstream as a
+      // query parameter, never trust an upstream (or misconfigured/malicious)
+      // Nightscout site to actually honour it — cap what we process/return
+      // to the requested count ourselves.
+      const cappedEntries = validEntries.slice(0, effectiveCount);
+
+      const readings = normaliseEntries(cappedEntries, nowMs, effectiveStaleAfterMinutes);
       return reply.send(buildResponsePayload("live", readings));
     });
   };

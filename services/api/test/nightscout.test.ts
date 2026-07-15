@@ -209,10 +209,33 @@ describe("POST /integrations/nightscout/glucose — live mode", () => {
     expect(response.body).not.toContain(SECRET_TOKEN);
   });
 
-  it("fails closed with 502 on entries with the wrong field types", async () => {
+  it("drops an individually malformed entry but keeps the well-formed ones in the same response", async () => {
     const fetchImpl = vi.fn(async () =>
-      jsonResponse([{ sgv: "one-hundred-and-ten", date: FIXED_NOW - 60_000 }]),
+      jsonResponse([
+        { sgv: 110, date: FIXED_NOW - 4 * 60_000, direction: "Flat" },
+        { sgv: "one-hundred-and-ten", date: FIXED_NOW - 6 * 60_000 }, // malformed: sgv is a string
+        { sgv: 118, date: FIXED_NOW - 9 * 60_000, direction: "FortyFiveUp" },
+      ]),
     );
+    const app = buildApp({ nightscout: { fetchImpl, now: fixedClock() } });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/integrations/nightscout/glucose",
+      payload: { url: "https://example-nightscout.test" },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json();
+    expect(body.source).toBe("live");
+    // Only the two well-formed entries survive; the malformed one is dropped
+    // silently rather than failing the whole request.
+    expect(body.readings).toHaveLength(2);
+    expect(body.readings.map((reading: { sgv: number }) => reading.sgv)).toEqual([110, 118]);
+  });
+
+  it("fails closed with 502 when every upstream entry is malformed and the top-level shape is not an array", async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse({ sgv: 110, date: FIXED_NOW }));
     const app = buildApp({ nightscout: { fetchImpl, now: fixedClock() } });
 
     const response = await app.inject({
@@ -223,6 +246,71 @@ describe("POST /integrations/nightscout/glucose — live mode", () => {
 
     expect(response.statusCode).toBe(502);
     expect(response.json().error).toBe("upstream_malformed");
+  });
+
+  it("treats an array of entirely malformed entries as an empty (not fabricated) reading list", async () => {
+    const fetchImpl = vi.fn(async () =>
+      jsonResponse([
+        { sgv: "not-a-number", date: FIXED_NOW },
+        { sgv: -5, date: FIXED_NOW }, // sgv must be positive
+      ]),
+    );
+    const app = buildApp({ nightscout: { fetchImpl, now: fixedClock() } });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/integrations/nightscout/glucose",
+      payload: { url: "https://example-nightscout.test" },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json();
+    expect(body.readings).toHaveLength(0);
+    expect(body.allStale).toBe(true);
+    expect(body.newest).toBeNull();
+  });
+
+  it("fails closed with 502 when the upstream response body is not valid JSON", async () => {
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response("this is not json", {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    const app = buildApp({ nightscout: { fetchImpl, now: fixedClock() } });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/integrations/nightscout/glucose",
+      payload: { url: "https://example-nightscout.test", token: SECRET_TOKEN },
+    });
+
+    expect(response.statusCode).toBe(502);
+    expect(response.json().error).toBe("upstream_malformed");
+    expect(response.body).not.toContain(SECRET_TOKEN);
+  });
+
+  it("caps the number of readings to the requested count even if upstream returns more", async () => {
+    const fetchImpl = vi.fn(async () =>
+      jsonResponse([
+        { sgv: 110, date: FIXED_NOW - 4 * 60_000 },
+        { sgv: 112, date: FIXED_NOW - 9 * 60_000 },
+        { sgv: 118, date: FIXED_NOW - 14 * 60_000 },
+      ]),
+    );
+    const app = buildApp({ nightscout: { fetchImpl, now: fixedClock() } });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/integrations/nightscout/glucose",
+      payload: { url: "https://example-nightscout.test", count: 2 },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json();
+    expect(body.readings).toHaveLength(2);
+    expect(body.readings.map((reading: { sgv: number }) => reading.sgv)).toEqual([110, 112]);
   });
 
   it("sets allStale true and newest null when every reading is older than the threshold", async () => {
