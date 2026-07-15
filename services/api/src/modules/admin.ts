@@ -8,10 +8,15 @@
 // GOVERNANCE (CLAUDE.md / .claude/rules/food-data.md): `POST
 // /admin/foods/ai-generate` NEVER auto-approves its output — every generated
 // food is stored via `FoodRepository.insertAiCandidate`, which hardcodes
-// `status: "candidate"`/`source: "ai"` regardless of what the (mock, fully
-// offline — see `../foodAi.ts`) provider returns. A human must call
-// `POST /admin/foods/:id/approve` before an AI candidate is ever visible
-// through `/catalog/foods`.
+// `status: "candidate"`/`source: "ai"` regardless of what the injected
+// `FoodAiProvider` returns (the default/test provider is the mock, fully
+// offline `MockFoodAiProvider` — see `../foodAi.ts`; `src/server.ts` injects
+// the real, network-calling `AnthropicFoodAiProvider` — see
+// `../anthropicFoodAi.ts` — when `ANTHROPIC_API_KEY` is configured). A human
+// must call `POST /admin/foods/:id/approve` before an AI candidate is ever
+// visible through `/catalog/foods`. A provider failure (missing key, network
+// error, model refusal) is caught below and surfaced as `502
+// ai_unavailable` — the backoffice degrades gracefully rather than 500ing.
 //
 // PRIVACY: `submittedBy`/`reviewedBy` are user ids (`request.userId`), never
 // emails — this module never logs or returns an email address.
@@ -269,7 +274,20 @@ export function adminRoutes(deps: AdminDeps) {
         ...(cuisine ? { cuisine } : {}),
       };
 
-      const generated = aiProvider.generate(generateParams);
+      let generated: CanonicalFood[];
+      try {
+        generated = await aiProvider.generate(generateParams);
+      } catch {
+        // Deliberately does not log the caught error: a real adapter's
+        // failure (see `../anthropicFoodAi.ts`) could embed the prompt,
+        // model response, or API key in its message — never console.log
+        // any of those (PRIVACY). Degrade gracefully instead of crashing
+        // the request.
+        return reply.status(502).send({
+          error: "ai_unavailable",
+          message: "The AI food-generation provider is currently unavailable.",
+        });
+      }
 
       const validationIssues: string[] = [];
       generated.forEach((food, index) => {

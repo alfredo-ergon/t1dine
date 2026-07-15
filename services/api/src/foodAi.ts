@@ -41,9 +41,14 @@ export interface FoodAiGenerateParams {
  * Pluggable seam for AI-assisted food generation. A conforming
  * implementation MUST return `status: "candidate"` foods — see the
  * GOVERNANCE CONTRACT above; the caller enforces this again regardless.
+ *
+ * `generate` is async because a real adapter (see `../anthropicFoodAi.ts`)
+ * makes an outbound network call; `MockFoodAiProvider` below stays fully
+ * synchronous/deterministic internally and is merely wrapped in a resolved
+ * `Promise` to conform to this contract.
  */
 export interface FoodAiProvider {
-  generate(params: FoodAiGenerateParams): CanonicalFood[];
+  generate(params: FoodAiGenerateParams): Promise<CanonicalFood[]>;
 }
 
 // ---------------------------------------------------------------------------
@@ -283,7 +288,11 @@ function buildNutrients(id: string, seed: AiNameSeed, market: string, seedIndex:
  * contract this class must uphold.
  */
 export class MockFoodAiProvider implements FoodAiProvider {
-  generate(params: FoodAiGenerateParams): CanonicalFood[] {
+  // eslint-disable-next-line @typescript-eslint/require-await -- async only
+  // to satisfy the `FoodAiProvider` contract; the body itself stays fully
+  // synchronous/deterministic (no `Math.random()`/`Date.now()` — see the
+  // module header).
+  async generate(params: FoodAiGenerateParams): Promise<CanonicalFood[]> {
     const cuisineKey = resolveCuisineKey(params);
     const seeds = CUISINE_SEEDS[cuisineKey] ?? CUISINE_SEEDS[DEFAULT_CUISINE_KEY] ?? [];
     const countries = resolveCountries(params, cuisineKey);
