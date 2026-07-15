@@ -21,12 +21,8 @@ import type { NutrientObservation, SourceReference } from "@t1dine/domain";
 import type { CanonicalFood, LocalisedName } from "@t1dine/food-schema";
 import { collectCanonicalFoodErrors } from "@t1dine/food-schema";
 import type { FoodInput, NamesInput } from "./catalogTypes.js";
-import { PT_STAPLES } from "./catalogData/portugalStaples.js";
-import { PT_PRODUCE } from "./catalogData/portugalProduce.js";
-import { PT_PROTEIN } from "./catalogData/portugalProtein.js";
 import { PT_DISHES } from "./catalogData/portugalDishes.js";
-import { PT_SWEETS } from "./catalogData/portugalSweets.js";
-import { PT_PANTRY } from "./catalogData/portugalPantry.js";
+import { PT_INSA } from "./catalogData/portugalInsa.js";
 
 function names(input: NamesInput): LocalisedName[] {
   return [
@@ -1502,13 +1498,9 @@ const PL_MORE: FoodInput[] = [
 
 const CATALOG_INPUTS: FoodInput[] = [
   ...PT,
-  // Portugal — deep coverage by category (see ./catalogData/*).
-  ...PT_STAPLES,
-  ...PT_PRODUCE,
-  ...PT_PROTEIN,
+  // Portugal — traditional/composed dishes the INSA table doesn't cover (the
+  // real per-ingredient composition comes from INSA via PT_INSA below).
   ...PT_DISHES,
-  ...PT_SWEETS,
-  ...PT_PANTRY,
   ...ES,
   ...ES_MORE,
   ...IT,
@@ -1525,7 +1517,10 @@ const CATALOG_INPUTS: FoodInput[] = [
   ...PL_MORE,
 ];
 
-export const CATALOG: CanonicalFood[] = CATALOG_INPUTS.map(food);
+// Synthetic seed (curated dishes + wider Europe) plus the real INSA BDCA v7.1
+// per-100 g composition for Portugal (see ./catalogData/insaBuilder.ts for the
+// mandatory INSA/PortFIR attribution).
+export const CATALOG: CanonicalFood[] = [...CATALOG_INPUTS.map(food), ...PT_INSA];
 
 // Guard: ids must be globally unique. The food store upserts by id, so a
 // duplicate id would silently overwrite an earlier record (and shrink the
