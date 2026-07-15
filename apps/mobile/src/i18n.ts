@@ -56,6 +56,9 @@ const pt: Dictionary = {
   "filters.regionLabel": "Região",
   "filters.cuisineLabel": "Cozinha",
   "filters.clear": "Limpar filtros",
+  "filters.activeSummary.one": "{count} filtro ativo",
+  "filters.activeSummary.other": "{count} filtros ativos",
+  "filters.noneActive": "Nenhum filtro ativo",
 
   "search.placeholder": "Procurar alimentos — ex. pão, arroz, apple",
   "search.hint": "Escreva o nome de um alimento em português ou inglês",
@@ -257,6 +260,16 @@ const pt: Dictionary = {
   "sync.status.synced": "Sincronizado",
   "sync.status.offline": "Sem ligação — sincroniza quando houver internet",
   "sync.status.error": "Erro de sincronização",
+
+  "submissions.title": "As minhas contribuições",
+  "submissions.count.one": "{count} contribuição",
+  "submissions.count.other": "{count} contribuições",
+  "submissions.emptyTitle": "Ainda sem contribuições",
+  "submissions.emptyBody": "Quando submeter um alimento personalizado para revisão, ele aparece aqui.",
+  "submissions.statusPending": "Pendente de revisão",
+  "submissions.submittedAtLabel": "Submetido em {date}",
+  "submissions.disclaimer": "Esta lista fica guardada apenas neste dispositivo. O estado pode já ter mudado — a app não verifica automaticamente o resultado da revisão pelo curador.",
+  "favourites.openSubmissionsCta": "As minhas contribuições",
 };
 
 const en: Dictionary = {
@@ -291,6 +304,9 @@ const en: Dictionary = {
   "filters.regionLabel": "Region",
   "filters.cuisineLabel": "Cuisine",
   "filters.clear": "Clear filters",
+  "filters.activeSummary.one": "{count} active filter",
+  "filters.activeSummary.other": "{count} active filters",
+  "filters.noneActive": "No active filters",
 
   "search.placeholder": "Search foods — e.g. pao, arroz, apple",
   "search.hint": "Type a food name in Portuguese or English",
@@ -492,6 +508,16 @@ const en: Dictionary = {
   "sync.status.synced": "Synced",
   "sync.status.offline": "Offline — will sync when back online",
   "sync.status.error": "Sync error",
+
+  "submissions.title": "My submissions",
+  "submissions.count.one": "{count} submission",
+  "submissions.count.other": "{count} submissions",
+  "submissions.emptyTitle": "No submissions yet",
+  "submissions.emptyBody": "When you submit a custom food for review, it shows up here.",
+  "submissions.statusPending": "Pending review",
+  "submissions.submittedAtLabel": "Submitted on {date}",
+  "submissions.disclaimer": "This list is stored only on this device. The status may have already changed — the app does not automatically check the curator's review outcome.",
+  "favourites.openSubmissionsCta": "My submissions",
 };
 
 const DICTIONARIES: Record<Language, Dictionary> = { pt, en };

@@ -1,13 +1,15 @@
 import { useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import type { CanonicalFood } from "@t1dine/food-schema";
-import type { MealLine } from "@t1dine/nutrition";
+import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { buildDataExportBundle, formatDataExportJson } from "../dataExport";
+import { FadeIn } from "../components/FadeIn";
+import { PressableScale } from "../components/PressableScale";
 import type { DoseProfile } from "../dose/profile";
 import type { Language } from "../i18n";
 import { useLanguage } from "../i18n";
-import { colors, fontSizes, fontWeights, MIN_TAP_TARGET, radius, shadows, spacing } from "../theme";
+import { colors, elevation, fontWeights, MIN_TAP_TARGET, radius, spacing, typeScale } from "../theme";
+import type { MealLine } from "@t1dine/nutrition";
+import type { CanonicalFood } from "@t1dine/food-schema";
 
 /** The subset of DoseProfile the "Perfil clínico" form can edit — version and
  * glucoseUnit stay under the app's control (version bumps on every save;
@@ -68,78 +70,87 @@ export function ProfileScreen({
     <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Text style={styles.h1}>{t("profile.title")}</Text>
 
-      <DoseProfileSection profile={doseProfile} hasSavedProfile={hasSavedDoseProfile} onSave={onSaveDoseProfile} />
-
-      <View style={styles.divider} />
-
-      <Text style={styles.sectionTitle}>{t("profile.exportTitle")}</Text>
-      <Text style={styles.body}>{t("profile.exportBody")}</Text>
-      <Pressable
-        onPress={handleExport}
-        accessibilityRole="button"
-        accessibilityLabel={t("profile.exportButton")}
-        style={({ pressed }) => [styles.primaryButton, pressed && styles.primaryButtonPressed]}
-      >
-        <Text style={styles.primaryButtonText}>{t("profile.exportButton")}</Text>
-      </Pressable>
-
-      {exportJson !== null &&
-        (hasAnyData ? (
-          <TextInput
-            style={styles.exportBox}
-            value={exportJson}
-            editable={false}
-            multiline
-            selectTextOnFocus
-            accessibilityLabel={t("profile.exportTitle")}
-          />
-        ) : (
-          <Text style={styles.body}>{t("profile.exportEmpty")}</Text>
-        ))}
-
-      <View style={styles.divider} />
-
-      <Text style={[styles.sectionTitle, styles.dangerTitle]}>{t("profile.deleteTitle")}</Text>
-      <Text style={styles.body}>{t("profile.deleteBody")}</Text>
-
-      {deleted ? (
-        <View style={styles.successBanner} accessible accessibilityLabel={t("profile.deleteSuccess")}>
-          <Text style={styles.successIcon}>✓</Text>
-          <Text style={styles.successText}>{t("profile.deleteSuccess")}</Text>
-        </View>
-      ) : confirmingDelete ? (
-        <View style={styles.confirmCard}>
-          <Text style={styles.confirmTitle}>{t("profile.deleteConfirmTitle")}</Text>
-          <Text style={styles.body}>{t("profile.deleteConfirmBody")}</Text>
-          <View style={styles.confirmRow}>
-            <Pressable
-              onPress={() => setConfirmingDelete(false)}
-              accessibilityRole="button"
-              accessibilityLabel={t("profile.deleteConfirmCancel")}
-              style={({ pressed }) => [styles.cancelButton, pressed && styles.cancelButtonPressed]}
-            >
-              <Text style={styles.cancelButtonText}>{t("profile.deleteConfirmCancel")}</Text>
-            </Pressable>
-            <Pressable
-              onPress={handleConfirmDelete}
-              accessibilityRole="button"
-              accessibilityLabel={t("profile.deleteConfirmConfirm")}
-              style={({ pressed }) => [styles.dangerButton, pressed && styles.dangerButtonPressed]}
-            >
-              <Text style={styles.dangerButtonText}>{t("profile.deleteConfirmConfirm")}</Text>
-            </Pressable>
+      {/* Deliberately its own distinctly-bordered card: "Keep clinical
+          calculation UI separate from food-estimation UI" (CLAUDE.md). The
+          "Dose Assist" chip + steel-toned accent (never the food-side
+          emerald brand gradient) reinforces that this configures a
+          separate, deterministic module — not a food/nutrition feature. */}
+      <FadeIn>
+        <View style={styles.clinicalCard}>
+          <View style={styles.clinicalChip}>
+            <Text style={styles.clinicalChipText}>T1Dine Dose Assist</Text>
           </View>
+          <DoseProfileSection profile={doseProfile} hasSavedProfile={hasSavedDoseProfile} onSave={onSaveDoseProfile} />
         </View>
-      ) : (
-        <Pressable
-          onPress={() => setConfirmingDelete(true)}
-          accessibilityRole="button"
-          accessibilityLabel={t("profile.deleteButton")}
-          style={({ pressed }) => [styles.dangerOutlineButton, pressed && styles.dangerOutlineButtonPressed]}
-        >
-          <Text style={styles.dangerOutlineButtonText}>{t("profile.deleteButton")}</Text>
-        </Pressable>
-      )}
+      </FadeIn>
+
+      <FadeIn delay={60}>
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>{t("profile.exportTitle")}</Text>
+          <Text style={styles.body}>{t("profile.exportBody")}</Text>
+          <PressableScale onPress={handleExport} accessibilityRole="button" accessibilityLabel={t("profile.exportButton")} style={styles.primaryButton}>
+            <Text style={styles.primaryButtonText}>{t("profile.exportButton")}</Text>
+          </PressableScale>
+
+          {exportJson !== null &&
+            (hasAnyData ? (
+              <TextInput
+                style={styles.exportBox}
+                value={exportJson}
+                editable={false}
+                multiline
+                selectTextOnFocus
+                accessibilityLabel={t("profile.exportTitle")}
+              />
+            ) : (
+              <Text style={styles.body}>{t("profile.exportEmpty")}</Text>
+            ))}
+        </View>
+
+        <View style={[styles.card, styles.dangerCard]}>
+          <Text style={[styles.sectionTitle, styles.dangerTitle]}>{t("profile.deleteTitle")}</Text>
+          <Text style={styles.body}>{t("profile.deleteBody")}</Text>
+
+          {deleted ? (
+            <View style={styles.successBanner} accessible accessibilityLabel={t("profile.deleteSuccess")}>
+              <Text style={styles.successIcon}>✓</Text>
+              <Text style={styles.successText}>{t("profile.deleteSuccess")}</Text>
+            </View>
+          ) : confirmingDelete ? (
+            <View style={styles.confirmCard}>
+              <Text style={styles.confirmTitle}>{t("profile.deleteConfirmTitle")}</Text>
+              <Text style={styles.body}>{t("profile.deleteConfirmBody")}</Text>
+              <View style={styles.confirmRow}>
+                <PressableScale
+                  onPress={() => setConfirmingDelete(false)}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("profile.deleteConfirmCancel")}
+                  style={styles.cancelButton}
+                >
+                  <Text style={styles.cancelButtonText}>{t("profile.deleteConfirmCancel")}</Text>
+                </PressableScale>
+                <PressableScale
+                  onPress={handleConfirmDelete}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("profile.deleteConfirmConfirm")}
+                  style={styles.dangerButton}
+                >
+                  <Text style={styles.dangerButtonText}>{t("profile.deleteConfirmConfirm")}</Text>
+                </PressableScale>
+              </View>
+            </View>
+          ) : (
+            <PressableScale
+              onPress={() => setConfirmingDelete(true)}
+              accessibilityRole="button"
+              accessibilityLabel={t("profile.deleteButton")}
+              style={styles.dangerOutlineButton}
+            >
+              <Text style={styles.dangerOutlineButtonText}>{t("profile.deleteButton")}</Text>
+            </PressableScale>
+          )}
+        </View>
+      </FadeIn>
     </ScrollView>
   );
 }
@@ -266,7 +277,7 @@ function DoseProfileSection({ profile, hasSavedProfile, onSave }: DoseProfileSec
 
       <Text style={styles.fieldLabel}>{t("profile.clinicalIncrementLabel")}</Text>
       <View style={styles.incrementRow} accessibilityRole="radiogroup" accessibilityLabel={t("profile.clinicalIncrementLabel")}>
-        <Pressable
+        <PressableScale
           onPress={() => setIncrement(0.5)}
           accessibilityRole="radio"
           accessibilityState={{ selected: increment === 0.5, checked: increment === 0.5 }}
@@ -276,8 +287,8 @@ function DoseProfileSection({ profile, hasSavedProfile, onSave }: DoseProfileSec
           <Text style={[styles.incrementOptionText, increment === 0.5 && styles.incrementOptionTextActive]}>
             {t("profile.clinicalIncrementHalf")}
           </Text>
-        </Pressable>
-        <Pressable
+        </PressableScale>
+        <PressableScale
           onPress={() => setIncrement(1)}
           accessibilityRole="radio"
           accessibilityState={{ selected: increment === 1, checked: increment === 1 }}
@@ -287,7 +298,7 @@ function DoseProfileSection({ profile, hasSavedProfile, onSave }: DoseProfileSec
           <Text style={[styles.incrementOptionText, increment === 1 && styles.incrementOptionTextActive]}>
             {t("profile.clinicalIncrementWhole")}
           </Text>
-        </Pressable>
+        </PressableScale>
       </View>
 
       <Text style={styles.fieldLabel}>{t("profile.clinicalMaxDoseLabel")}</Text>
@@ -314,14 +325,9 @@ function DoseProfileSection({ profile, hasSavedProfile, onSave }: DoseProfileSec
         {t("profile.clinicalVersionLabel")}: {profile.version}
       </Text>
 
-      <Pressable
-        onPress={handleSave}
-        accessibilityRole="button"
-        accessibilityLabel={t("profile.clinicalSaveButton")}
-        style={({ pressed }) => [styles.primaryButton, pressed && styles.primaryButtonPressed]}
-      >
+      <PressableScale onPress={handleSave} accessibilityRole="button" accessibilityLabel={t("profile.clinicalSaveButton")} style={styles.primaryButton}>
         <Text style={styles.primaryButtonText}>{t("profile.clinicalSaveButton")}</Text>
-      </Pressable>
+      </PressableScale>
 
       {saved && (
         <View style={[styles.successBanner, styles.clinicalSuccessSpacing]} accessible accessibilityLabel={t("profile.clinicalSaveSuccess")}>
@@ -336,15 +342,42 @@ function DoseProfileSection({ profile, hasSavedProfile, onSave }: DoseProfileSec
 const styles = StyleSheet.create({
   screen: { flex: 1, paddingHorizontal: spacing.xl },
   content: { paddingBottom: 40 },
-  h1: { fontSize: fontSizes.xl, fontWeight: fontWeights.extrabold, color: colors.textPrimary, marginBottom: spacing.sm },
+  h1: { fontSize: typeScale.heading.size, fontWeight: fontWeights.extrabold, color: colors.textPrimary, marginBottom: spacing.md },
+  card: {
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    ...elevation.sm.native,
+  },
+  clinicalCard: {
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: radius.lg,
+    borderWidth: 1.5,
+    borderColor: colors.info,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+    ...elevation.sm.native,
+  },
+  clinicalChip: {
+    alignSelf: "flex-start",
+    backgroundColor: colors.info,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+    marginBottom: spacing.sm,
+  },
+  clinicalChipText: { fontSize: 11, fontWeight: "800", color: colors.onBrand, letterSpacing: 0.3 },
+  dangerCard: { borderColor: colors.danger, borderWidth: 1 },
   sectionTitle: {
-    fontSize: 13,
-    fontWeight: "700",
+    fontSize: typeScale.overline.size,
+    fontWeight: typeScale.overline.weight,
     color: colors.textFaint,
-    marginTop: spacing.lg,
     marginBottom: spacing.xs,
     textTransform: "uppercase",
-    letterSpacing: 0.5,
+    letterSpacing: typeScale.overline.letterSpacing,
   },
   dangerTitle: { color: colors.danger },
   body: { fontSize: 14, color: colors.textSecondary, marginBottom: spacing.md, lineHeight: 20 },
@@ -356,9 +389,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderRadius: radius.pill,
     backgroundColor: colors.accent,
-    ...shadows.card.native,
+    ...elevation.sm.native,
   },
-  primaryButtonPressed: { backgroundColor: colors.accentPressed },
   primaryButtonText: { color: colors.onBrand, fontSize: 15, fontWeight: "700" },
   exportBox: {
     marginTop: spacing.md,
@@ -367,14 +399,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borderStrong,
     borderRadius: radius.md,
-    backgroundColor: colors.surfaceAlt,
+    backgroundColor: colors.surfaceSunken,
     color: colors.textPrimary,
     padding: spacing.sm,
     fontSize: 12,
     fontFamily: "monospace",
     textAlignVertical: "top",
   },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border, marginTop: spacing.xl },
   successBanner: {
     flexDirection: "row",
     gap: spacing.sm,
@@ -404,7 +435,6 @@ const styles = StyleSheet.create({
     borderColor: colors.borderStrong,
     backgroundColor: colors.surface,
   },
-  cancelButtonPressed: { backgroundColor: colors.accentSoft },
   cancelButtonText: { color: colors.textPrimary, fontSize: 15, fontWeight: "700" },
   dangerButton: {
     flex: 1,
@@ -414,7 +444,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     backgroundColor: colors.danger,
   },
-  dangerButtonPressed: { opacity: 0.85 },
   dangerButtonText: { color: colors.onBrand, fontSize: 15, fontWeight: "700" },
   dangerOutlineButton: {
     minHeight: MIN_TAP_TARGET,
@@ -425,7 +454,6 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: colors.danger,
   },
-  dangerOutlineButtonPressed: { backgroundColor: colors.confidenceUnverifiedBg },
   dangerOutlineButtonText: { color: colors.danger, fontSize: 15, fontWeight: "700" },
 
   nudgeBanner: {
@@ -440,13 +468,13 @@ const styles = StyleSheet.create({
   nudgeIcon: { color: colors.confidenceMedium, fontSize: 16, fontWeight: "700" },
   nudgeText: { flex: 1, fontSize: 13, color: colors.textSecondary, fontWeight: "600" },
   fieldLabel: {
-    fontSize: 13,
-    fontWeight: "700",
+    fontSize: typeScale.overline.size,
+    fontWeight: typeScale.overline.weight,
     color: colors.textFaint,
     marginTop: spacing.md,
     marginBottom: spacing.xs,
     textTransform: "uppercase",
-    letterSpacing: 0.5,
+    letterSpacing: typeScale.overline.letterSpacing,
   },
   fieldInput: {
     borderWidth: 1,
@@ -471,7 +499,7 @@ const styles = StyleSheet.create({
     borderColor: colors.borderStrong,
     backgroundColor: colors.surface,
   },
-  incrementOptionActive: { backgroundColor: colors.accent, borderColor: colors.accent },
+  incrementOptionActive: { backgroundColor: colors.info, borderColor: colors.info },
   incrementOptionText: { fontSize: 14, fontWeight: "700", color: colors.textSecondary },
   incrementOptionTextActive: { color: colors.onBrand },
   versionCaption: { fontSize: 12, color: colors.textFaint, marginTop: spacing.md, marginBottom: spacing.sm },

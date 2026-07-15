@@ -13,6 +13,10 @@ import {
   fontSize,
   fontWeight,
   shadow,
+  gradients as tokenGradients,
+  elevation as tokenElevation,
+  motion as tokenMotion,
+  typeScale as tokenTypeScale,
 } from "@t1dine/design-tokens";
 
 export const colors = {
@@ -59,6 +63,18 @@ export const colors = {
   confidenceUnverifiedBg: tokens.confidenceUnverifiedBg,
   warning: tokens.warning,
   info: tokens.info,
+
+  // --- v2 premium tokens (WoW redesign) ---
+  brandGradientFrom: tokens.brandGradientFrom,
+  brandGradientTo: tokens.brandGradientTo,
+  accentWarm: tokens.accentWarm,
+  accentCool: tokens.accentCool,
+  surfaceElevated: tokens.surfaceElevated,
+  surfaceSunken: tokens.surfaceSunken,
+  surfaceGlass: tokens.surfaceGlass,
+  scrim: tokens.scrim,
+  focusRing: tokens.focusRing,
+  hairline: tokens.hairline,
 } as const;
 
 export const spacing = {
@@ -82,6 +98,12 @@ export const radius = {
 export const fontSizes = fontSize;
 export const fontWeights = fontWeight;
 export const shadows = shadow;
+
+// v2 design-system passthroughs for the premium redesign.
+export const gradients = tokenGradients;
+export const elevation = tokenElevation;
+export const motion = tokenMotion;
+export const typeScale = tokenTypeScale;
 
 // WCAG 2.2 / platform guidance: interactive targets should be at least 44x44.
 export const MIN_TAP_TARGET = 44;

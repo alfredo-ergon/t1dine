@@ -24,15 +24,16 @@ import type { UserDataRepository } from "./repositories/userDataRepository.js";
 import { InMemoryFoodRepository } from "./repositories/inMemoryFoodRepository.js";
 import { PostgresFoodRepository } from "./repositories/postgresFoodRepository.js";
 import type { FoodRepository } from "./repositories/foodRepository.js";
-import { MockFoodAiProvider } from "./foodAi.js";
-import type { FoodAiProvider } from "./foodAi.js";
-import { AnthropicFoodAiProvider } from "./anthropicFoodAi.js";
+import { InMemorySettingsRepository } from "./repositories/inMemorySettingsRepository.js";
+import { PostgresSettingsRepository } from "./repositories/postgresSettingsRepository.js";
+import type { SettingsRepository } from "./repositories/settingsRepository.js";
 
 interface Repositories {
   mealRepository: MealRepository;
   userRepository: UserRepository;
   userDataRepository: UserDataRepository;
   foodRepository: FoodRepository;
+  settingsRepository: SettingsRepository;
 }
 
 function inMemoryRepositories(): Repositories {
@@ -43,27 +44,29 @@ function inMemoryRepositories(): Repositories {
     // Pre-seeded synchronously at construction with the synthetic catalog —
     // see `InMemoryFoodRepository`'s doc comment.
     foodRepository: new InMemoryFoodRepository(CATALOG),
+    settingsRepository: new InMemorySettingsRepository(),
   };
 }
 
 /**
- * Resolves the meal, user-account, sync-state, and food-catalog persistence
- * adapters for this process.
+ * Resolves the meal, user-account, sync-state, food-catalog, and
+ * admin-settings persistence adapters for this process.
  *
- * - No `DATABASE_URL` -> in-memory for all four (same behaviour as before
- *   this change for meals; new default for accounts/sync/foods). The food
- *   repository is pre-seeded synchronously with the synthetic catalog.
+ * - No `DATABASE_URL` -> in-memory for all five (same behaviour as before
+ *   this change for meals; new default for accounts/sync/foods/settings).
+ *   The food repository is pre-seeded synchronously with the synthetic
+ *   catalog.
  * - `DATABASE_URL` set -> a SINGLE shared `pg` `Pool` (one real connection
- *   pool, not four), then the idempotent `migrate()`s run in dependency
+ *   pool, not five), then the idempotent `migrate()`s run in dependency
  *   order — `user_data` has a foreign key on `users(id)`, so
  *   `PostgresUserRepository.migrate()` must complete before
- *   `PostgresUserDataRepository.migrate()` runs (`foods` has no such
- *   dependency). The catalog is then idempotently upserted via
+ *   `PostgresUserDataRepository.migrate()` runs (`foods`/`app_settings` have
+ *   no such dependency). The catalog is then idempotently upserted via
  *   `foodRepository.seedApproved(CATALOG)` — safe on every restart, never
  *   duplicates a row.
  * - `DATABASE_URL` set but ANY connection, migration, or seed step fails
  *   (unreachable host, bad credentials, permissions) -> log a short,
- *   non-sensitive message and fall back to in-memory FOR ALL FOUR — a
+ *   non-sensitive message and fall back to in-memory FOR ALL FIVE — a
  *   partial fallback (e.g. meals on Postgres, accounts in-memory) would
  *   silently break the `user_data` -> `users` foreign key contract, so this
  *   is deliberately all-or-nothing. The API must always come up, even with
@@ -83,6 +86,7 @@ async function resolveRepositories(): Promise<Repositories> {
     const userRepository = new PostgresUserRepository(pool);
     const userDataRepository = new PostgresUserDataRepository(pool);
     const foodRepository = new PostgresFoodRepository(pool);
+    const settingsRepository = new PostgresSettingsRepository(pool);
 
     await mealRepository.migrate();
     await userRepository.migrate();
@@ -90,11 +94,12 @@ async function resolveRepositories(): Promise<Repositories> {
     // `users(id)`.
     await userDataRepository.migrate();
     await foodRepository.migrate();
+    await settingsRepository.migrate();
     // Idempotent upsert — safe to run on every startup, never duplicates.
     await foodRepository.seedApproved(CATALOG);
 
     console.log("[t1dine-api] persistence: postgres (DATABASE_URL configured)");
-    return { mealRepository, userRepository, userDataRepository, foodRepository };
+    return { mealRepository, userRepository, userDataRepository, foodRepository, settingsRepository };
   } catch {
     // Deliberately does not log `error` — some pg connection failures embed
     // the connection string (and therefore credentials) in their message.
@@ -148,31 +153,27 @@ async function ensureDemoAdmin(userRepository: UserRepository, adminEmails: stri
   }
 }
 
-/**
- * Resolves the `POST /admin/foods/ai-generate` provider for this process:
- * the real, network-calling `AnthropicFoodAiProvider` when `ANTHROPIC_API_KEY`
- * is configured, otherwise the fully offline, deterministic
- * `MockFoodAiProvider` (the same default `buildApp()` uses when no provider
- * is injected at all). Logs a single short, non-sensitive line noting which
- * one is active — never the key itself, and never anything derived from a
- * prompt or model response.
- */
-function resolveAiProvider(): FoodAiProvider {
-  if (process.env["ANTHROPIC_API_KEY"]) {
-    console.log("[t1dine-api] food AI provider: anthropic (ANTHROPIC_API_KEY configured)");
-    return new AnthropicFoodAiProvider();
-  }
-  console.log("[t1dine-api] food AI provider: mock (offline, deterministic)");
-  return new MockFoodAiProvider();
-}
-
 async function main(): Promise<void> {
-  const { mealRepository, userRepository, userDataRepository, foodRepository } = await resolveRepositories();
+  const { mealRepository, userRepository, userDataRepository, foodRepository, settingsRepository } =
+    await resolveRepositories();
   const adminEmails = resolveAdminEmails();
   await ensureDemoAdmin(userRepository, adminEmails);
-  const aiProvider = resolveAiProvider();
+  // `POST /admin/foods/ai-generate`'s provider (admin-managed config >
+  // `ANTHROPIC_API_KEY` > offline `MockFoodAiProvider`) is resolved fresh on
+  // every request rather than once here — see
+  // `./aiProviderResolution.ts`/`./modules/admin.ts` — so an admin's
+  // `/admin/ai-config` change takes effect without a restart. Never logs the
+  // key itself, or anything derived from a prompt or model response.
+  console.log("[t1dine-api] food AI provider: resolved per-request (admin config > ANTHROPIC_API_KEY > mock)");
 
-  const app = buildApp({ mealRepository, userRepository, userDataRepository, foodRepository, adminEmails, aiProvider });
+  const app = buildApp({
+    mealRepository,
+    userRepository,
+    userDataRepository,
+    foodRepository,
+    settingsRepository,
+    adminEmails,
+  });
   const port = Number(process.env["PORT"] ?? 3001);
   const host = "0.0.0.0";
 

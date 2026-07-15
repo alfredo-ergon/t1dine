@@ -1,12 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { FlatList, StyleSheet, Text, TextInput, View } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import type { MealLine, MealLineSummary } from "@t1dine/nutrition";
 import { summariseMeal } from "@t1dine/nutrition";
 
+import { AnimatedCounter } from "../components/AnimatedCounter";
+import { FadeIn } from "../components/FadeIn";
 import { Mascot } from "../components/Mascot";
+import { PressableScale } from "../components/PressableScale";
 import { tPlural, useLanguage } from "../i18n";
 import { confidenceStyle, displayName } from "../search";
-import { colors, fontSizes, fontWeights, MIN_TAP_TARGET, radius, shadows, spacing } from "../theme";
+import { colors, elevation, fontWeights, gradients, MIN_TAP_TARGET, radius, spacing, typeScale } from "../theme";
 
 export interface MealScreenProps {
   lines: MealLine[];
@@ -72,7 +76,7 @@ function MealLineRow({ line, onChangeAmount, onRemove }: MealLineRowProps) {
 
       <View style={styles.lineControls}>
         <View style={styles.stepper}>
-          <Pressable
+          <PressableScale
             onPress={() => onChangeAmount(line.food.id, clamp(line.amount - STEP_GRAMS))}
             accessibilityRole="button"
             accessibilityLabel={t("meal.decreaseLabel", { name })}
@@ -80,7 +84,7 @@ function MealLineRow({ line, onChangeAmount, onRemove }: MealLineRowProps) {
             hitSlop={4}
           >
             <Text style={styles.stepperButtonText}>−</Text>
-          </Pressable>
+          </PressableScale>
 
           <TextInput
             style={styles.amountInput}
@@ -93,7 +97,7 @@ function MealLineRow({ line, onChangeAmount, onRemove }: MealLineRowProps) {
           />
           <Text style={styles.gramsUnit}>{t("common.gramsUnit")}</Text>
 
-          <Pressable
+          <PressableScale
             onPress={() => onChangeAmount(line.food.id, clamp(line.amount + STEP_GRAMS))}
             accessibilityRole="button"
             accessibilityLabel={t("meal.increaseLabel", { name })}
@@ -101,17 +105,17 @@ function MealLineRow({ line, onChangeAmount, onRemove }: MealLineRowProps) {
             hitSlop={4}
           >
             <Text style={styles.stepperButtonText}>+</Text>
-          </Pressable>
+          </PressableScale>
         </View>
 
-        <Pressable
+        <PressableScale
           onPress={() => onRemove(line.food.id)}
           accessibilityRole="button"
           accessibilityLabel={t("meal.removeItemLabel", { name })}
-          style={({ pressed }) => [styles.removeButton, pressed && styles.removeButtonPressed]}
+          style={styles.removeButton}
         >
           <Text style={styles.removeButtonText}>{t("meal.remove")}</Text>
-        </Pressable>
+        </PressableScale>
       </View>
     </View>
   );
@@ -133,11 +137,13 @@ export function MealScreen({ lines, onChangeAmount, onRemove, onEstimateDose }: 
         data={summary.lines}
         keyExtractor={(line) => line.food.id}
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <Mascot size={84} />
-            <Text style={styles.emptyTitle}>{t("meal.emptyTitle")}</Text>
-            <Text style={styles.emptyBody}>{t("meal.emptyBody")}</Text>
-          </View>
+          <FadeIn>
+            <View style={styles.empty}>
+              <Mascot size={84} />
+              <Text style={styles.emptyTitle}>{t("meal.emptyTitle")}</Text>
+              <Text style={styles.emptyBody}>{t("meal.emptyBody")}</Text>
+            </View>
+          </FadeIn>
         }
         renderItem={({ item }) => <MealLineRow line={item} onChangeAmount={onChangeAmount} onRemove={onRemove} />}
       />
@@ -146,9 +152,7 @@ export function MealScreen({ lines, onChangeAmount, onRemove, onEstimateDose }: 
         <View style={styles.totals}>
           <View style={styles.totalsRow}>
             <Text style={styles.totalsLabel}>{t("meal.totalsCarb")}</Text>
-            <Text style={styles.totalsValue}>
-              {summary.totalCarbGrams.toFixed(1)} {t("common.gramsUnit")}
-            </Text>
+            <AnimatedCounter value={summary.totalCarbGrams} decimals={1} style={styles.totalsValueHero} suffix={` ${t("common.gramsUnit")}`} />
           </View>
           <View style={styles.totalsRow}>
             <Text style={styles.totalsLabel}>{t("meal.totalsEnergy")}</Text>
@@ -168,22 +172,22 @@ export function MealScreen({ lines, onChangeAmount, onRemove, onEstimateDose }: 
         </View>
       )}
 
-      <Pressable
+      <PressableScale
         onPress={onEstimateDose}
         disabled={summary.itemCount === 0}
         accessibilityRole="button"
         accessibilityLabel={t("meal.estimateDoseCta")}
         accessibilityState={{ disabled: summary.itemCount === 0 }}
-        style={({ pressed }) => [
-          styles.estimateDoseButton,
-          summary.itemCount === 0 && styles.estimateDoseButtonDisabled,
-          pressed && summary.itemCount > 0 && styles.estimateDoseButtonPressed,
-        ]}
+        style={summary.itemCount === 0 ? styles.estimateDoseButtonDisabled : styles.estimateDoseButtonWrap}
       >
-        <Text style={[styles.estimateDoseButtonText, summary.itemCount === 0 && styles.estimateDoseButtonTextDisabled]}>
-          {t("meal.estimateDoseCta")}
-        </Text>
-      </Pressable>
+        {summary.itemCount === 0 ? (
+          <Text style={[styles.estimateDoseButtonText, styles.estimateDoseButtonTextDisabled]}>{t("meal.estimateDoseCta")}</Text>
+        ) : (
+          <LinearGradient colors={gradients.brand.colors} start={gradients.brand.start} end={gradients.brand.end} style={styles.estimateDoseButtonGradient}>
+            <Text style={styles.estimateDoseButtonText}>{t("meal.estimateDoseCta")}</Text>
+          </LinearGradient>
+        )}
+      </PressableScale>
       {summary.itemCount === 0 && <Text style={styles.estimateDoseDisabledHint}>{t("meal.estimateDoseDisabledHint")}</Text>}
     </View>
   );
@@ -191,22 +195,22 @@ export function MealScreen({ lines, onChangeAmount, onRemove, onEstimateDose }: 
 
 const styles = StyleSheet.create({
   screen: { flex: 1, paddingHorizontal: spacing.xl },
-  h1: { fontSize: fontSizes.xl, fontWeight: fontWeights.extrabold, color: colors.textPrimary },
+  h1: { fontSize: typeScale.heading.size, fontWeight: fontWeights.extrabold, color: colors.textPrimary },
   meta: { fontSize: 13, color: colors.textMuted, marginTop: 2, marginBottom: 10 },
   empty: { padding: spacing.xxl, alignItems: "center" },
-  emptyTitle: { fontSize: fontSizes.md, fontWeight: fontWeights.bold, color: colors.textPrimary, marginTop: spacing.md },
-  emptyBody: { fontSize: fontSizes.sm, color: colors.textMuted, marginTop: 4, textAlign: "center" },
+  emptyTitle: { fontSize: typeScale.heading.size, fontWeight: fontWeights.bold, color: colors.textPrimary, marginTop: spacing.md },
+  emptyBody: { fontSize: 14, color: colors.textMuted, marginTop: 4, textAlign: "center" },
   line: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceElevated,
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.hairline,
     padding: spacing.md,
     marginVertical: 6,
-    ...shadows.card.native,
+    ...elevation.sm.native,
   },
   lineMain: { marginBottom: spacing.sm },
-  lineName: { fontSize: 16, fontWeight: "600", color: colors.textPrimary },
+  lineName: { fontSize: 16, fontWeight: "700", color: colors.textPrimary },
   lineSub: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
   miniBadge: { alignSelf: "flex-start", borderRadius: radius.pill, paddingHorizontal: spacing.sm, paddingVertical: 3, marginTop: spacing.xs },
   miniBadgeText: { fontSize: 11, fontWeight: "700" },
@@ -217,10 +221,10 @@ const styles = StyleSheet.create({
     minHeight: MIN_TAP_TARGET,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.accentSoft,
+    backgroundColor: colors.brandTint,
     borderRadius: radius.sm,
   },
-  stepperButtonText: { fontSize: 20, fontWeight: "700", color: colors.accent },
+  stepperButtonText: { fontSize: 20, fontWeight: "700", color: colors.brandDark },
   amountInput: {
     minWidth: 56,
     minHeight: MIN_TAP_TARGET,
@@ -241,35 +245,36 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.danger,
   },
-  removeButtonPressed: { backgroundColor: colors.confidenceUnverifiedBg },
   removeButtonText: { color: colors.danger, fontWeight: "700", fontSize: 13 },
   totals: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceElevated,
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.hairline,
     padding: spacing.md,
     marginTop: spacing.sm,
     marginBottom: spacing.md,
-    ...shadows.card.native,
+    ...elevation.sm.native,
   },
-  totalsRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 4 },
+  totalsRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 4 },
   totalsLabel: { fontSize: 14, color: colors.textMuted },
   totalsValue: { fontSize: 16, fontWeight: "800", color: colors.textPrimary },
+  totalsValueHero: { fontSize: 22, fontWeight: "800", color: colors.brandDark, fontVariant: ["tabular-nums"] },
   uncertaintyBanner: { flexDirection: "row", gap: spacing.sm, borderRadius: radius.md, padding: spacing.sm, marginTop: spacing.sm, alignItems: "flex-start" },
   uncertaintyIcon: { fontSize: 16, fontWeight: "700" },
   uncertaintyText: { flex: 1, fontSize: 13, color: colors.textSecondary },
-  estimateDoseButton: {
+  estimateDoseButtonWrap: { borderRadius: radius.pill, marginBottom: spacing.xs, ...elevation.glow.native },
+  estimateDoseButtonGradient: { minHeight: MIN_TAP_TARGET, alignItems: "center", justifyContent: "center", borderRadius: radius.pill },
+  estimateDoseButtonDisabled: {
     minHeight: MIN_TAP_TARGET,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.pill,
-    backgroundColor: colors.brand,
+    backgroundColor: colors.surfaceSunken,
+    borderWidth: 1,
+    borderColor: colors.border,
     marginBottom: spacing.xs,
-    ...shadows.card.native,
   },
-  estimateDoseButtonPressed: { backgroundColor: colors.brandDark },
-  estimateDoseButtonDisabled: { backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border },
   estimateDoseButtonText: { color: colors.onBrand, fontSize: 16, fontWeight: "700" },
   estimateDoseButtonTextDisabled: { color: colors.textFaint },
   estimateDoseDisabledHint: { fontSize: 12.5, color: colors.textMuted, textAlign: "center", marginBottom: spacing.md },

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { SafeAreaView, StyleSheet, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
+import { LinearGradient } from "expo-linear-gradient";
 import type { CanonicalFood, ContinentGroup } from "@t1dine/food-schema";
 import { AREA_TAXONOMY } from "@t1dine/food-schema";
 import type { MealLine } from "@t1dine/nutrition";
@@ -27,21 +28,24 @@ import { GlucoseScreen } from "./src/screens/GlucoseScreen";
 import { MealScreen } from "./src/screens/MealScreen";
 import { ProfileScreen, type DoseProfileFormValues } from "./src/screens/ProfileScreen";
 import { SearchScreen } from "./src/screens/SearchScreen";
+import { SubmissionsScreen } from "./src/screens/SubmissionsScreen";
 import { loadCustomFoods, loadFavouriteIds, loadRecentIds, RECENTS_LIMIT, saveCustomFoods, saveFavouriteIds, saveRecentIds } from "./src/storage";
 import { mergeSyncState, type SyncStatus } from "./src/sync";
-import { colors, spacing } from "./src/theme";
+import { colors, gradients, spacing } from "./src/theme";
 
-// Detail, Create-Food, Profile, Account, and the Dose Assist "Estimativa de
-// dose" review are stacked overlays reachable from any tab; Search, Meal,
-// Favourites, and Glucose are the peer sections underneath them. This
-// mirrors a simple push-navigation stack without pulling in a navigation
-// library — Pressable + state, as the existing app already does.
+// Detail, Create-Food, Profile, Account, "As minhas contribuições", and the
+// Dose Assist "Estimativa de dose" review are stacked overlays reachable
+// from any tab; Search, Meal, Favourites, and Glucose are the peer sections
+// underneath them. This mirrors a simple push-navigation stack without
+// pulling in a navigation library — Pressable + state, as the existing app
+// already does.
 type Overlay =
   | { kind: "detail"; food: CanonicalFood }
   | { kind: "create" }
   | { kind: "profile" }
   | { kind: "account" }
   | { kind: "doseReview" }
+  | { kind: "submissions" }
   | null;
 
 function AppShell() {
@@ -386,96 +390,101 @@ function AppShell() {
         onOpenAccount={() => setOverlay({ kind: "account" })}
       />
 
-      {overlay?.kind === "detail" && (
-        <DetailScreen
-          food={overlay.food}
-          isFavourite={favouriteIdSet.has(overlay.food.id)}
-          onToggleFavourite={handleToggleFavourite}
-          onAdd={handleAddToMeal}
-          authToken={session?.token ?? null}
-        />
-      )}
+      <LinearGradient colors={gradients.mist.colors} start={gradients.mist.start} end={gradients.mist.end} style={styles.body}>
+        {overlay?.kind === "detail" && (
+          <DetailScreen
+            food={overlay.food}
+            isFavourite={favouriteIdSet.has(overlay.food.id)}
+            onToggleFavourite={handleToggleFavourite}
+            onAdd={handleAddToMeal}
+            authToken={session?.token ?? null}
+          />
+        )}
 
-      {overlay?.kind === "create" && <CreateFoodScreen onCancel={() => setOverlay(null)} onSubmit={handleCreateFood} />}
+        {overlay?.kind === "create" && <CreateFoodScreen onCancel={() => setOverlay(null)} onSubmit={handleCreateFood} />}
 
-      {overlay?.kind === "profile" && (
-        <ProfileScreen
-          language={language}
-          favouriteIds={favouriteIds}
-          recentIds={recentIds}
-          customFoods={customFoods}
-          meal={meal}
-          onDeleteAll={handleDeleteAllData}
-          doseProfile={doseProfile}
-          hasSavedDoseProfile={hasSavedDoseProfile}
-          onSaveDoseProfile={handleSaveDoseProfile}
-        />
-      )}
+        {overlay?.kind === "profile" && (
+          <ProfileScreen
+            language={language}
+            favouriteIds={favouriteIds}
+            recentIds={recentIds}
+            customFoods={customFoods}
+            meal={meal}
+            onDeleteAll={handleDeleteAllData}
+            doseProfile={doseProfile}
+            hasSavedDoseProfile={hasSavedDoseProfile}
+            onSaveDoseProfile={handleSaveDoseProfile}
+          />
+        )}
 
-      {overlay?.kind === "account" && (
-        <AccountScreen
-          session={session}
-          syncStatus={syncStatus}
-          onLogin={handleLogin}
-          onRegister={handleRegister}
-          onLogout={handleLogout}
-          onSyncNow={() => void pushSyncState()}
-        />
-      )}
+        {overlay?.kind === "account" && (
+          <AccountScreen
+            session={session}
+            syncStatus={syncStatus}
+            onLogin={handleLogin}
+            onRegister={handleRegister}
+            onLogout={handleLogout}
+            onSyncNow={() => void pushSyncState()}
+          />
+        )}
 
-      {overlay?.kind === "doseReview" && <DoseReviewScreen totalCarbGrams={mealSummary.totalCarbGrams} profile={doseProfile} />}
+        {overlay?.kind === "doseReview" && <DoseReviewScreen totalCarbGrams={mealSummary.totalCarbGrams} profile={doseProfile} />}
 
-      {overlay === null && (
-        <>
-          <View style={styles.tabBarWrap}>
-            <TabBar active={activeTab} onChange={setActiveTab} mealItemCount={mealSummary.itemCount} />
-          </View>
+        {overlay?.kind === "submissions" && <SubmissionsScreen />}
 
-          {activeTab === "search" && (
-            <SearchScreen
-              query={query}
-              onChangeQuery={setQuery}
-              results={results}
-              favouriteIds={favouriteIdSet}
-              onSelectFood={handleSelectFood}
-              onToggleFavourite={handleToggleFavourite}
-              onCreateFood={() => setOverlay({ kind: "create" })}
-              mealItemCount={mealSummary.itemCount}
-              mealCarbGrams={mealSummary.totalCarbGrams}
-              catalogSource={catalogSource}
-              catalogLoading={catalogLoading}
-              onRefreshCatalog={refreshCatalog}
-              regionGroups={regionGroups}
-              cuisines={cuisines}
-              selectedRegionId={selectedRegionId}
-              selectedCuisine={selectedCuisine}
-              onSelectRegion={setSelectedRegionId}
-              onSelectCuisine={setSelectedCuisine}
-            />
-          )}
+        {overlay === null && (
+          <>
+            <View style={styles.tabBarWrap}>
+              <TabBar active={activeTab} onChange={setActiveTab} mealItemCount={mealSummary.itemCount} />
+            </View>
 
-          {activeTab === "meal" && (
-            <MealScreen
-              lines={meal}
-              onChangeAmount={handleChangeAmount}
-              onRemove={handleRemoveFromMeal}
-              onEstimateDose={() => setOverlay({ kind: "doseReview" })}
-            />
-          )}
+            {activeTab === "search" && (
+              <SearchScreen
+                query={query}
+                onChangeQuery={setQuery}
+                results={results}
+                favouriteIds={favouriteIdSet}
+                onSelectFood={handleSelectFood}
+                onToggleFavourite={handleToggleFavourite}
+                onCreateFood={() => setOverlay({ kind: "create" })}
+                mealItemCount={mealSummary.itemCount}
+                mealCarbGrams={mealSummary.totalCarbGrams}
+                catalogSource={catalogSource}
+                catalogLoading={catalogLoading}
+                onRefreshCatalog={refreshCatalog}
+                regionGroups={regionGroups}
+                cuisines={cuisines}
+                selectedRegionId={selectedRegionId}
+                selectedCuisine={selectedCuisine}
+                onSelectRegion={setSelectedRegionId}
+                onSelectCuisine={setSelectedCuisine}
+              />
+            )}
 
-          {activeTab === "favourites" && (
-            <FavouritesScreen
-              favourites={favouriteFoods}
-              recents={recentFoods}
-              favouriteIds={favouriteIdSet}
-              onSelectFood={handleSelectFood}
-              onToggleFavourite={handleToggleFavourite}
-            />
-          )}
+            {activeTab === "meal" && (
+              <MealScreen
+                lines={meal}
+                onChangeAmount={handleChangeAmount}
+                onRemove={handleRemoveFromMeal}
+                onEstimateDose={() => setOverlay({ kind: "doseReview" })}
+              />
+            )}
 
-          {activeTab === "glucose" && <GlucoseScreen />}
-        </>
-      )}
+            {activeTab === "favourites" && (
+              <FavouritesScreen
+                favourites={favouriteFoods}
+                recents={recentFoods}
+                favouriteIds={favouriteIdSet}
+                onSelectFood={handleSelectFood}
+                onToggleFavourite={handleToggleFavourite}
+                onOpenSubmissions={() => setOverlay({ kind: "submissions" })}
+              />
+            )}
+
+            {activeTab === "glucose" && <GlucoseScreen />}
+          </>
+        )}
+      </LinearGradient>
     </SafeAreaView>
   );
 }
@@ -490,5 +499,6 @@ export default function App() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
-  tabBarWrap: { paddingHorizontal: spacing.xl },
+  body: { flex: 1 },
+  tabBarWrap: { paddingHorizontal: spacing.xl, paddingTop: spacing.md },
 });

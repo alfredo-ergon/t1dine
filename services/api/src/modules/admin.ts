@@ -8,15 +8,21 @@
 // GOVERNANCE (CLAUDE.md / .claude/rules/food-data.md): `POST
 // /admin/foods/ai-generate` NEVER auto-approves its output — every generated
 // food is stored via `FoodRepository.insertAiCandidate`, which hardcodes
-// `status: "candidate"`/`source: "ai"` regardless of what the injected
-// `FoodAiProvider` returns (the default/test provider is the mock, fully
-// offline `MockFoodAiProvider` — see `../foodAi.ts`; `src/server.ts` injects
-// the real, network-calling `AnthropicFoodAiProvider` — see
-// `../anthropicFoodAi.ts` — when `ANTHROPIC_API_KEY` is configured). A human
-// must call `POST /admin/foods/:id/approve` before an AI candidate is ever
-// visible through `/catalog/foods`. A provider failure (missing key, network
-// error, model refusal) is caught below and surfaced as `502
-// ai_unavailable` — the backoffice degrades gracefully rather than 500ing.
+// `status: "candidate"`/`source: "ai"` regardless of what the resolved
+// `FoodAiProvider` returns. The provider is resolved FRESH ON EVERY REQUEST
+// via `resolveEffectiveAiProvider` (see `../aiProviderResolution.ts`):
+// admin-managed config (`../modules/aiConfigAdmin.ts`, backed by
+// `SettingsRepository`) takes precedence over the `ANTHROPIC_API_KEY` env
+// var, which takes precedence over the fully offline, deterministic
+// `MockFoodAiProvider` fallback — so an admin's `/admin/ai-config` change
+// takes effect on the very next call, with no restart. `deps.aiProvider`, if
+// supplied, is a fixed override that bypasses this resolution entirely (test
+// seam only — no caller in this codebase supplies it). A human must call
+// `POST /admin/foods/:id/approve` before an AI candidate is ever visible
+// through `/catalog/foods`. A provider failure (missing key, network error,
+// model refusal, or a decryption failure) is caught below and surfaced as
+// `502 ai_unavailable` — the backoffice degrades gracefully rather than
+// 500ing.
 //
 // PRIVACY: `submittedBy`/`reviewedBy` are user ids (`request.userId`), never
 // emails — this module never logs or returns an email address.
@@ -25,11 +31,13 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { collectCanonicalFoodErrors, FOOD_STATUSES } from "@t1dine/food-schema";
 import type { CanonicalFood } from "@t1dine/food-schema";
+import { resolveEffectiveAiProvider } from "../aiProviderResolution.js";
+import type { ResolveAiProviderDeps } from "../aiProviderResolution.js";
 import { matchesRegion } from "../catalogFilters.js";
-import { MockFoodAiProvider } from "../foodAi.js";
 import type { FoodAiGenerateParams, FoodAiProvider } from "../foodAi.js";
 import { FOOD_SOURCES, FoodIdTakenError } from "../repositories/foodRepository.js";
 import type { AdminListFilter, FoodRepository, StoredFood } from "../repositories/foodRepository.js";
+import type { SettingsRepository } from "../repositories/settingsRepository.js";
 import type { UserRepository } from "../repositories/userRepository.js";
 import { requireAuth } from "./auth.js";
 
@@ -123,14 +131,21 @@ export interface AdminDeps {
   userRepository: UserRepository;
   secret: string;
   adminEmails: string[];
-  /** Injectable AI provider seam — defaults to the fully offline
-   * `MockFoodAiProvider`. A real adapter would be injected here without
-   * changing this module's route contract; see `../foodAi.ts`. */
+  /** Settings persistence PORT backing admin-managed AI config (see
+   * `./aiConfigAdmin.ts`) — consulted fresh on every `ai-generate` request
+   * via `resolveEffectiveAiProvider`. */
+  settingsRepository: SettingsRepository;
+  /** Fixed AI provider override — bypasses `resolveEffectiveAiProvider`
+   * entirely when supplied. Test seam only; no caller in this codebase
+   * supplies it (see the GOVERNANCE note above). */
   aiProvider?: FoodAiProvider;
+  /** Additional `resolveEffectiveAiProvider` dependencies (e.g. a fake
+   * `createAnthropicProvider`/`envApiKey` for tests) — see
+   * `../aiProviderResolution.ts`. Ignored when `aiProvider` is supplied. */
+  aiProviderResolutionDeps?: ResolveAiProviderDeps;
 }
 
 export function adminRoutes(deps: AdminDeps) {
-  const aiProvider = deps.aiProvider ?? new MockFoodAiProvider();
   const adminPreHandler = requireAdmin({
     secret: deps.secret,
     userRepository: deps.userRepository,
@@ -276,11 +291,18 @@ export function adminRoutes(deps: AdminDeps) {
 
       let generated: CanonicalFood[];
       try {
-        generated = await aiProvider.generate(generateParams);
+        // Resolved FRESH on every request (never cached) — see the
+        // GOVERNANCE note above and `../aiProviderResolution.ts`. A fixed
+        // `deps.aiProvider` override, if supplied, always wins.
+        const provider =
+          deps.aiProvider ??
+          (await resolveEffectiveAiProvider(deps.settingsRepository, deps.aiProviderResolutionDeps ?? {}));
+        generated = await provider.generate(generateParams);
       } catch {
         // Deliberately does not log the caught error: a real adapter's
-        // failure (see `../anthropicFoodAi.ts`) could embed the prompt,
-        // model response, or API key in its message — never console.log
+        // failure (see `../anthropicFoodAi.ts`), or a decryption failure
+        // resolving the provider, could embed the prompt, model response,
+        // API key, or settings secret in its message — never console.log
         // any of those (PRIVACY). Degrade gracefully instead of crashing
         // the request.
         return reply.status(502).send({

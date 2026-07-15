@@ -12,13 +12,15 @@
 // a crash or a silent no-op.
 
 import { useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { ApiError, isConnectivityError } from "../api";
 import type { StoredSession } from "../auth";
+import { FadeIn } from "../components/FadeIn";
+import { PressableScale } from "../components/PressableScale";
 import { useLanguage } from "../i18n";
 import { syncStatusLabelKey, type SyncStatus } from "../sync";
-import { colors, fontSizes, fontWeights, MIN_TAP_TARGET, radius, shadows, spacing } from "../theme";
+import { colors, elevation, fontWeights, MIN_TAP_TARGET, radius, spacing, typeScale } from "../theme";
 
 export interface AccountScreenProps {
   session: StoredSession | null;
@@ -104,108 +106,108 @@ export function AccountScreen({ session, syncStatus, onLogin, onRegister, onLogo
 
     return (
       <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-        <Text style={styles.h1}>{t("account.title")}</Text>
-        <Text style={styles.signedInEmail}>{t("account.signedInAs", { email: session.email })}</Text>
+        <FadeIn>
+          <Text style={styles.h1}>{t("account.title")}</Text>
 
-        <View
-          style={styles.syncRow}
-          accessible
-          accessibilityLabel={`${t("account.syncStatusLabel")}: ${t(syncStatusLabelKey(syncStatus))}`}
-        >
-          <View style={[styles.syncDot, syncDotStyle]} />
-          <Text style={styles.syncText}>{t(syncStatusLabelKey(syncStatus))}</Text>
-        </View>
+          <View style={styles.card}>
+            <Text style={styles.signedInEmail}>{t("account.signedInAs", { email: session.email })}</Text>
 
-        <Pressable
-          onPress={onSyncNow}
-          disabled={syncStatus === "syncing"}
-          accessibilityRole="button"
-          accessibilityLabel={t("account.syncNowButton")}
-          style={({ pressed }) => [
-            styles.primaryButton,
-            pressed && styles.primaryButtonPressed,
-            syncStatus === "syncing" && styles.buttonDisabled,
-          ]}
-        >
-          {syncStatus === "syncing" ? (
-            <ActivityIndicator color={colors.onBrand} />
-          ) : (
-            <Text style={styles.primaryButtonText}>{t("account.syncNowButton")}</Text>
-          )}
-        </Pressable>
+            <View
+              style={styles.syncRow}
+              accessible
+              accessibilityLabel={`${t("account.syncStatusLabel")}: ${t(syncStatusLabelKey(syncStatus))}`}
+            >
+              <View style={[styles.syncDot, syncDotStyle]} />
+              <Text style={styles.syncText}>{t(syncStatusLabelKey(syncStatus))}</Text>
+            </View>
 
-        <Pressable
-          onPress={onLogout}
-          accessibilityRole="button"
-          accessibilityLabel={t("account.logoutButton")}
-          style={({ pressed }) => [styles.secondaryButton, pressed && styles.secondaryButtonPressed]}
-        >
-          <Text style={styles.secondaryButtonText}>{t("account.logoutButton")}</Text>
-        </Pressable>
+            <PressableScale
+              onPress={onSyncNow}
+              disabled={syncStatus === "syncing"}
+              accessibilityRole="button"
+              accessibilityLabel={t("account.syncNowButton")}
+              style={[styles.primaryButton, syncStatus === "syncing" && styles.buttonDisabled]}
+            >
+              {syncStatus === "syncing" ? (
+                <ActivityIndicator color={colors.onBrand} />
+              ) : (
+                <Text style={styles.primaryButtonText}>{t("account.syncNowButton")}</Text>
+              )}
+            </PressableScale>
+
+            <PressableScale onPress={onLogout} accessibilityRole="button" accessibilityLabel={t("account.logoutButton")} style={styles.secondaryButton}>
+              <Text style={styles.secondaryButtonText}>{t("account.logoutButton")}</Text>
+            </PressableScale>
+          </View>
+        </FadeIn>
       </ScrollView>
     );
   }
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <Text style={styles.h1}>{t("account.title")}</Text>
-      <Text style={styles.intro}>{t("account.intro")}</Text>
+      <FadeIn>
+        <Text style={styles.h1}>{t("account.title")}</Text>
+        <Text style={styles.intro}>{t("account.intro")}</Text>
 
-      <Text style={styles.fieldLabel}>{t("account.emailLabel")}</Text>
-      <TextInput
-        style={styles.input}
-        value={email}
-        onChangeText={setEmail}
-        placeholder={t("account.emailPlaceholder")}
-        placeholderTextColor={colors.textFaint}
-        autoCapitalize="none"
-        autoCorrect={false}
-        keyboardType="email-address"
-        textContentType="emailAddress"
-        accessibilityLabel={t("account.emailLabel")}
-      />
+        <View style={styles.card}>
+          <Text style={styles.fieldLabel}>{t("account.emailLabel")}</Text>
+          <TextInput
+            style={styles.input}
+            value={email}
+            onChangeText={setEmail}
+            placeholder={t("account.emailPlaceholder")}
+            placeholderTextColor={colors.textFaint}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="email-address"
+            textContentType="emailAddress"
+            accessibilityLabel={t("account.emailLabel")}
+          />
 
-      <Text style={styles.fieldLabel}>{t("account.passwordLabel")}</Text>
-      <TextInput
-        style={styles.input}
-        value={password}
-        onChangeText={setPassword}
-        placeholder={t("account.passwordPlaceholder")}
-        placeholderTextColor={colors.textFaint}
-        secureTextEntry
-        textContentType="password"
-        accessibilityLabel={t("account.passwordLabel")}
-      />
+          <Text style={styles.fieldLabel}>{t("account.passwordLabel")}</Text>
+          <TextInput
+            style={styles.input}
+            value={password}
+            onChangeText={setPassword}
+            placeholder={t("account.passwordPlaceholder")}
+            placeholderTextColor={colors.textFaint}
+            secureTextEntry
+            textContentType="password"
+            accessibilityLabel={t("account.passwordLabel")}
+          />
 
-      {errorKey && (
-        <View style={styles.errorBanner} accessible accessibilityLabel={t(errorKey)}>
-          <Text style={styles.errorText}>{t(errorKey)}</Text>
+          {errorKey && (
+            <View style={styles.errorBanner} accessible accessibilityLabel={t(errorKey)}>
+              <Text style={styles.errorText}>{t(errorKey)}</Text>
+            </View>
+          )}
+
+          <PressableScale
+            onPress={handleLogin}
+            disabled={busy !== "idle"}
+            accessibilityRole="button"
+            accessibilityLabel={busy === "login" ? t("account.loggingIn") : t("account.loginButton")}
+            style={[styles.primaryButton, busy !== "idle" && styles.buttonDisabled]}
+          >
+            {busy === "login" ? <ActivityIndicator color={colors.onBrand} /> : <Text style={styles.primaryButtonText}>{t("account.loginButton")}</Text>}
+          </PressableScale>
+
+          <PressableScale
+            onPress={handleRegister}
+            disabled={busy !== "idle"}
+            accessibilityRole="button"
+            accessibilityLabel={busy === "register" ? t("account.registering") : t("account.registerButton")}
+            style={[styles.secondaryButton, busy !== "idle" && styles.buttonDisabled]}
+          >
+            {busy === "register" ? (
+              <ActivityIndicator color={colors.accent} />
+            ) : (
+              <Text style={styles.secondaryButtonText}>{t("account.registerButton")}</Text>
+            )}
+          </PressableScale>
         </View>
-      )}
-
-      <Pressable
-        onPress={handleLogin}
-        disabled={busy !== "idle"}
-        accessibilityRole="button"
-        accessibilityLabel={busy === "login" ? t("account.loggingIn") : t("account.loginButton")}
-        style={({ pressed }) => [styles.primaryButton, pressed && styles.primaryButtonPressed, busy !== "idle" && styles.buttonDisabled]}
-      >
-        {busy === "login" ? <ActivityIndicator color={colors.onBrand} /> : <Text style={styles.primaryButtonText}>{t("account.loginButton")}</Text>}
-      </Pressable>
-
-      <Pressable
-        onPress={handleRegister}
-        disabled={busy !== "idle"}
-        accessibilityRole="button"
-        accessibilityLabel={busy === "register" ? t("account.registering") : t("account.registerButton")}
-        style={({ pressed }) => [styles.secondaryButton, pressed && styles.secondaryButtonPressed, busy !== "idle" && styles.buttonDisabled]}
-      >
-        {busy === "register" ? (
-          <ActivityIndicator color={colors.accent} />
-        ) : (
-          <Text style={styles.secondaryButtonText}>{t("account.registerButton")}</Text>
-        )}
-      </Pressable>
+      </FadeIn>
     </ScrollView>
   );
 }
@@ -213,17 +215,25 @@ export function AccountScreen({ session, syncStatus, onLogin, onRegister, onLogo
 const styles = StyleSheet.create({
   screen: { flex: 1, paddingHorizontal: spacing.xl },
   content: { paddingBottom: 40 },
-  h1: { fontSize: fontSizes.xl, fontWeight: fontWeights.extrabold, color: colors.textPrimary, marginBottom: spacing.sm },
+  h1: { fontSize: typeScale.heading.size, fontWeight: fontWeights.extrabold, color: colors.textPrimary, marginBottom: spacing.sm },
   intro: { fontSize: 14, color: colors.textSecondary, marginBottom: spacing.lg, lineHeight: 20 },
+  card: {
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    padding: spacing.md,
+    ...elevation.sm.native,
+  },
   signedInEmail: { fontSize: 15, fontWeight: "700", color: colors.textPrimary, marginBottom: spacing.md },
   fieldLabel: {
-    fontSize: 13,
-    fontWeight: "700",
+    fontSize: typeScale.overline.size,
+    fontWeight: typeScale.overline.weight,
     color: colors.textFaint,
     marginTop: spacing.md,
     marginBottom: spacing.xs,
     textTransform: "uppercase",
-    letterSpacing: 0.5,
+    letterSpacing: typeScale.overline.letterSpacing,
   },
   input: {
     borderWidth: 1,
@@ -250,9 +260,8 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     backgroundColor: colors.accent,
     marginTop: spacing.lg,
-    ...shadows.card.native,
+    ...elevation.sm.native,
   },
-  primaryButtonPressed: { backgroundColor: colors.accentPressed },
   primaryButtonText: { color: colors.onBrand, fontSize: 15, fontWeight: "700" },
   secondaryButton: {
     minHeight: MIN_TAP_TARGET,
@@ -263,7 +272,6 @@ const styles = StyleSheet.create({
     borderColor: colors.accent,
     marginTop: spacing.md,
   },
-  secondaryButtonPressed: { backgroundColor: colors.accentSoft },
   secondaryButtonText: { color: colors.accent, fontSize: 15, fontWeight: "700" },
   buttonDisabled: { opacity: 0.6 },
   syncRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs, marginBottom: spacing.md },

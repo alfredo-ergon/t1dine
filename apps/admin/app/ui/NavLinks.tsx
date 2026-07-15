@@ -12,6 +12,7 @@ const LINKS = [
   { href: "/adicionar", label: t.nav.add },
   { href: "/ia", label: t.nav.ai },
   { href: "/fontes", label: t.nav.sources },
+  { href: "/definicoes", label: t.nav.settings },
 ] as const;
 
 /** Primary navigation with active-route highlighting. */

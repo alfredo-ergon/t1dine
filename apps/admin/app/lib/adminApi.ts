@@ -39,23 +39,34 @@ export interface AdminSubmission {
 }
 
 /** A failed API call, carrying the HTTP status so callers can distinguish
- * "not signed in / expired" (401), "not an admin" (403) and everything else. */
+ * "not signed in / expired" (401), "not an admin" (403) and everything else.
+ * `code` carries a machine-readable error code from the response body (e.g.
+ * `ai_key_required`, `invalid_model` on a 400) so callers can map it to a
+ * friendly, localized message. */
 export class ApiError extends Error {
   readonly status: number;
-  constructor(status: number, message: string) {
+  readonly code: string | null;
+  constructor(status: number, message: string, code: string | null = null) {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    this.code = code;
   }
 }
 
 /** Turns any non-2xx response into a friendly, Portuguese `ApiError`. */
 async function toApiError(response: Response): Promise<ApiError> {
   let serverMessage = "";
+  let serverCode: string | null = null;
   try {
     const body: unknown = await response.json();
-    if (body && typeof body === "object" && "message" in body && typeof body.message === "string") {
-      serverMessage = body.message;
+    if (body && typeof body === "object") {
+      if ("message" in body && typeof (body as { message?: unknown }).message === "string") {
+        serverMessage = (body as { message: string }).message;
+      }
+      if ("code" in body && typeof (body as { code?: unknown }).code === "string") {
+        serverCode = (body as { code: string }).code;
+      }
     }
   } catch {
     // Body was not JSON — fall through to a status-based message.
@@ -63,13 +74,13 @@ async function toApiError(response: Response): Promise<ApiError> {
 
   switch (response.status) {
     case 401:
-      return new ApiError(401, "Sessão inválida ou expirada. Inicie sessão novamente.");
+      return new ApiError(401, "Sessão inválida ou expirada. Inicie sessão novamente.", serverCode);
     case 403:
-      return new ApiError(403, "A sua conta não tem permissões de curadoria.");
+      return new ApiError(403, "A sua conta não tem permissões de curadoria.", serverCode);
     case 409:
-      return new ApiError(409, serverMessage || "Já existe um alimento com este identificador.");
+      return new ApiError(409, serverMessage || "Já existe um alimento com este identificador.", serverCode);
     default:
-      return new ApiError(response.status, serverMessage || `Erro do servidor (${response.status}).`);
+      return new ApiError(response.status, serverMessage || `Erro do servidor (${response.status}).`, serverCode);
   }
 }
 
@@ -267,4 +278,103 @@ export async function fetchCatalogFoods(
 
   const payload: unknown = await response.json();
   return extractFoodsEnvelope(payload) as CanonicalFood[];
+}
+
+// ---------------------------------------------------------------------------
+// AI provider configuration (Definições / IA)
+// ---------------------------------------------------------------------------
+
+/** Where the effective AI key/config comes from. */
+export type AiConfigSource = "admin" | "env" | "none";
+
+/** A selectable model option. The API may send bare id strings or `{id,label}`
+ * objects; both are coerced to this shape at the boundary. */
+export interface AiModelOption {
+  id: string;
+  label: string;
+}
+
+/**
+ * `GET/PUT /admin/ai-config` response shape. The raw API key is NEVER part of
+ * this contract — only `keySet` (is one configured) and `keyMasked` (a display
+ * hint such as "sk-ant-••••1234") are returned, so the plaintext key is never
+ * shown, echoed, or logged.
+ */
+export interface AiConfig {
+  provider: string;
+  enabled: boolean;
+  model: string;
+  keySet: boolean;
+  keyMasked: string;
+  availableModels: AiModelOption[];
+  effectiveSource: AiConfigSource;
+  updatedAt: string | null;
+}
+
+/** Body for `PUT /admin/ai-config`. `apiKey: null` clears the stored key;
+ * omitting `apiKey` leaves it unchanged (a new plaintext value sets it). */
+export interface AiConfigUpdate {
+  apiKey?: string | null;
+  model?: string;
+  enabled?: boolean;
+}
+
+function coerceModelOptions(raw: unknown): AiModelOption[] {
+  if (!Array.isArray(raw)) return [];
+  const options: AiModelOption[] = [];
+  for (const entry of raw) {
+    if (typeof entry === "string") {
+      options.push({ id: entry, label: entry });
+    } else if (isRecord(entry) && typeof entry.id === "string") {
+      options.push({ id: entry.id, label: typeof entry.label === "string" ? entry.label : entry.id });
+    }
+  }
+  return options;
+}
+
+function coerceAiConfig(raw: unknown): AiConfig {
+  const row = isRecord(raw) ? raw : {};
+  const source =
+    row.effectiveSource === "admin" || row.effectiveSource === "env" ? row.effectiveSource : "none";
+  return {
+    provider: typeof row.provider === "string" ? row.provider : "anthropic",
+    enabled: row.enabled === true,
+    model: typeof row.model === "string" ? row.model : "",
+    keySet: row.keySet === true,
+    keyMasked: typeof row.keyMasked === "string" ? row.keyMasked : "",
+    availableModels: coerceModelOptions(row.availableModels),
+    effectiveSource: source,
+    updatedAt: typeof row.updatedAt === "string" ? row.updatedAt : null,
+  };
+}
+
+/** `GET /admin/ai-config` — reads the current AI provider configuration. */
+export async function getAiConfig(token: string): Promise<AiConfig> {
+  const response = await fetch(`${API_BASE_URL}/admin/ai-config`, {
+    headers: authHeaders(token),
+    cache: "no-store",
+  });
+  if (!response.ok) throw await toApiError(response);
+  return coerceAiConfig(await response.json());
+}
+
+/**
+ * `PUT /admin/ai-config` — updates key / model / enabled. Send `apiKey: null`
+ * to clear the stored key. The plaintext key travels only in this request body
+ * and is never returned in the response (only `keyMasked`), so it is never
+ * echoed back into any field.
+ */
+export async function updateAiConfig(token: string, update: AiConfigUpdate): Promise<AiConfig> {
+  const body: AiConfigUpdate = {};
+  if ("apiKey" in update) body.apiKey = update.apiKey;
+  if (typeof update.model === "string") body.model = update.model;
+  if (typeof update.enabled === "boolean") body.enabled = update.enabled;
+
+  const response = await fetch(`${API_BASE_URL}/admin/ai-config`, {
+    method: "PUT",
+    headers: authHeaders(token),
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) throw await toApiError(response);
+  return coerceAiConfig(await response.json());
 }
