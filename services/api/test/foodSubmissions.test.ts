@@ -104,8 +104,13 @@ describe("POST /catalog/submissions", () => {
     const byId = await app.inject({ method: "GET", url: "/catalog/foods/user-bolo-de-chocolate-2" });
     expect(byId.statusCode).toBe(404);
 
+    // The seed catalog legitimately contains approved "chocolate" foods, so the
+    // point isn't that the search is empty — it's that the fresh *submission*
+    // (a candidate) never appears in the public catalog until a curator
+    // approves it.
     const search = await app.inject({ method: "GET", url: "/catalog/foods?q=chocolate" });
-    expect(search.json().count).toBe(0);
+    const searchIds = search.json().foods.map((food: { id: string }) => food.id);
+    expect(searchIds).not.toContain("user-bolo-de-chocolate-2");
   });
 
   it("rejects a structurally invalid body with 400", async () => {
