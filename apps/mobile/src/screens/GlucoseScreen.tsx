@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 
+import { FadeIn } from "../components/FadeIn";
 import { Mascot } from "../components/Mascot";
+import { PressableScale } from "../components/PressableScale";
+import { Skeleton } from "../components/Skeleton";
 import { fetchGlucose, type GlucoseReading, type GlucoseResult } from "../api";
 import { directionArrow, directionLabelKey, formatAge } from "../glucose";
 import { useLanguage } from "../i18n";
-import { colors, fontSizes, fontWeights, MIN_TAP_TARGET, radius, shadows, spacing } from "../theme";
+import { colors, elevation, fontWeights, MIN_TAP_TARGET, radius, spacing, typeScale } from "../theme";
 
 // Slice 6 — READ-ONLY, explicitly NON-CLINICAL glucose display. This screen
 // only ever calls `fetchGlucose()` (a GET-equivalent, mock-mode-only read)
@@ -44,26 +47,25 @@ export function GlucoseScreen() {
       </View>
 
       {state.status === "loading" && (
-        <View style={styles.center}>
-          <ActivityIndicator color={colors.accent} />
-          <Text style={styles.loadingText}>{t("glucose.loading")}</Text>
+        <View accessible accessibilityLabel={t("glucose.loading")}>
+          <Skeleton height={128} radius={radius.xl} style={styles.skeletonCard} />
+          <Skeleton height={16} width="60%" style={styles.skeletonLine} />
+          <Skeleton height={44} style={styles.skeletonLine} />
+          <Skeleton height={44} style={styles.skeletonLine} />
         </View>
       )}
 
       {state.status === "error" && (
-        <View style={styles.center}>
-          <Mascot size={84} />
-          <Text style={styles.emptyTitle}>{t("glucose.offlineTitle")}</Text>
-          <Text style={styles.emptyBody}>{t("glucose.offlineBody")}</Text>
-          <Pressable
-            onPress={load}
-            accessibilityRole="button"
-            accessibilityLabel={t("glucose.retry")}
-            style={({ pressed }) => [styles.retryButton, pressed && styles.retryButtonPressed]}
-          >
-            <Text style={styles.retryButtonText}>{t("glucose.retry")}</Text>
-          </Pressable>
-        </View>
+        <FadeIn>
+          <View style={styles.center}>
+            <Mascot size={84} />
+            <Text style={styles.emptyTitle}>{t("glucose.offlineTitle")}</Text>
+            <Text style={styles.emptyBody}>{t("glucose.offlineBody")}</Text>
+            <PressableScale onPress={load} accessibilityRole="button" accessibilityLabel={t("glucose.retry")} style={styles.retryButton}>
+              <Text style={styles.retryButtonText}>{t("glucose.retry")}</Text>
+            </PressableScale>
+          </View>
+        </FadeIn>
       )}
 
       {state.status === "ready" && <GlucoseReady result={state.result} onRefresh={load} />}
@@ -76,18 +78,12 @@ function GlucoseReady({ result, onRefresh }: { result: GlucoseResult; onRefresh:
   const { newest, readings, allStale, source } = result;
 
   return (
-    <View>
+    <FadeIn>
       <View style={styles.sourceRow}>
         <Text style={styles.sourceText}>{source === "mock" ? t("glucose.sourceMock") : t("glucose.sourceLive")}</Text>
-        <Pressable
-          onPress={onRefresh}
-          accessibilityRole="button"
-          accessibilityLabel={t("glucose.retry")}
-          style={styles.refreshButton}
-          hitSlop={8}
-        >
+        <PressableScale onPress={onRefresh} accessibilityRole="button" accessibilityLabel={t("glucose.retry")} style={styles.refreshButton} hitSlop={8}>
           <Text style={styles.refreshButtonText}>⟳ {t("glucose.retry")}</Text>
-        </Pressable>
+        </PressableScale>
       </View>
 
       {newest ? (
@@ -133,7 +129,7 @@ function GlucoseReady({ result, onRefresh }: { result: GlucoseResult; onRefresh:
           ))}
         </>
       )}
-    </View>
+    </FadeIn>
   );
 }
 
@@ -162,7 +158,7 @@ function GlucoseRow({ reading }: { reading: GlucoseReading }) {
 const styles = StyleSheet.create({
   screen: { flex: 1, paddingHorizontal: spacing.xl },
   content: { paddingBottom: 40 },
-  h1: { fontSize: fontSizes.xl, fontWeight: fontWeights.extrabold, color: colors.textPrimary, marginTop: spacing.sm },
+  h1: { fontSize: typeScale.heading.size, fontWeight: fontWeights.extrabold, color: colors.textPrimary, marginTop: spacing.sm },
   safetyBanner: {
     flexDirection: "row",
     gap: spacing.sm,
@@ -175,10 +171,11 @@ const styles = StyleSheet.create({
   },
   safetyIcon: { color: colors.confidenceMedium, fontSize: 16, fontWeight: "700" },
   safetyText: { flex: 1, fontSize: 13, color: colors.textSecondary, fontWeight: "600" },
+  skeletonCard: { marginBottom: spacing.md },
+  skeletonLine: { marginBottom: spacing.sm },
   center: { alignItems: "center", paddingVertical: spacing.xxl },
-  loadingText: { fontSize: fontSizes.sm, color: colors.textMuted, marginTop: spacing.sm },
-  emptyTitle: { fontSize: fontSizes.md, fontWeight: fontWeights.bold, color: colors.textPrimary, marginTop: spacing.md },
-  emptyBody: { fontSize: fontSizes.sm, color: colors.textMuted, marginTop: 4, textAlign: "center" },
+  emptyTitle: { fontSize: typeScale.heading.size, fontWeight: fontWeights.bold, color: colors.textPrimary, marginTop: spacing.md },
+  emptyBody: { fontSize: 14, color: colors.textMuted, marginTop: 4, textAlign: "center" },
   retryButton: {
     marginTop: spacing.lg,
     minHeight: MIN_TAP_TARGET,
@@ -186,28 +183,27 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderRadius: radius.pill,
     backgroundColor: colors.accent,
-    ...shadows.card.native,
+    ...elevation.sm.native,
   },
-  retryButtonPressed: { backgroundColor: colors.accentPressed },
   retryButtonText: { color: colors.onBrand, fontSize: 15, fontWeight: "700" },
   sourceRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: spacing.sm },
   sourceText: { fontSize: 12, color: colors.textMuted, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5 },
   refreshButton: { minHeight: MIN_TAP_TARGET, justifyContent: "center", paddingHorizontal: spacing.sm },
   refreshButtonText: { fontSize: 13, color: colors.accent, fontWeight: "700" },
   newestCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceElevated,
     borderRadius: radius.xl,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.hairline,
     padding: spacing.lg,
-    ...shadows.card.native,
+    ...elevation.md.native,
   },
   newestLabel: { fontSize: 12, color: colors.textFaint, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5 },
   newestValueRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, marginTop: spacing.sm },
   newestArrow: { fontSize: 40, color: colors.brand, fontWeight: "700" },
-  newestValue: { fontSize: fontSizes.display, fontWeight: fontWeights.extrabold, color: colors.textPrimary },
-  newestUnit: { fontSize: fontSizes.md, fontWeight: fontWeights.semibold, color: colors.textMuted },
-  newestSecondary: { fontSize: fontSizes.md, color: colors.textMuted, marginTop: 2 },
+  newestValue: { fontSize: typeScale.display.size, fontWeight: fontWeights.extrabold, color: colors.textPrimary },
+  newestUnit: { fontSize: typeScale.subheading.size, fontWeight: fontWeights.semibold, color: colors.textMuted },
+  newestSecondary: { fontSize: typeScale.subheading.size, color: colors.textMuted, marginTop: 2 },
   newestDirection: { fontSize: 14, color: colors.textSecondary, marginTop: spacing.sm },
   newestAge: { fontSize: 13, color: colors.textFaint, marginTop: 2 },
   staleBanner: {
@@ -222,22 +218,22 @@ const styles = StyleSheet.create({
   staleBannerIcon: { color: colors.confidenceLow, fontSize: 16, fontWeight: "700" },
   staleBannerText: { flex: 1, fontSize: 13, color: colors.textSecondary },
   sectionTitle: {
-    fontSize: 13,
-    fontWeight: "700",
+    fontSize: typeScale.overline.size,
+    fontWeight: typeScale.overline.weight,
     color: colors.textFaint,
     marginTop: spacing.lg,
     marginBottom: spacing.sm,
     textTransform: "uppercase",
-    letterSpacing: 0.5,
+    letterSpacing: typeScale.overline.letterSpacing,
   },
   row: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceElevated,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.hairline,
     padding: spacing.sm,
     marginVertical: 4,
   },

@@ -208,9 +208,18 @@ function BrowseByArea(): JSX.Element {
       )}
 
       {loading ? (
-        <p className="notice" role="status">
-          {t.areas.loading}
-        </p>
+        <div className="table-wrap" role="status" aria-live="polite" style={{ padding: "1.1rem 1.2rem" }}>
+          <p className="muted" style={{ margin: "0 0 0.85rem" }}>
+            {t.areas.loading}
+          </p>
+          {[0, 1, 2, 3].map((row) => (
+            <span
+              key={row}
+              className="skeleton"
+              style={{ display: "block", height: "1.9rem", margin: "0.55rem 0", width: `${92 - row * 7}%` }}
+            />
+          ))}
+        </div>
       ) : selectedRegion === "all" ? (
         <AreaOverview taxonomy={taxonomy} foods={allFoods} />
       ) : (

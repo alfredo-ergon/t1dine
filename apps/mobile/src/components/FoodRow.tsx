@@ -1,10 +1,11 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import type { CanonicalFood } from "@t1dine/food-schema";
 
 import { useLanguage } from "../i18n";
 import { carbPer100g, displayName, FOOD_TYPE_KEY } from "../search";
-import { colors, MIN_TAP_TARGET, radius, shadows, spacing } from "../theme";
+import { colors, elevation, MIN_TAP_TARGET, radius, spacing } from "../theme";
 import { ConfidenceBadge } from "./ConfidenceBadge";
+import { PressableScale } from "./PressableScale";
 
 export interface FoodRowProps {
   food: CanonicalFood;
@@ -14,7 +15,9 @@ export interface FoodRowProps {
 }
 
 // Shared food row used by Search, Favourites, and Recents — keeps naming,
-// confidence, and the favourite star consistent across every list.
+// confidence, and the favourite star consistent across every list. Elevated
+// card on the mist background (Aurora brief: "soft depth over borders"),
+// with the carb-per-100g number set large and confident ("data as hero").
 export function FoodRow({ food, isFavourite, onPress, onToggleFavourite }: FoodRowProps) {
   const { language, t } = useLanguage();
   const secondaryLanguage = language === "pt" ? "en" : "pt";
@@ -26,32 +29,35 @@ export function FoodRow({ food, isFavourite, onPress, onToggleFavourite }: FoodR
   return (
     <View style={styles.card}>
       <View style={styles.row}>
-        <Pressable
-          style={({ pressed }) => [styles.main, pressed && styles.mainPressed]}
+        <PressableScale
+          style={styles.main}
           onPress={() => onPress(food)}
           accessibilityRole="button"
           accessibilityLabel={`${primaryName}, ${typeLabel}, ${carb ?? "?"} ${t("common.gramsCarbsPer100")}`}
+          scaleTo={0.98}
         >
-          <Text style={styles.name}>{primaryName}</Text>
-          <Text style={styles.sub}>
+          <Text style={styles.name} numberOfLines={1}>
+            {primaryName}
+          </Text>
+          <Text style={styles.sub} numberOfLines={1}>
             {secondaryName} • {typeLabel}
           </Text>
           <ConfidenceBadge food={food} />
-        </Pressable>
+        </PressableScale>
 
         <View style={styles.right}>
-          <Text style={styles.carb}>{carb ?? "?"} g</Text>
+          <Text style={styles.carb}>{carb ?? "?"}</Text>
           <Text style={styles.carbLabel}>{t("common.carbsPer100gShort")}</Text>
-          <Pressable
+          <PressableScale
             onPress={() => onToggleFavourite(food)}
             accessibilityRole="button"
             accessibilityLabel={`${isFavourite ? t("favourite.remove") : t("favourite.add")}: ${primaryName}`}
             accessibilityState={{ selected: isFavourite }}
-            style={({ pressed }) => [styles.star, pressed && styles.starPressed]}
+            style={styles.star}
             hitSlop={8}
           >
             <Text style={[styles.starIcon, isFavourite && styles.starIconActive]}>{isFavourite ? "★" : "☆"}</Text>
-          </Pressable>
+          </PressableScale>
         </View>
       </View>
     </View>
@@ -60,12 +66,12 @@ export function FoodRow({ food, isFavourite, onPress, onToggleFavourite }: FoodR
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceElevated,
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.hairline,
     marginVertical: 6,
-    ...shadows.card.native,
+    ...elevation.sm.native,
   },
   row: {
     flexDirection: "row",
@@ -74,14 +80,12 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   main: { flex: 1, padding: spacing.md },
-  mainPressed: { backgroundColor: colors.accentSoft },
-  name: { fontSize: 17, fontWeight: "600", color: colors.textPrimary },
+  name: { fontSize: 17, fontWeight: "700", color: colors.textPrimary },
   sub: { fontSize: 13, color: colors.textMuted, marginTop: 2, marginBottom: spacing.xs },
   right: { alignItems: "flex-end", padding: spacing.md, paddingLeft: 0, justifyContent: "space-between" },
-  carb: { fontSize: 17, fontWeight: "700", color: colors.textPrimary },
+  carb: { fontSize: 22, fontWeight: "800", color: colors.brandDark, fontVariant: ["tabular-nums"] },
   carbLabel: { fontSize: 11, color: colors.textFaint },
   star: { minWidth: MIN_TAP_TARGET, minHeight: MIN_TAP_TARGET, alignItems: "center", justifyContent: "center" },
-  starPressed: { opacity: 0.6 },
   starIcon: { fontSize: 24, color: colors.starInactive },
   starIconActive: { color: colors.star },
 });

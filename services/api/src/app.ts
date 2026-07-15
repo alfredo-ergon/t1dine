@@ -12,6 +12,7 @@ import cors from "@fastify/cors";
 import { healthRoutes } from "./modules/health.js";
 import { catalogRoutes } from "./modules/catalog.js";
 import { adminRoutes, resolveAdminEmails } from "./modules/admin.js";
+import { aiConfigRoutes } from "./modules/aiConfigAdmin.js";
 import { mealsRoutes } from "./modules/meals.js";
 import { nightscoutRoutes, type NightscoutDeps } from "./modules/nightscout.js";
 import { authRoutes, resolveAuthSecret } from "./modules/auth.js";
@@ -25,7 +26,10 @@ import { InMemoryUserDataRepository } from "./repositories/inMemoryUserDataRepos
 import type { UserDataRepository } from "./repositories/userDataRepository.js";
 import { InMemoryFoodRepository } from "./repositories/inMemoryFoodRepository.js";
 import type { FoodRepository } from "./repositories/foodRepository.js";
+import { InMemorySettingsRepository } from "./repositories/inMemorySettingsRepository.js";
+import type { SettingsRepository } from "./repositories/settingsRepository.js";
 import type { FoodAiProvider } from "./foodAi.js";
+import type { ResolveAiProviderDeps } from "./aiProviderResolution.js";
 
 export interface BuildAppOptions {
   /** Injectable fetch/clock for the read-only Nightscout module — lets tests
@@ -57,6 +61,15 @@ export interface BuildAppOptions {
    * `PostgresFoodRepository` (see `./repositories/postgresFoodRepository.ts`)
    * to persist the catalog in a real database. */
   foodRepository?: FoodRepository;
+  /** Injectable admin-settings persistence PORT (currently just the AI
+   * config — see `./modules/aiConfigAdmin.ts`). Defaults to a fresh
+   * `InMemorySettingsRepository` per app instance. Inject a
+   * `PostgresSettingsRepository` (see
+   * `./repositories/postgresSettingsRepository.ts`) to persist settings in a
+   * real database. Shared by both `aiConfigRoutes` (writes) and
+   * `adminRoutes` (reads, per AI-generate request) so a config change is
+   * visible immediately. */
+  settingsRepository?: SettingsRepository;
   /** Injectable HMAC secret used to sign/verify bearer tokens. Defaults to
    * `resolveAuthSecret()` (the `AUTH_SECRET` env var, or a fixed, clearly
    * insecure dev fallback with a one-line startup warning). Tests may inject
@@ -67,14 +80,17 @@ export interface BuildAppOptions {
    * `ADMIN_EMAILS` env var, comma-separated, or a single fixed dev default).
    * Tests may inject a fixed list for determinism. */
   adminEmails?: string[];
-  /** Injectable AI food-generation provider for `POST
-   * /admin/foods/ai-generate` (see `./modules/admin.ts` / `./foodAi.ts`).
-   * Defaults to whatever `adminRoutes` itself defaults to (the fully
-   * offline, deterministic `MockFoodAiProvider`) when omitted, so existing
-   * callers/tests are unaffected. `src/server.ts` injects the real
-   * `AnthropicFoodAiProvider` (see `./anthropicFoodAi.ts`) here when
-   * `ANTHROPIC_API_KEY` is configured. */
+  /** Fixed AI-provider override for `POST /admin/foods/ai-generate` (see
+   * `./modules/admin.ts` / `./foodAi.ts`) — bypasses the normal per-request
+   * `resolveEffectiveAiProvider` resolution entirely when supplied. Test
+   * seam only; omitted by `src/server.ts`, which relies on the admin
+   * config / `ANTHROPIC_API_KEY` / mock precedence instead. */
   aiProvider?: FoodAiProvider;
+  /** Additional dependencies threaded into `resolveEffectiveAiProvider` on
+   * every AI-generate request (see `./aiProviderResolution.ts`) — e.g. a
+   * fake `createAnthropicProvider`/`envApiKey` for fully offline tests.
+   * Ignored when `aiProvider` is supplied. */
+  aiProviderResolutionDeps?: ResolveAiProviderDeps;
 }
 
 export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
@@ -86,18 +102,29 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const userRepository = options.userRepository ?? new InMemoryUserRepository();
   const userDataRepository = options.userDataRepository ?? new InMemoryUserDataRepository();
   const foodRepository = options.foodRepository ?? new InMemoryFoodRepository(CATALOG);
+  const settingsRepository = options.settingsRepository ?? new InMemorySettingsRepository();
   const authSecret = options.authSecret ?? resolveAuthSecret();
   const adminEmails = options.adminEmails ?? resolveAdminEmails();
 
   void app.register(healthRoutes);
   void app.register(catalogRoutes({ foodRepository, secret: authSecret }));
   void app.register(
+    aiConfigRoutes({
+      settingsRepository,
+      userRepository,
+      secret: authSecret,
+      adminEmails,
+    }),
+  );
+  void app.register(
     adminRoutes({
       foodRepository,
       userRepository,
       secret: authSecret,
       adminEmails,
+      settingsRepository,
       ...(options.aiProvider ? { aiProvider: options.aiProvider } : {}),
+      ...(options.aiProviderResolutionDeps ? { aiProviderResolutionDeps: options.aiProviderResolutionDeps } : {}),
     }),
   );
   void app.register(mealsRoutes(mealRepository));

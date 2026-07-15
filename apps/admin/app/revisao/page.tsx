@@ -195,9 +195,18 @@ function ReviewQueue({ token }: { token: string }): JSX.Element {
       )}
 
       {loading && rows.length === 0 ? (
-        <p className="notice" role="status">
-          {t.review.loading}
-        </p>
+        <div className="table-wrap" role="status" aria-live="polite" style={{ padding: "1.1rem 1.2rem" }}>
+          <p className="muted" style={{ margin: "0 0 0.85rem" }}>
+            {t.review.loading}
+          </p>
+          {[0, 1, 2, 3, 4].map((row) => (
+            <span
+              key={row}
+              className="skeleton"
+              style={{ display: "block", height: "1.9rem", margin: "0.55rem 0", width: `${94 - row * 6}%` }}
+            />
+          ))}
+        </div>
       ) : (
         <div className="table-wrap">
           <table className="data">

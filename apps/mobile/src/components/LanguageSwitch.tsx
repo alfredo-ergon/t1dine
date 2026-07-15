@@ -1,12 +1,15 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
 import { useLanguage, type Language } from "../i18n";
 import { colors, MIN_TAP_TARGET, radius, spacing } from "../theme";
+import { PressableScale } from "./PressableScale";
 
 const OPTIONS: Language[] = ["pt", "en"];
 
 // PT | EN toggle in the header. Portuguese is the app default; English is a
-// toggle, never the other way round.
+// toggle, never the other way round. Styled as a translucent "light on
+// dark" segmented control since it only ever renders on the ink-gradient
+// Header — see that component's `overlay` palette.
 export function LanguageSwitch() {
   const { language, setLanguage, t } = useLanguage();
 
@@ -16,16 +19,16 @@ export function LanguageSwitch() {
         const isActive = option === language;
         const label = t(`language.${option}`);
         return (
-          <Pressable
+          <PressableScale
             key={option}
             onPress={() => setLanguage(option)}
             accessibilityRole="radio"
             accessibilityState={{ selected: isActive, checked: isActive }}
             accessibilityLabel={label}
-            style={({ pressed }) => [styles.option, isActive && styles.optionActive, pressed && styles.optionPressed]}
+            style={[styles.option, isActive && styles.optionActive]}
           >
             <Text style={[styles.optionText, isActive && styles.optionTextActive]}>{label}</Text>
-          </Pressable>
+          </PressableScale>
         );
       })}
     </View>
@@ -37,7 +40,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: colors.borderStrong,
+    borderColor: "rgba(255,255,255,0.30)",
+    backgroundColor: "rgba(255,255,255,0.08)",
     overflow: "hidden",
   },
   option: {
@@ -46,10 +50,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.surface,
   },
-  optionActive: { backgroundColor: colors.accent },
-  optionPressed: { opacity: 0.85 },
-  optionText: { fontSize: 13, fontWeight: "700", color: colors.textSecondary },
-  optionTextActive: { color: colors.onBrand },
+  optionActive: { backgroundColor: colors.onBrand },
+  optionText: { fontSize: 13, fontWeight: "700", color: colors.onBrand },
+  optionTextActive: { color: colors.brandDeep },
 });

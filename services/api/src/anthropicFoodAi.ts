@@ -291,6 +291,17 @@ export class AnthropicFoodAiProvider implements FoodAiProvider {
     this.model = model;
   }
 
+  /**
+   * Constructs a provider from an explicit API key — e.g. one decrypted from
+   * admin-managed settings (see `../aiProviderResolution.ts`) — rather than
+   * relying on the Anthropic SDK's own `ANTHROPIC_API_KEY` env-var lookup.
+   * This is IN ADDITION to the constructor-injection seam above (used by
+   * `../../test/foodAi.test.ts` with a fake client); it never logs `apiKey`.
+   */
+  static fromApiKey(apiKey: string, model: string = process.env["FOODAI_MODEL"] ?? DEFAULT_MODEL): AnthropicFoodAiProvider {
+    return new AnthropicFoodAiProvider(new Anthropic({ apiKey }), model);
+  }
+
   async generate(params: FoodAiGenerateParams): Promise<CanonicalFood[]> {
     const response = await this.client.messages.create({
       model: this.model,

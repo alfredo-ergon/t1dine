@@ -1,4 +1,4 @@
-import { colors, radius, shadow } from "@t1dine/design-tokens";
+import { colors, elevation, gradients, motion, radius, shadow, spacing, typeScale } from "@t1dine/design-tokens";
 import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
@@ -57,6 +57,61 @@ const tokenStyles = `:root{
   --radius-pill:${radius.pill}px;
   --shadow-card:${shadow.card.web};
   --shadow-floating:${shadow.floating.web};
+
+  /* v2 — premium surfaces & signature accents */
+  --brand-grad-from:${colors.brandGradientFrom};
+  --brand-grad-to:${colors.brandGradientTo};
+  --accent-warm:${colors.accentWarm};
+  --accent-cool:${colors.accentCool};
+  --surface-elevated:${colors.surfaceElevated};
+  --surface-sunken:${colors.surfaceSunken};
+  --surface-glass:${colors.surfaceGlass};
+  --scrim:${colors.scrim};
+  --focus-ring:${colors.focusRing};
+  --hairline:${colors.hairline};
+
+  /* Signature gradients (decorative only — never the sole carrier of meaning) */
+  --gradient-brand:${gradients.brand.web};
+  --gradient-ink:${gradients.ink.web};
+  --gradient-sunrise:${gradients.sunrise.web};
+  --gradient-mist:${gradients.mist.web};
+
+  /* Elevation scale */
+  --elev-xs:${elevation.xs.web};
+  --elev-sm:${elevation.sm.web};
+  --elev-md:${elevation.md.web};
+  --elev-lg:${elevation.lg.web};
+  --elev-glow:${elevation.glow.web};
+
+  /* Motion */
+  --dur-instant:${motion.duration.instant}ms;
+  --dur-fast:${motion.duration.fast}ms;
+  --dur-base:${motion.duration.base}ms;
+  --dur-slow:${motion.duration.slow}ms;
+  --ease-standard:${motion.easing.standard};
+  --ease-emphasized:${motion.easing.emphasized};
+  --ease-exit:${motion.easing.exit};
+
+  /* Type scale */
+  --type-display-size:${typeScale.display.size}px;
+  --type-display-lh:${typeScale.display.lineHeight}px;
+  --type-title-size:${typeScale.title.size}px;
+  --type-title-lh:${typeScale.title.lineHeight}px;
+  --type-heading-size:${typeScale.heading.size}px;
+  --type-heading-lh:${typeScale.heading.lineHeight}px;
+  --type-subheading-size:${typeScale.subheading.size}px;
+  --type-subheading-lh:${typeScale.subheading.lineHeight}px;
+  --type-label-size:${typeScale.label.size}px;
+  --type-overline-size:${typeScale.overline.size}px;
+
+  /* Spacing */
+  --space-xs:${spacing.xs}px;
+  --space-sm:${spacing.sm}px;
+  --space-md:${spacing.md}px;
+  --space-lg:${spacing.lg}px;
+  --space-xl:${spacing.xl}px;
+  --space-xxl:${spacing.xxl}px;
+  --space-xxxl:${spacing.xxxl}px;
 }`;
 
 export default function RootLayout({ children }: { children: ReactNode }): JSX.Element {

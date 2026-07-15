@@ -46,6 +46,18 @@ export const colors = {
   warning: "#B45309",
   danger: "#B91C1C",
   info: "#0E7490",
+
+  // v2 — premium surfaces & signature accents (additive; existing keys unchanged).
+  brandGradientFrom: "#12B886",
+  brandGradientTo: "#0B7F58",
+  accentWarm: "#FB7185",
+  accentCool: "#38BDF8",
+  surfaceElevated: "#FFFFFF",
+  surfaceSunken: "#EEF2F6",
+  surfaceGlass: "rgba(255,255,255,0.72)",
+  scrim: "rgba(11,18,32,0.55)",
+  focusRing: "#5BE49B",
+  hairline: "rgba(15,23,42,0.06)",
 } as const;
 
 export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32, xxxl: 48 } as const;
@@ -72,6 +84,69 @@ export const shadow = {
     web: "0 8px 24px rgba(15,23,42,0.12)",
     native: { shadowColor: "#0F172A", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.14, shadowRadius: 20, elevation: 8 },
   },
+} as const;
+
+/**
+ * Signature gradients (v2). Each carries a `web` CSS string for the admin/web
+ * app and native `colors`/`start`/`end` stops for expo-linear-gradient on mobile.
+ * Gradients are decorative only — never the sole carrier of meaning (a11y).
+ */
+export const gradients = {
+  brand: {
+    colors: ["#12B886", "#0E9F6E", "#0B7F58"],
+    start: { x: 0, y: 0 },
+    end: { x: 1, y: 1 },
+    web: "linear-gradient(135deg, #12B886 0%, #0E9F6E 55%, #0B7F58 100%)",
+  },
+  ink: {
+    colors: ["#12243B", "#0B1220"],
+    start: { x: 0, y: 0 },
+    end: { x: 0, y: 1 },
+    web: "linear-gradient(160deg, #12243B 0%, #0B1220 100%)",
+  },
+  sunrise: {
+    colors: ["#F59E0B", "#FB7185"],
+    start: { x: 0, y: 0 },
+    end: { x: 1, y: 0 },
+    web: "linear-gradient(90deg, #F59E0B 0%, #FB7185 100%)",
+  },
+  mist: {
+    colors: ["#F0FBF6", "#F5F7FA"],
+    start: { x: 0, y: 0 },
+    end: { x: 0, y: 1 },
+    web: "linear-gradient(180deg, #F0FBF6 0%, #F5F7FA 100%)",
+  },
+} as const;
+
+/** Elevation scale (v2) — web box-shadow + RN native props. `glow` is the brand halo. */
+export const elevation = {
+  xs: { web: "0 1px 2px rgba(15,23,42,0.05)", native: { shadowColor: "#0F172A", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1 } },
+  sm: { web: "0 2px 6px rgba(15,23,42,0.06)", native: { shadowColor: "#0F172A", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 6, elevation: 2 } },
+  md: { web: "0 8px 20px rgba(15,23,42,0.08)", native: { shadowColor: "#0F172A", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.1, shadowRadius: 16, elevation: 4 } },
+  lg: { web: "0 16px 40px rgba(15,23,42,0.14)", native: { shadowColor: "#0F172A", shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.16, shadowRadius: 28, elevation: 10 } },
+  glow: { web: "0 10px 34px rgba(14,159,110,0.30)", native: { shadowColor: "#0E9F6E", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.32, shadowRadius: 24, elevation: 9 } },
+} as const;
+
+/** Motion tokens (v2). Durations in ms; easings are CSS cubic-beziers. */
+export const motion = {
+  duration: { instant: 90, fast: 160, base: 240, slow: 380 },
+  easing: {
+    standard: "cubic-bezier(0.2, 0, 0, 1)",
+    emphasized: "cubic-bezier(0.2, 0, 0, 1.15)",
+    exit: "cubic-bezier(0.4, 0, 1, 1)",
+  },
+} as const;
+
+/** Type scale (v2) — named roles with size / lineHeight / weight / letterSpacing. */
+export const typeScale = {
+  display: { size: 40, lineHeight: 46, weight: "800", letterSpacing: -0.5 },
+  title: { size: 30, lineHeight: 36, weight: "800", letterSpacing: -0.3 },
+  heading: { size: 22, lineHeight: 28, weight: "700", letterSpacing: -0.2 },
+  subheading: { size: 17, lineHeight: 24, weight: "600", letterSpacing: 0 },
+  body: { size: 15, lineHeight: 22, weight: "400", letterSpacing: 0 },
+  label: { size: 13, lineHeight: 18, weight: "600", letterSpacing: 0.2 },
+  caption: { size: 12, lineHeight: 16, weight: "500", letterSpacing: 0.2 },
+  overline: { size: 11, lineHeight: 14, weight: "700", letterSpacing: 1 },
 } as const;
 
 export const MASCOT_NAME = "Tino";
