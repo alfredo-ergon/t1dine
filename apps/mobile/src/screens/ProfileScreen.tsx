@@ -1,13 +1,16 @@
 import { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 
 import { buildDataExportBundle, formatDataExportJson } from "../dataExport";
 import { FadeIn } from "../components/FadeIn";
 import { PressableScale } from "../components/PressableScale";
+import type { TabKey } from "../components/TabBar";
 import type { DoseProfile } from "../dose/profile";
 import type { Language } from "../i18n";
 import { useLanguage } from "../i18n";
-import { colors, elevation, fontWeights, MIN_TAP_TARGET, radius, spacing, typeScale } from "../theme";
+import { hasConnection } from "../nightscoutStore";
+import { colors, elevation, fontWeights, gradients, MIN_TAP_TARGET, radius, spacing, typeScale } from "../theme";
 import type { MealLine } from "@t1dine/nutrition";
 import type { CanonicalFood } from "@t1dine/food-schema";
 import type { SavedMeal } from "../savedMeals";
@@ -20,6 +23,15 @@ export type DoseProfileFormValues = Pick<
   "carbGramsPerUnit" | "glucosePerCorrectionUnit" | "targetGlucose" | "administrationIncrementUnits" | "maximumEstimateUnits" | "minimumGlucoseToDose"
 >;
 
+// The landing tab the user can pick under "Página inicial" — the four peer
+// sections of the app (labels reuse the tab bar's own nav.* strings).
+const STARTUP_OPTIONS: { key: TabKey; labelKey: string }[] = [
+  { key: "search", labelKey: "nav.search" },
+  { key: "meal", labelKey: "nav.meal" },
+  { key: "favourites", labelKey: "nav.favourites" },
+  { key: "glucose", labelKey: "nav.glucose" },
+];
+
 export interface ProfileScreenProps {
   language: Language;
   favouriteIds: string[];
@@ -31,6 +43,9 @@ export interface ProfileScreenProps {
   doseProfile: DoseProfile;
   hasSavedDoseProfile: boolean;
   onSaveDoseProfile: (updates: DoseProfileFormValues) => void;
+  /** Current landing-tab preference and its setter (Perfil → "Página inicial"). */
+  startupTab: TabKey;
+  onChangeStartupTab: (tab: TabKey) => void;
 }
 
 // Slice 5 — local data rights. Everything here operates purely on-device:
@@ -49,6 +64,8 @@ export function ProfileScreen({
   doseProfile,
   hasSavedDoseProfile,
   onSaveDoseProfile,
+  startupTab,
+  onChangeStartupTab,
 }: ProfileScreenProps) {
   const { t } = useLanguage();
   const [exportJson, setExportJson] = useState<string | null>(null);
@@ -57,9 +74,17 @@ export function ProfileScreen({
 
   const hasAnyData = favouriteIds.length > 0 || recentIds.length > 0 || customFoods.length > 0 || meal.length > 0 || savedMeals.length > 0;
 
+  // Nightscout connection status is stored separately (../nightscoutStore.ts,
+  // a secure store — never AsyncStorage) from every other piece of state this
+  // screen already receives as props, so it's checked here, on demand, at
+  // export time. Only ever a boolean flows into the export bundle — never the
+  // url or the token (CLAUDE.md: "Treat Nightscout tokens as high-impact
+  // credentials").
   const handleExport = () => {
-    const bundle = buildDataExportBundle({ language, favouriteIds, recentIds, customFoods, meal, savedMeals });
-    setExportJson(formatDataExportJson(bundle));
+    void hasConnection().then((nightscoutConnected) => {
+      const bundle = buildDataExportBundle({ language, favouriteIds, recentIds, customFoods, meal, savedMeals, nightscoutConnected });
+      setExportJson(formatDataExportJson(bundle));
+    });
   };
 
   const handleConfirmDelete = () => {
@@ -87,12 +112,42 @@ export function ProfileScreen({
         </View>
       </FadeIn>
 
-      <FadeIn delay={60}>
+      <FadeIn delay={40}>
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>{t("profile.startupTitle")}</Text>
+          <Text style={styles.body}>{t("profile.startupBody")}</Text>
+          <View style={styles.startupRow} accessibilityRole="radiogroup" accessibilityLabel={t("profile.startupTitle")}>
+            {STARTUP_OPTIONS.map((option) => {
+              const isActive = startupTab === option.key;
+              const label = t(option.labelKey);
+              return (
+                <PressableScale
+                  key={option.key}
+                  onPress={() => onChangeStartupTab(option.key)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: isActive, checked: isActive }}
+                  accessibilityLabel={label}
+                  style={[styles.startupOption, isActive && styles.startupOptionActive]}
+                >
+                  <Text style={[styles.startupOptionText, isActive && styles.startupOptionTextActive]}>{label}</Text>
+                </PressableScale>
+              );
+            })}
+          </View>
+        </View>
+      </FadeIn>
+
+      <FadeIn delay={80}>
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>{t("profile.exportTitle")}</Text>
           <Text style={styles.body}>{t("profile.exportBody")}</Text>
-          <PressableScale onPress={handleExport} accessibilityRole="button" accessibilityLabel={t("profile.exportButton")} style={styles.primaryButton}>
-            <Text style={styles.primaryButtonText}>{t("profile.exportButton")}</Text>
+          {/* Food-side (non-clinical) primary action — emerald brand gradient.
+              The clinical "Guardar perfil clínico" button below deliberately
+              stays on the steel/non-brand style to keep the two apart. */}
+          <PressableScale onPress={handleExport} accessibilityRole="button" accessibilityLabel={t("profile.exportButton")} style={styles.brandCta}>
+            <LinearGradient colors={gradients.brand.colors} start={gradients.brand.start} end={gradients.brand.end} style={styles.brandCtaGradient}>
+              <Text style={styles.primaryButtonText}>{t("profile.exportButton")}</Text>
+            </LinearGradient>
           </PressableScale>
 
           {exportJson !== null &&
@@ -384,6 +439,19 @@ const styles = StyleSheet.create({
   },
   dangerTitle: { color: colors.danger },
   body: { fontSize: 14, color: colors.textSecondary, marginBottom: spacing.md, lineHeight: 20 },
+  startupRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  startupOption: {
+    minHeight: MIN_TAP_TARGET,
+    justifyContent: "center",
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.surface,
+  },
+  startupOptionActive: { backgroundColor: colors.brand, borderColor: colors.brand },
+  startupOptionText: { fontSize: 14, fontWeight: "700", color: colors.textSecondary },
+  startupOptionTextActive: { color: colors.onBrand },
   error: { color: colors.danger, fontSize: 13, marginTop: 4 },
   primaryButton: {
     minHeight: MIN_TAP_TARGET,
@@ -395,6 +463,14 @@ const styles = StyleSheet.create({
     ...elevation.sm.native,
   },
   primaryButtonText: { color: colors.onBrand, fontSize: 15, fontWeight: "700" },
+  brandCta: { alignSelf: "flex-start", borderRadius: radius.pill, ...elevation.glow.native },
+  brandCtaGradient: {
+    minHeight: MIN_TAP_TARGET,
+    paddingHorizontal: spacing.lg,
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: radius.pill,
+  },
   exportBox: {
     marginTop: spacing.md,
     minHeight: 160,

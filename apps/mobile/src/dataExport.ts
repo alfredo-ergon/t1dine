@@ -18,6 +18,12 @@ export interface DataExportBundle {
   customFoods: CanonicalFood[];
   meal: MealLine[];
   savedMeals: SavedMeal[];
+  /** Whether a Nightscout connection is currently saved on this device
+   * (../nightscoutStore.ts) — NEVER the url or the token itself. The
+   * Nightscout token is a HIGH-IMPACT credential (CLAUDE.md) and must never
+   * appear in an export; this boolean only lets the user confirm, from the
+   * export, whether a connection exists. */
+  nightscoutConnected: boolean;
 }
 
 export interface DataExportInput {
@@ -27,6 +33,7 @@ export interface DataExportInput {
   customFoods: CanonicalFood[];
   meal: MealLine[];
   savedMeals: SavedMeal[];
+  nightscoutConnected: boolean;
 }
 
 /** `now` is injectable so the timestamp is deterministic in tests; defaults to the real clock. */
@@ -39,6 +46,7 @@ export function buildDataExportBundle(input: DataExportInput, now: () => string 
     customFoods: input.customFoods,
     meal: input.meal,
     savedMeals: input.savedMeals,
+    nightscoutConnected: input.nightscoutConnected,
   };
 }
 

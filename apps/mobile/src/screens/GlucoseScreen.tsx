@@ -1,41 +1,112 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { FadeIn } from "../components/FadeIn";
+import { InkSurface } from "../components/InkSurface";
 import { Mascot } from "../components/Mascot";
+import { NightscoutConnectPanel } from "../components/NightscoutConnectPanel";
 import { PressableScale } from "../components/PressableScale";
 import { Skeleton } from "../components/Skeleton";
 import { fetchGlucose, type GlucoseReading, type GlucoseResult } from "../api";
-import { directionArrow, directionLabelKey, formatAge } from "../glucose";
+import { directionArrow, directionLabelKey, formatAge, glucoseSyncErrorKey } from "../glucose";
 import { useLanguage } from "../i18n";
+import { clearConnection, isPersistent, loadConnection, saveConnection, type NightscoutConnection } from "../nightscoutStore";
 import { colors, elevation, fontWeights, MIN_TAP_TARGET, radius, spacing, typeScale } from "../theme";
 
 // Slice 6 — READ-ONLY, explicitly NON-CLINICAL glucose display. This screen
-// only ever calls `fetchGlucose()` (a GET-equivalent, mock-mode-only read)
-// and formats fields the API already computed. It must never import or
-// reference `@t1dine/dose-engine`, and it must never compute or display an
-// insulin/dose value — the safety banner below is permanent and
-// non-dismissible, matching the module boundary documented in
-// services/api/src/modules/nightscout.ts.
+// only ever calls `fetchGlucose()` — either with `{ mock: true }` (the
+// deterministic offline "ver exemplo" demo feed) or with a `{ url, token }`
+// pair loaded from the user's own secure Nightscout connection
+// (../nightscoutStore.ts) — and formats fields the API already computed. It
+// must never import or reference `@t1dine/dose-engine` or `src/dose/*`, and
+// it must never compute or display an insulin/dose value — the safety
+// banner below is permanent and non-dismissible, matching the module
+// boundary documented in services/api/src/modules/nightscout.ts.
+//
+// The Nightscout token is a HIGH-IMPACT credential (CLAUDE.md): it is loaded
+// from the secure store once per screen mount, held only in this component's
+// state for as long as a sync request needs it, and is NEVER logged, NEVER
+// displayed, and NEVER sent anywhere except this one proxied request. Sync is
+// always an EXPLICIT user action (the "Sincronizar" button) — never
+// automatic/polled.
 
-type LoadState = { status: "loading" } | { status: "error" } | { status: "ready"; result: GlucoseResult };
+type ReadState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "error"; messageKey: string }
+  | { status: "ready"; result: GlucoseResult };
 
 const READING_COUNT = 12;
 
 export function GlucoseScreen() {
   const { t } = useLanguage();
-  const [state, setState] = useState<LoadState>({ status: "loading" });
 
-  const load = useCallback(() => {
-    setState({ status: "loading" });
-    fetchGlucose({ count: READING_COUNT })
-      .then((result) => setState({ status: "ready", result }))
-      .catch(() => setState({ status: "error" }));
-  }, []);
+  // The saved connection is (re)loaded from the secure store on every mount —
+  // this screen is unmounted whenever an overlay (e.g. Perfil) is open (see
+  // App.tsx), so returning here after "Apagar todos os meus dados" cleared
+  // the store always reflects the current, correct connected/disconnected
+  // state rather than a stale in-memory value.
+  const [connectionLoading, setConnectionLoading] = useState(true);
+  const [connection, setConnection] = useState<NightscoutConnection | null>(null);
+
+  const [demoMode, setDemoMode] = useState(false);
+  const [demoState, setDemoState] = useState<ReadState>({ status: "idle" });
+  const [liveState, setLiveState] = useState<ReadState>({ status: "idle" });
 
   useEffect(() => {
-    load();
-  }, [load]);
+    let cancelled = false;
+    loadConnection()
+      .then((loaded) => {
+        if (!cancelled) setConnection(loaded);
+      })
+      .finally(() => {
+        if (!cancelled) setConnectionLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const loadDemo = useCallback(() => {
+    setDemoState({ status: "loading" });
+    fetchGlucose({ mock: true, count: READING_COUNT })
+      .then((result) => setDemoState({ status: "ready", result }))
+      .catch((error) => setDemoState({ status: "error", messageKey: glucoseSyncErrorKey(error) }));
+  }, []);
+
+  const handleToggleDemo = useCallback(() => {
+    setDemoMode((prev) => {
+      const next = !prev;
+      if (next) loadDemo();
+      return next;
+    });
+  }, [loadDemo]);
+
+  // The ONLY place this screen ever reads url+token out of state to build a
+  // request — always in direct response to the user tapping "Sincronizar",
+  // never on a timer and never automatically on mount/connect.
+  const handleSync = useCallback(() => {
+    if (!connection) return;
+    setLiveState({ status: "loading" });
+    fetchGlucose({ url: connection.url, token: connection.token, count: READING_COUNT })
+      .then((result) => setLiveState({ status: "ready", result }))
+      .catch((error) => setLiveState({ status: "error", messageKey: glucoseSyncErrorKey(error) }));
+  }, [connection]);
+
+  const handleSaveConnection = useCallback(async (url: string, token: string) => {
+    await saveConnection({ url, token });
+    setConnection({ url, token });
+    // A freshly (re)connected site has no synced data yet under this exact
+    // url/token pair — reset to "idle" so the UI asks for a fresh, explicit
+    // "Sincronizar" rather than ever showing data from a previous connection.
+    setLiveState({ status: "idle" });
+  }, []);
+
+  const handleDisconnect = useCallback(() => {
+    void clearConnection();
+    setConnection(null);
+    setLiveState({ status: "idle" });
+  }, []);
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
@@ -46,34 +117,140 @@ export function GlucoseScreen() {
         <Text style={styles.safetyText}>{t("glucose.safetyBanner")}</Text>
       </View>
 
-      {state.status === "loading" && (
-        <View accessible accessibilityLabel={t("glucose.loading")}>
-          <Skeleton height={128} radius={radius.xl} style={styles.skeletonCard} />
-          <Skeleton height={16} width="60%" style={styles.skeletonLine} />
-          <Skeleton height={44} style={styles.skeletonLine} />
-          <Skeleton height={44} style={styles.skeletonLine} />
-        </View>
+      {!connectionLoading && (
+        <NightscoutConnectPanel
+          connected={connection !== null}
+          currentUrl={connection?.url ?? null}
+          isPersistent={isPersistent}
+          onSave={handleSaveConnection}
+          onDisconnect={handleDisconnect}
+        />
       )}
 
-      {state.status === "error" && (
-        <FadeIn>
-          <View style={styles.center}>
-            <Mascot size={84} />
-            <Text style={styles.emptyTitle}>{t("glucose.offlineTitle")}</Text>
-            <Text style={styles.emptyBody}>{t("glucose.offlineBody")}</Text>
-            <PressableScale onPress={load} accessibilityRole="button" accessibilityLabel={t("glucose.retry")} style={styles.retryButton}>
-              <Text style={styles.retryButtonText}>{t("glucose.retry")}</Text>
-            </PressableScale>
-          </View>
-        </FadeIn>
-      )}
+      <DemoToggleRow enabled={demoMode} onToggle={handleToggleDemo} />
 
-      {state.status === "ready" && <GlucoseReady result={state.result} onRefresh={load} />}
+      {demoMode ? (
+        <GlucoseStateView state={demoState} onAction={loadDemo} actionLabel={t("glucose.syncButton")} />
+      ) : connection ? (
+        <GlucoseStateView
+          state={liveState}
+          onAction={handleSync}
+          actionLabel={t("glucose.syncButton")}
+          idleNode={<NotSyncedPrompt onSync={handleSync} />}
+        />
+      ) : (
+        <ConnectPromptEmpty />
+      )}
     </ScrollView>
   );
 }
 
-function GlucoseReady({ result, onRefresh }: { result: GlucoseResult; onRefresh: () => void }) {
+function DemoToggleRow({ enabled, onToggle }: { enabled: boolean; onToggle: () => void }) {
+  const { t } = useLanguage();
+  return (
+    <FadeIn>
+      <PressableScale
+        onPress={onToggle}
+        accessibilityRole="switch"
+        accessibilityState={{ checked: enabled }}
+        accessibilityLabel={t("glucose.demoToggleLabel")}
+        accessibilityHint={t("glucose.demoToggleHint")}
+        style={[styles.demoRow, enabled && styles.demoRowActive]}
+      >
+        <View style={[styles.demoDot, enabled && styles.demoDotActive]} />
+        <View style={styles.demoTextWrap}>
+          <Text style={styles.demoLabel}>{t("glucose.demoToggleLabel")}</Text>
+          <Text style={styles.demoHint}>{t("glucose.demoToggleHint")}</Text>
+        </View>
+      </PressableScale>
+    </FadeIn>
+  );
+}
+
+function ConnectPromptEmpty() {
+  const { t } = useLanguage();
+  return (
+    <FadeIn>
+      <View style={styles.center}>
+        <Mascot size={84} />
+        <Text style={styles.emptyTitle}>{t("glucose.connectPromptTitle")}</Text>
+        <Text style={styles.emptyBody}>{t("glucose.connectPromptBody")}</Text>
+      </View>
+    </FadeIn>
+  );
+}
+
+function NotSyncedPrompt({ onSync }: { onSync: () => void }) {
+  const { t } = useLanguage();
+  return (
+    <FadeIn>
+      <View style={styles.center}>
+        <Mascot size={64} />
+        <Text style={styles.emptyTitle}>{t("glucose.notSyncedTitle")}</Text>
+        <Text style={styles.emptyBody}>{t("glucose.notSyncedBody")}</Text>
+        <PressableScale onPress={onSync} accessibilityRole="button" accessibilityLabel={t("glucose.syncButton")} style={styles.retryButton}>
+          <Text style={styles.retryButtonText}>{t("glucose.syncButton")}</Text>
+        </PressableScale>
+      </View>
+    </FadeIn>
+  );
+}
+
+/**
+ * Shared idle/loading/error/ready presentation for BOTH the demo feed and a
+ * live Nightscout sync — the two are simply different `ReadState` sources
+ * feeding the same untrusted-response-shaped `GlucoseResult` (see ../api.ts).
+ * `idleNode` (only ever supplied for the live/connected case) covers "you're
+ * connected but haven't tapped Sincronizar yet" — the demo feed never sits
+ * idle since turning it on always triggers an immediate load.
+ */
+function GlucoseStateView({
+  state,
+  onAction,
+  actionLabel,
+  idleNode,
+}: {
+  state: ReadState;
+  onAction: () => void;
+  actionLabel: string;
+  idleNode?: ReactNode;
+}) {
+  const { t } = useLanguage();
+
+  if (state.status === "idle") {
+    return idleNode ? <>{idleNode}</> : null;
+  }
+
+  if (state.status === "loading") {
+    return (
+      <View accessible accessibilityLabel={t("glucose.loading")}>
+        <Skeleton height={128} radius={radius.xl} style={styles.skeletonCard} />
+        <Skeleton height={16} width="60%" style={styles.skeletonLine} />
+        <Skeleton height={44} style={styles.skeletonLine} />
+        <Skeleton height={44} style={styles.skeletonLine} />
+      </View>
+    );
+  }
+
+  if (state.status === "error") {
+    return (
+      <FadeIn>
+        <View style={styles.center}>
+          <Mascot size={84} />
+          <Text style={styles.emptyTitle}>{t("glucose.syncErrorTitle")}</Text>
+          <Text style={styles.emptyBody}>{t(state.messageKey)}</Text>
+          <PressableScale onPress={onAction} accessibilityRole="button" accessibilityLabel={actionLabel} style={styles.retryButton}>
+            <Text style={styles.retryButtonText}>{actionLabel}</Text>
+          </PressableScale>
+        </View>
+      </FadeIn>
+    );
+  }
+
+  return <GlucoseReady result={state.result} onRefresh={onAction} refreshLabel={actionLabel} />;
+}
+
+function GlucoseReady({ result, onRefresh, refreshLabel }: { result: GlucoseResult; onRefresh: () => void; refreshLabel: string }) {
   const { t } = useLanguage();
   const { newest, readings, allStale, source } = result;
 
@@ -81,14 +258,14 @@ function GlucoseReady({ result, onRefresh }: { result: GlucoseResult; onRefresh:
     <FadeIn>
       <View style={styles.sourceRow}>
         <Text style={styles.sourceText}>{source === "mock" ? t("glucose.sourceMock") : t("glucose.sourceLive")}</Text>
-        <PressableScale onPress={onRefresh} accessibilityRole="button" accessibilityLabel={t("glucose.retry")} style={styles.refreshButton} hitSlop={8}>
-          <Text style={styles.refreshButtonText}>⟳ {t("glucose.retry")}</Text>
+        <PressableScale onPress={onRefresh} accessibilityRole="button" accessibilityLabel={refreshLabel} style={styles.refreshButton} hitSlop={8}>
+          <Text style={styles.refreshButtonText}>⟳ {refreshLabel}</Text>
         </PressableScale>
       </View>
 
       {newest ? (
-        <View
-          style={styles.newestCard}
+        <InkSurface
+          contentStyle={styles.newestContent}
           accessible
           accessibilityLabel={`${t("glucose.newestLabel")}: ${Math.round(newest.mgdl)} ${t("glucose.mgdlUnit")}, ${newest.mmol.toFixed(1)} ${t("glucose.mmolUnit")}, ${t(directionLabelKey(newest.direction))}, ${formatAge(t, newest.ageMinutes)}`}
         >
@@ -106,7 +283,7 @@ function GlucoseReady({ result, onRefresh }: { result: GlucoseResult; onRefresh:
           </View>
           <Text style={styles.newestDirection}>{t(directionLabelKey(newest.direction))}</Text>
           <Text style={styles.newestAge}>{formatAge(t, newest.ageMinutes)}</Text>
-        </View>
+        </InkSurface>
       ) : (
         <View style={styles.center}>
           <Mascot size={64} />
@@ -171,10 +348,29 @@ const styles = StyleSheet.create({
   },
   safetyIcon: { color: colors.confidenceMedium, fontSize: 16, fontWeight: "700" },
   safetyText: { flex: 1, fontSize: 13, color: colors.textSecondary, fontWeight: "600" },
+  demoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    minHeight: MIN_TAP_TARGET,
+    ...elevation.sm.native,
+  },
+  demoRowActive: { borderColor: colors.brand, borderWidth: 1.5 },
+  demoDot: { width: 20, height: 20, borderRadius: radius.pill, borderWidth: 2, borderColor: colors.borderStrong },
+  demoDotActive: { backgroundColor: colors.brand, borderColor: colors.brand },
+  demoTextWrap: { flex: 1 },
+  demoLabel: { fontSize: 14, fontWeight: "700", color: colors.textPrimary },
+  demoHint: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
   skeletonCard: { marginBottom: spacing.md },
   skeletonLine: { marginBottom: spacing.sm },
   center: { alignItems: "center", paddingVertical: spacing.xxl },
-  emptyTitle: { fontSize: typeScale.heading.size, fontWeight: fontWeights.bold, color: colors.textPrimary, marginTop: spacing.md },
+  emptyTitle: { fontSize: typeScale.heading.size, fontWeight: fontWeights.bold, color: colors.textPrimary, marginTop: spacing.md, textAlign: "center" },
   emptyBody: { fontSize: 14, color: colors.textMuted, marginTop: 4, textAlign: "center" },
   retryButton: {
     marginTop: spacing.lg,
@@ -190,22 +386,15 @@ const styles = StyleSheet.create({
   sourceText: { fontSize: 12, color: colors.textMuted, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5 },
   refreshButton: { minHeight: MIN_TAP_TARGET, justifyContent: "center", paddingHorizontal: spacing.sm },
   refreshButtonText: { fontSize: 13, color: colors.accent, fontWeight: "700" },
-  newestCard: {
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.hairline,
-    padding: spacing.lg,
-    ...elevation.md.native,
-  },
-  newestLabel: { fontSize: 12, color: colors.textFaint, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5 },
+  newestContent: { padding: spacing.lg },
+  newestLabel: { fontSize: 12, color: "rgba(255,255,255,0.6)", fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5 },
   newestValueRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, marginTop: spacing.sm },
-  newestArrow: { fontSize: 40, color: colors.brand, fontWeight: "700" },
-  newestValue: { fontSize: typeScale.display.size, fontWeight: fontWeights.extrabold, color: colors.textPrimary },
-  newestUnit: { fontSize: typeScale.subheading.size, fontWeight: fontWeights.semibold, color: colors.textMuted },
-  newestSecondary: { fontSize: typeScale.subheading.size, color: colors.textMuted, marginTop: 2 },
-  newestDirection: { fontSize: 14, color: colors.textSecondary, marginTop: spacing.sm },
-  newestAge: { fontSize: 13, color: colors.textFaint, marginTop: 2 },
+  newestArrow: { fontSize: 40, color: colors.focusRing, fontWeight: "700" },
+  newestValue: { fontSize: typeScale.display.size, fontWeight: fontWeights.extrabold, color: colors.onBrand },
+  newestUnit: { fontSize: typeScale.subheading.size, fontWeight: fontWeights.semibold, color: "rgba(255,255,255,0.7)" },
+  newestSecondary: { fontSize: typeScale.subheading.size, color: "rgba(255,255,255,0.7)", marginTop: 2 },
+  newestDirection: { fontSize: 14, color: "rgba(255,255,255,0.85)", marginTop: spacing.sm },
+  newestAge: { fontSize: 13, color: "rgba(255,255,255,0.55)", marginTop: 2 },
   staleBanner: {
     flexDirection: "row",
     gap: spacing.sm,

@@ -90,6 +90,9 @@ importers:
       expo-linear-gradient:
         specifier: ~14.0.2
         version: 14.0.2(expo@52.0.49(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@expo/metro-runtime@4.0.1(react-native@0.76.9(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.3.31)(react@18.3.1)))(react-native@0.76.9(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.3.31)(react@18.3.1))(react@18.3.1))(react-native@0.76.9(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.3.31)(react@18.3.1))(react@18.3.1)
+      expo-secure-store:
+        specifier: ~14.0.1
+        version: 14.0.1(expo@52.0.49(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@expo/metro-runtime@4.0.1(react-native@0.76.9(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.3.31)(react@18.3.1)))(react-native@0.76.9(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.3.31)(react@18.3.1))(react@18.3.1))
       expo-status-bar:
         specifier: ~2.0.1
         version: 2.0.1(react-native@0.76.9(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.3.31)(react@18.3.1))(react@18.3.1)
@@ -168,6 +171,18 @@ importers:
         specifier: ^8.11.10
         version: 8.20.0
 
+  services/search-indexer:
+    dependencies:
+      '@t1dine/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
+      '@t1dine/food-schema':
+        specifier: workspace:*
+        version: link:../../packages/food-schema
+      '@t1dine/nutrition':
+        specifier: workspace:*
+        version: link:../../packages/nutrition
+
 packages:
 
   '@0no-co/graphql.web@1.3.2':
@@ -195,7 +210,7 @@ packages:
     engines: {node: '>=6.9.0'}
 
   '@babel/compat-data@7.29.7':
-    resolution: {integrity: sha1-bwI38PNtLlHAVwpjb67Z0tDv5ik=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/compat-data/-/compat-data-7.29.7.tgz}
+    resolution: {integrity: sha1-bwI38PNtLlHAVwpjb67Z0tDv5ik=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/compat-data/-/compat-data-7.29.7.tgz}
     engines: {node: '>=6.9.0'}
 
   '@babel/core@7.29.7':
@@ -211,17 +226,17 @@ packages:
     engines: {node: '>=6.9.0'}
 
   '@babel/helper-compilation-targets@7.29.7':
-    resolution: {integrity: sha1-eh3vcEMCQBxH9k+oVYnpdK4hcEI=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/helper-compilation-targets/-/helper-compilation-targets-7.29.7.tgz}
+    resolution: {integrity: sha1-eh3vcEMCQBxH9k+oVYnpdK4hcEI=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/helper-compilation-targets/-/helper-compilation-targets-7.29.7.tgz}
     engines: {node: '>=6.9.0'}
 
   '@babel/helper-create-class-features-plugin@7.29.7':
-    resolution: {integrity: sha1-bt3yhvLsQY90DJHWCoM0fFWDjd0=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/helper-create-class-features-plugin/-/helper-create-class-features-plugin-7.29.7.tgz}
+    resolution: {integrity: sha1-bt3yhvLsQY90DJHWCoM0fFWDjd0=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/helper-create-class-features-plugin/-/helper-create-class-features-plugin-7.29.7.tgz}
     engines: {node: '>=6.9.0'}
     peerDependencies:
       '@babel/core': ^7.0.0
 
   '@babel/helper-create-regexp-features-plugin@7.29.7':
-    resolution: {integrity: sha1-XUw/ko8xXPbEGE6i/DtbOHRbJDA=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/helper-create-regexp-features-plugin/-/helper-create-regexp-features-plugin-7.29.7.tgz}
+    resolution: {integrity: sha1-XUw/ko8xXPbEGE6i/DtbOHRbJDA=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/helper-create-regexp-features-plugin/-/helper-create-regexp-features-plugin-7.29.7.tgz}
     engines: {node: '>=6.9.0'}
     peerDependencies:
       '@babel/core': ^7.0.0
@@ -254,7 +269,7 @@ packages:
     engines: {node: '>=6.9.0'}
 
   '@babel/helper-plugin-utils@7.29.7':
-    resolution: {integrity: sha1-wKB2bxoTYX2KF0B9erj51IYiXqQ=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/helper-plugin-utils/-/helper-plugin-utils-7.29.7.tgz}
+    resolution: {integrity: sha1-wKB2bxoTYX2KF0B9erj51IYiXqQ=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/helper-plugin-utils/-/helper-plugin-utils-7.29.7.tgz}
     engines: {node: '>=6.9.0'}
 
   '@babel/helper-remap-async-to-generator@7.29.7':
@@ -264,7 +279,7 @@ packages:
       '@babel/core': ^7.0.0
 
   '@babel/helper-replace-supers@7.29.7':
-    resolution: {integrity: sha1-vDw5ZDKQQ8eREuUTwbGY8WWJrCE=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/helper-replace-supers/-/helper-replace-supers-7.29.7.tgz}
+    resolution: {integrity: sha1-vDw5ZDKQQ8eREuUTwbGY8WWJrCE=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/helper-replace-supers/-/helper-replace-supers-7.29.7.tgz}
     engines: {node: '>=6.9.0'}
     peerDependencies:
       '@babel/core': ^7.0.0
@@ -309,7 +324,7 @@ packages:
       '@babel/core': ^7.0.0
 
   '@babel/plugin-bugfix-safari-class-field-initializer-scope@7.29.7':
-    resolution: {integrity: sha1-sAcRqeUr9P5V735Usu9KiBv4BMg=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-bugfix-safari-class-field-initializer-scope/-/plugin-bugfix-safari-class-field-initializer-scope-7.29.7.tgz}
+    resolution: {integrity: sha1-sAcRqeUr9P5V735Usu9KiBv4BMg=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-bugfix-safari-class-field-initializer-scope/-/plugin-bugfix-safari-class-field-initializer-scope-7.29.7.tgz}
     engines: {node: '>=6.9.0'}
     peerDependencies:
       '@babel/core': ^7.0.0
@@ -321,19 +336,19 @@ packages:
       '@babel/core': ^7.0.0
 
   '@babel/plugin-bugfix-safari-rest-destructuring-rhs-array@7.29.7':
-    resolution: {integrity: sha1-dZqFfEbE0qYZloXPcQcNga5fdDo=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-bugfix-safari-rest-destructuring-rhs-array/-/plugin-bugfix-safari-rest-destructuring-rhs-array-7.29.7.tgz}
+    resolution: {integrity: sha1-dZqFfEbE0qYZloXPcQcNga5fdDo=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-bugfix-safari-rest-destructuring-rhs-array/-/plugin-bugfix-safari-rest-destructuring-rhs-array-7.29.7.tgz}
     engines: {node: '>=6.9.0'}
     peerDependencies:
       '@babel/core': ^7.0.0
 
   '@babel/plugin-bugfix-v8-spread-parameters-in-optional-chaining@7.29.7':
-    resolution: {integrity: sha1-ht6Y3Y4Dg2F4Ix6pbCfasmAWpwU=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-bugfix-v8-spread-parameters-in-optional-chaining/-/plugin-bugfix-v8-spread-parameters-in-optional-chaining-7.29.7.tgz}
+    resolution: {integrity: sha1-ht6Y3Y4Dg2F4Ix6pbCfasmAWpwU=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-bugfix-v8-spread-parameters-in-optional-chaining/-/plugin-bugfix-v8-spread-parameters-in-optional-chaining-7.29.7.tgz}
     engines: {node: '>=6.9.0'}
     peerDependencies:
       '@babel/core': ^7.13.0
 
   '@babel/plugin-bugfix-v8-static-class-fields-redefine-readonly@7.29.7':
-    resolution: {integrity: sha1-9diSaB2/Swh1NDal5VAA1bpyjW0=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-bugfix-v8-static-class-fields-redefine-readonly/-/plugin-bugfix-v8-static-class-fields-redefine-readonly-7.29.7.tgz}
+    resolution: {integrity: sha1-9diSaB2/Swh1NDal5VAA1bpyjW0=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-bugfix-v8-static-class-fields-redefine-readonly/-/plugin-bugfix-v8-static-class-fields-redefine-readonly-7.29.7.tgz}
     engines: {node: '>=6.9.0'}
     peerDependencies:
       '@babel/core': ^7.0.0
@@ -428,7 +443,7 @@ packages:
       '@babel/core': ^7.0.0-0
 
   '@babel/plugin-syntax-import-attributes@7.29.7':
-    resolution: {integrity: sha1-YRUmRRbpXq0PNaQXEJBmEuRH9gU=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-syntax-import-attributes/-/plugin-syntax-import-attributes-7.29.7.tgz}
+    resolution: {integrity: sha1-YRUmRRbpXq0PNaQXEJBmEuRH9gU=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-syntax-import-attributes/-/plugin-syntax-import-attributes-7.29.7.tgz}
     engines: {node: '>=6.9.0'}
     peerDependencies:
       '@babel/core': ^7.0.0-0
@@ -498,13 +513,13 @@ packages:
       '@babel/core': ^7.0.0-0
 
   '@babel/plugin-syntax-unicode-sets-regex@7.18.6':
-    resolution: {integrity: sha1-1Jo7PmtS5b5nQAIjF1gCNKakc1c=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-syntax-unicode-sets-regex/-/plugin-syntax-unicode-sets-regex-7.18.6.tgz}
+    resolution: {integrity: sha1-1Jo7PmtS5b5nQAIjF1gCNKakc1c=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-syntax-unicode-sets-regex/-/plugin-syntax-unicode-sets-regex-7.18.6.tgz}
     engines: {node: '>=6.9.0'}
     peerDependencies:
       '@babel/core': ^7.0.0
 
   '@babel/plugin-transform-arrow-functions@7.29.7':
-    resolution: {integrity: sha1-1lE0P1YsA/R5Ub0YAhldDhBgXyc=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-arrow-functions/-/plugin-transform-arrow-functions-7.29.7.tgz}
+    resolution: {integrity: sha1-1lE0P1YsA/R5Ub0YAhldDhBgXyc=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-arrow-functions/-/plugin-transform-arrow-functions-7.29.7.tgz}
     engines: {node: '>=6.9.0'}
     peerDependencies:
       '@babel/core': ^7.0.0-0
@@ -522,13 +537,13 @@ packages:
       '@babel/core': ^7.0.0-0
 
   '@babel/plugin-transform-block-scoped-functions@7.29.7':
-    resolution: {integrity: sha1-ltKSY0Q0CC1mh7zbgROa/+33fow=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-block-scoped-functions/-/plugin-transform-block-scoped-functions-7.29.7.tgz}
+    resolution: {integrity: sha1-ltKSY0Q0CC1mh7zbgROa/+33fow=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-block-scoped-functions/-/plugin-transform-block-scoped-functions-7.29.7.tgz}
     engines: {node: '>=6.9.0'}
     peerDependencies:
       '@babel/core': ^7.0.0-0
 
   '@babel/plugin-transform-block-scoping@7.29.7':
-    resolution: {integrity: sha1-uqN2aRrhYkTNFDNUIvymkA9U4X0=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-block-scoping/-/plugin-transform-block-scoping-7.29.7.tgz}
+    resolution: {integrity: sha1-uqN2aRrhYkTNFDNUIvymkA9U4X0=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-block-scoping/-/plugin-transform-block-scoping-7.29.7.tgz}
     engines: {node: '>=6.9.0'}
     peerDependencies:
       '@babel/core': ^7.0.0-0
@@ -552,7 +567,7 @@ packages:
       '@babel/core': ^7.0.0-0
 
   '@babel/plugin-transform-computed-properties@7.29.7':
-    resolution: {integrity: sha1-lQKHh8oxkBuaILXG2WBcMjRvVa0=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-computed-properties/-/plugin-transform-computed-properties-7.29.7.tgz}
+    resolution: {integrity: sha1-lQKHh8oxkBuaILXG2WBcMjRvVa0=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-computed-properties/-/plugin-transform-computed-properties-7.29.7.tgz}
     engines: {node: '>=6.9.0'}
     peerDependencies:
       '@babel/core': ^7.0.0-0
@@ -564,7 +579,7 @@ packages:
       '@babel/core': ^7.0.0-0
 
   '@babel/plugin-transform-dotall-regex@7.29.7':
-    resolution: {integrity: sha1-sgPel0Dkx/9rVc5DbtUxO4jXCvg=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-dotall-regex/-/plugin-transform-dotall-regex-7.29.7.tgz}
+    resolution: {integrity: sha1-sgPel0Dkx/9rVc5DbtUxO4jXCvg=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-dotall-regex/-/plugin-transform-dotall-regex-7.29.7.tgz}
     engines: {node: '>=6.9.0'}
     peerDependencies:
       '@babel/core': ^7.0.0-0
@@ -582,13 +597,13 @@ packages:
       '@babel/core': ^7.0.0
 
   '@babel/plugin-transform-dynamic-import@7.29.7':
-    resolution: {integrity: sha1-qDpvrsW6tbYZrfnQ6sbBwnASPCo=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-dynamic-import/-/plugin-transform-dynamic-import-7.29.7.tgz}
+    resolution: {integrity: sha1-qDpvrsW6tbYZrfnQ6sbBwnASPCo=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-dynamic-import/-/plugin-transform-dynamic-import-7.29.7.tgz}
     engines: {node: '>=6.9.0'}
     peerDependencies:
       '@babel/core': ^7.0.0-0
 
   '@babel/plugin-transform-explicit-resource-management@7.29.7':
-    resolution: {integrity: sha1-Zci5927JFbAqDh33AxJaD8pYq6o=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-explicit-resource-management/-/plugin-transform-explicit-resource-management-7.29.7.tgz}
+    resolution: {integrity: sha1-Zci5927JFbAqDh33AxJaD8pYq6o=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-explicit-resource-management/-/plugin-transform-explicit-resource-management-7.29.7.tgz}
     engines: {node: '>=6.9.0'}
     peerDependencies:
       '@babel/core': ^7.0.0-0
@@ -612,55 +627,55 @@ packages:
       '@babel/core': ^7.0.0-0
 
   '@babel/plugin-transform-for-of@7.29.7':
-    resolution: {integrity: sha1-xlpnhZIRdxeqzbEMG3Opy4XoML4=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-for-of/-/plugin-transform-for-of-7.29.7.tgz}
+    resolution: {integrity: sha1-xlpnhZIRdxeqzbEMG3Opy4XoML4=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-for-of/-/plugin-transform-for-of-7.29.7.tgz}
     engines: {node: '>=6.9.0'}
     peerDependencies:
       '@babel/core': ^7.0.0-0
 
   '@babel/plugin-transform-function-name@7.29.7':
-    resolution: {integrity: sha1-i4f4p1BNvNlhNRZ+P8T2ESanvYY=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-function-name/-/plugin-transform-function-name-7.29.7.tgz}
+    resolution: {integrity: sha1-i4f4p1BNvNlhNRZ+P8T2ESanvYY=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-function-name/-/plugin-transform-function-name-7.29.7.tgz}
     engines: {node: '>=6.9.0'}
     peerDependencies:
       '@babel/core': ^7.0.0-0
 
   '@babel/plugin-transform-json-strings@7.29.7':
-    resolution: {integrity: sha1-9X1j3MBbRIHCgaztzY/E4+Q5odQ=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-json-strings/-/plugin-transform-json-strings-7.29.7.tgz}
+    resolution: {integrity: sha1-9X1j3MBbRIHCgaztzY/E4+Q5odQ=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-json-strings/-/plugin-transform-json-strings-7.29.7.tgz}
     engines: {node: '>=6.9.0'}
     peerDependencies:
       '@babel/core': ^7.0.0-0
 
   '@babel/plugin-transform-literals@7.29.7':
-    resolution: {integrity: sha1-uQvUdGMybCqdd54b1eH4i59CGSE=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-literals/-/plugin-transform-literals-7.29.7.tgz}
+    resolution: {integrity: sha1-uQvUdGMybCqdd54b1eH4i59CGSE=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-literals/-/plugin-transform-literals-7.29.7.tgz}
     engines: {node: '>=6.9.0'}
     peerDependencies:
       '@babel/core': ^7.0.0-0
 
   '@babel/plugin-transform-logical-assignment-operators@7.29.7':
-    resolution: {integrity: sha1-mylCWt9ceUlnqr5LBGoEahZ7rC8=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-logical-assignment-operators/-/plugin-transform-logical-assignment-operators-7.29.7.tgz}
+    resolution: {integrity: sha1-mylCWt9ceUlnqr5LBGoEahZ7rC8=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-logical-assignment-operators/-/plugin-transform-logical-assignment-operators-7.29.7.tgz}
     engines: {node: '>=6.9.0'}
     peerDependencies:
       '@babel/core': ^7.0.0-0
 
   '@babel/plugin-transform-member-expression-literals@7.29.7':
-    resolution: {integrity: sha1-EoFon6L+/BexENIeuv0P6UAtUwk=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-member-expression-literals/-/plugin-transform-member-expression-literals-7.29.7.tgz}
+    resolution: {integrity: sha1-EoFon6L+/BexENIeuv0P6UAtUwk=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-member-expression-literals/-/plugin-transform-member-expression-literals-7.29.7.tgz}
     engines: {node: '>=6.9.0'}
     peerDependencies:
       '@babel/core': ^7.0.0-0
 
   '@babel/plugin-transform-modules-amd@7.29.7':
-    resolution: {integrity: sha1-8FymYsih3Evi8zevnH6ANpyULWw=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-modules-amd/-/plugin-transform-modules-amd-7.29.7.tgz}
+    resolution: {integrity: sha1-8FymYsih3Evi8zevnH6ANpyULWw=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-modules-amd/-/plugin-transform-modules-amd-7.29.7.tgz}
     engines: {node: '>=6.9.0'}
     peerDependencies:
       '@babel/core': ^7.0.0-0
 
   '@babel/plugin-transform-modules-commonjs@7.29.7':
-    resolution: {integrity: sha1-cOaDWr8mY9r76UuO8fUd5zUe8TU=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-modules-commonjs/-/plugin-transform-modules-commonjs-7.29.7.tgz}
+    resolution: {integrity: sha1-cOaDWr8mY9r76UuO8fUd5zUe8TU=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-modules-commonjs/-/plugin-transform-modules-commonjs-7.29.7.tgz}
     engines: {node: '>=6.9.0'}
     peerDependencies:
       '@babel/core': ^7.0.0-0
 
   '@babel/plugin-transform-modules-systemjs@7.29.7':
-    resolution: {integrity: sha1-5XXdKrmIKQbeEg/33J3umRTYtvM=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-modules-systemjs/-/plugin-transform-modules-systemjs-7.29.7.tgz}
+    resolution: {integrity: sha1-5XXdKrmIKQbeEg/33J3umRTYtvM=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-modules-systemjs/-/plugin-transform-modules-systemjs-7.29.7.tgz}
     engines: {node: '>=6.9.0'}
     peerDependencies:
       '@babel/core': ^7.0.0-0
@@ -672,31 +687,31 @@ packages:
       '@babel/core': ^7.0.0-0
 
   '@babel/plugin-transform-named-capturing-groups-regex@7.29.7':
-    resolution: {integrity: sha1-IeddhHsxGJhC+np3cDci7UtD0n0=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-named-capturing-groups-regex/-/plugin-transform-named-capturing-groups-regex-7.29.7.tgz}
+    resolution: {integrity: sha1-IeddhHsxGJhC+np3cDci7UtD0n0=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-named-capturing-groups-regex/-/plugin-transform-named-capturing-groups-regex-7.29.7.tgz}
     engines: {node: '>=6.9.0'}
     peerDependencies:
       '@babel/core': ^7.0.0
 
   '@babel/plugin-transform-new-target@7.29.7':
-    resolution: {integrity: sha1-cUFHznlH4bScvYQTfKLnXpKyoGc=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-new-target/-/plugin-transform-new-target-7.29.7.tgz}
+    resolution: {integrity: sha1-cUFHznlH4bScvYQTfKLnXpKyoGc=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-new-target/-/plugin-transform-new-target-7.29.7.tgz}
     engines: {node: '>=6.9.0'}
     peerDependencies:
       '@babel/core': ^7.0.0-0
 
   '@babel/plugin-transform-nullish-coalescing-operator@7.29.7':
-    resolution: {integrity: sha1-ilTN+Iw/UEM6YXMReihhlbZ3FMw=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-nullish-coalescing-operator/-/plugin-transform-nullish-coalescing-operator-7.29.7.tgz}
+    resolution: {integrity: sha1-ilTN+Iw/UEM6YXMReihhlbZ3FMw=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-nullish-coalescing-operator/-/plugin-transform-nullish-coalescing-operator-7.29.7.tgz}
     engines: {node: '>=6.9.0'}
     peerDependencies:
       '@babel/core': ^7.0.0-0
 
   '@babel/plugin-transform-numeric-separator@7.29.7':
-    resolution: {integrity: sha1-AmbVzUKrh+xA/uRaTjZIPP3Lxmo=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-numeric-separator/-/plugin-transform-numeric-separator-7.29.7.tgz}
+    resolution: {integrity: sha1-AmbVzUKrh+xA/uRaTjZIPP3Lxmo=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-numeric-separator/-/plugin-transform-numeric-separator-7.29.7.tgz}
     engines: {node: '>=6.9.0'}
     peerDependencies:
       '@babel/core': ^7.0.0-0
 
   '@babel/plugin-transform-object-rest-spread@7.29.7':
-    resolution: {integrity: sha1-4NUGAkGAOSLFRWdmE8yKy72g0mY=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-object-rest-spread/-/plugin-transform-object-rest-spread-7.29.7.tgz}
+    resolution: {integrity: sha1-4NUGAkGAOSLFRWdmE8yKy72g0mY=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-object-rest-spread/-/plugin-transform-object-rest-spread-7.29.7.tgz}
     engines: {node: '>=6.9.0'}
     peerDependencies:
       '@babel/core': ^7.0.0-0
@@ -708,7 +723,7 @@ packages:
       '@babel/core': ^7.0.0-0
 
   '@babel/plugin-transform-optional-catch-binding@7.29.7':
-    resolution: {integrity: sha1-cpZk95mFvlBOuhEsUd6fcdAJAws=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-optional-catch-binding/-/plugin-transform-optional-catch-binding-7.29.7.tgz}
+    resolution: {integrity: sha1-cpZk95mFvlBOuhEsUd6fcdAJAws=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-optional-catch-binding/-/plugin-transform-optional-catch-binding-7.29.7.tgz}
     engines: {node: '>=6.9.0'}
     peerDependencies:
       '@babel/core': ^7.0.0-0
@@ -720,13 +735,13 @@ packages:
       '@babel/core': ^7.0.0-0
 
   '@babel/plugin-transform-parameters@7.29.7':
-    resolution: {integrity: sha1-pd3Dub+1NIFMuDNMvrpH2c+dsJA=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-parameters/-/plugin-transform-parameters-7.29.7.tgz}
+    resolution: {integrity: sha1-pd3Dub+1NIFMuDNMvrpH2c+dsJA=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-parameters/-/plugin-transform-parameters-7.29.7.tgz}
     engines: {node: '>=6.9.0'}
     peerDependencies:
       '@babel/core': ^7.0.0-0
 
   '@babel/plugin-transform-private-methods@7.29.7':
-    resolution: {integrity: sha1-zqi9OrmVM4kol6ApmdW3UlhK0UU=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-private-methods/-/plugin-transform-private-methods-7.29.7.tgz}
+    resolution: {integrity: sha1-zqi9OrmVM4kol6ApmdW3UlhK0UU=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-private-methods/-/plugin-transform-private-methods-7.29.7.tgz}
     engines: {node: '>=6.9.0'}
     peerDependencies:
       '@babel/core': ^7.0.0-0
@@ -780,19 +795,19 @@ packages:
       '@babel/core': ^7.0.0-0
 
   '@babel/plugin-transform-regenerator@7.29.7':
-    resolution: {integrity: sha1-D0Jian27Dnp/UuA20+Q97r3D6k4=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-regenerator/-/plugin-transform-regenerator-7.29.7.tgz}
+    resolution: {integrity: sha1-D0Jian27Dnp/UuA20+Q97r3D6k4=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-regenerator/-/plugin-transform-regenerator-7.29.7.tgz}
     engines: {node: '>=6.9.0'}
     peerDependencies:
       '@babel/core': ^7.0.0-0
 
   '@babel/plugin-transform-regexp-modifiers@7.29.7':
-    resolution: {integrity: sha1-aDEcDBCvIZghJSiGP4VChD5CQCU=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-regexp-modifiers/-/plugin-transform-regexp-modifiers-7.29.7.tgz}
+    resolution: {integrity: sha1-aDEcDBCvIZghJSiGP4VChD5CQCU=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-regexp-modifiers/-/plugin-transform-regexp-modifiers-7.29.7.tgz}
     engines: {node: '>=6.9.0'}
     peerDependencies:
       '@babel/core': ^7.0.0
 
   '@babel/plugin-transform-reserved-words@7.29.7':
-    resolution: {integrity: sha1-pv7rF5s2pfH8bjFUwetye9vjWHY=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-reserved-words/-/plugin-transform-reserved-words-7.29.7.tgz}
+    resolution: {integrity: sha1-pv7rF5s2pfH8bjFUwetye9vjWHY=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-reserved-words/-/plugin-transform-reserved-words-7.29.7.tgz}
     engines: {node: '>=6.9.0'}
     peerDependencies:
       '@babel/core': ^7.0.0-0
@@ -804,13 +819,13 @@ packages:
       '@babel/core': ^7.0.0-0
 
   '@babel/plugin-transform-shorthand-properties@7.29.7':
-    resolution: {integrity: sha1-JcBDa5j0vZykuY4fvWYnQ7uqub8=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-shorthand-properties/-/plugin-transform-shorthand-properties-7.29.7.tgz}
+    resolution: {integrity: sha1-JcBDa5j0vZykuY4fvWYnQ7uqub8=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-shorthand-properties/-/plugin-transform-shorthand-properties-7.29.7.tgz}
     engines: {node: '>=6.9.0'}
     peerDependencies:
       '@babel/core': ^7.0.0-0
 
   '@babel/plugin-transform-spread@7.29.7':
-    resolution: {integrity: sha1-oSi83WteXkcFSQey5QvBnD+Fbt0=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-spread/-/plugin-transform-spread-7.29.7.tgz}
+    resolution: {integrity: sha1-oSi83WteXkcFSQey5QvBnD+Fbt0=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-spread/-/plugin-transform-spread-7.29.7.tgz}
     engines: {node: '>=6.9.0'}
     peerDependencies:
       '@babel/core': ^7.0.0-0
@@ -840,7 +855,7 @@ packages:
       '@babel/core': ^7.0.0-0
 
   '@babel/plugin-transform-unicode-escapes@7.29.7':
-    resolution: {integrity: sha1-HplVSwzd/WUNZJqfK5lgSYk+VyA=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-unicode-escapes/-/plugin-transform-unicode-escapes-7.29.7.tgz}
+    resolution: {integrity: sha1-HplVSwzd/WUNZJqfK5lgSYk+VyA=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-unicode-escapes/-/plugin-transform-unicode-escapes-7.29.7.tgz}
     engines: {node: '>=6.9.0'}
     peerDependencies:
       '@babel/core': ^7.0.0-0
@@ -852,7 +867,7 @@ packages:
       '@babel/core': ^7.0.0-0
 
   '@babel/plugin-transform-unicode-regex@7.29.7':
-    resolution: {integrity: sha1-wwZLKT/38XlLcfdlDuyNuYltPlk=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-unicode-regex/-/plugin-transform-unicode-regex-7.29.7.tgz}
+    resolution: {integrity: sha1-wwZLKT/38XlLcfdlDuyNuYltPlk=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/plugin-transform-unicode-regex/-/plugin-transform-unicode-regex-7.29.7.tgz}
     engines: {node: '>=6.9.0'}
     peerDependencies:
       '@babel/core': ^7.0.0-0
@@ -907,11 +922,11 @@ packages:
     engines: {node: '>=6.9.0'}
 
   '@babel/traverse@7.29.7':
-    resolution: {integrity: sha1-xHsHpBuV2gkH0Ca13YlNmN59Ly0=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/traverse/-/traverse-7.29.7.tgz}
+    resolution: {integrity: sha1-xHsHpBuV2gkH0Ca13YlNmN59Ly0=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/traverse/-/traverse-7.29.7.tgz}
     engines: {node: '>=6.9.0'}
 
   '@babel/types@7.29.7':
-    resolution: {integrity: sha1-gAXjHYJxLuetrvbiPGO3GmJ3CpI=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/types/-/types-7.29.7.tgz}
+    resolution: {integrity: sha1-gAXjHYJxLuetrvbiPGO3GmJ3CpI=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/types/-/types-7.29.7.tgz}
     engines: {node: '>=6.9.0'}
 
   '@esbuild/aix-ppc64@0.27.7':
@@ -2087,7 +2102,7 @@ packages:
     engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
 
   babel-plugin-polyfill-corejs2@0.4.17:
-    resolution: {integrity: sha1-GY+XDxyZqFa0ZtEYfojOML0ZnZE=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/babel-plugin-polyfill-corejs2/-/babel-plugin-polyfill-corejs2-0.4.17.tgz}
+    resolution: {integrity: sha1-GY+XDxyZqFa0ZtEYfojOML0ZnZE=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/babel-plugin-polyfill-corejs2/-/babel-plugin-polyfill-corejs2-0.4.17.tgz}
     peerDependencies:
       '@babel/core': ^7.4.0 || ^8.0.0-0 <8.0.0
 
@@ -2102,7 +2117,7 @@ packages:
       '@babel/core': ^7.4.0 || ^8.0.0-0 <8.0.0
 
   babel-plugin-polyfill-regenerator@0.6.8:
-    resolution: {integrity: sha1-imv9XdVCOTYrPQbOR6xSstlddyE=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/babel-plugin-polyfill-regenerator/-/babel-plugin-polyfill-regenerator-0.6.8.tgz}
+    resolution: {integrity: sha1-imv9XdVCOTYrPQbOR6xSstlddyE=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/babel-plugin-polyfill-regenerator/-/babel-plugin-polyfill-regenerator-0.6.8.tgz}
     peerDependencies:
       '@babel/core': ^7.4.0 || ^8.0.0-0 <8.0.0
 
@@ -2394,7 +2409,7 @@ packages:
     engines: {node: '>=18'}
 
   core-js-compat@3.49.0:
-    resolution: {integrity: sha1-BhRUR9kvSq8ligxE8ktHr66v/vY=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/core-js-compat/-/core-js-compat-3.49.0.tgz}
+    resolution: {integrity: sha1-BhRUR9kvSq8ligxE8ktHr66v/vY=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/core-js-compat/-/core-js-compat-3.49.0.tgz}
 
   cosmiconfig@5.2.1:
     resolution: {integrity: sha1-BA9yaAnFked6F8CjYmykW08Wixo=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/cosmiconfig/-/cosmiconfig-5.2.1.tgz}
@@ -2688,7 +2703,7 @@ packages:
     resolution: {integrity: sha1-Z8PlSexAKkh7T8GT0ZU6UkdSNA0=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/estree-walker/-/estree-walker-3.0.3.tgz}
 
   esutils@2.0.3:
-    resolution: {integrity: sha1-dNLrTeC42hKTcRkQ1Qd1ubcQ72Q=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/esutils/-/esutils-2.0.3.tgz}
+    resolution: {integrity: sha1-dNLrTeC42hKTcRkQ1Qd1ubcQ72Q=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/esutils/-/esutils-2.0.3.tgz}
     engines: {node: '>=0.10.0'}
 
   etag@1.8.1:
@@ -2755,6 +2770,11 @@ packages:
 
   expo-modules-core@2.2.3:
     resolution: {integrity: sha1-Q4CE1ThqldxzJ2VgcsT/Bd0QHZk=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/expo-modules-core/-/expo-modules-core-2.2.3.tgz}
+
+  expo-secure-store@14.0.1:
+    resolution: {integrity: sha1-iVPVlmQw9f8mL02Z51USBYcAeNc=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/expo-secure-store/-/expo-secure-store-14.0.1.tgz}
+    peerDependencies:
+      expo: '*'
 
   expo-status-bar@2.0.1:
     resolution: {integrity: sha1-/AdyY0bcMPu2iq2w14kLNPukLu4=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/expo-status-bar/-/expo-status-bar-2.0.1.tgz}
@@ -4411,23 +4431,23 @@ packages:
     engines: {node: '>=10.0.0'}
 
   string-width@4.2.3:
-    resolution: {integrity: sha1-JpxxF9J7Ba0uU2gwqOyJXvnG0BA=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/string-width/-/string-width-4.2.3.tgz}
+    resolution: {integrity: sha1-JpxxF9J7Ba0uU2gwqOyJXvnG0BA=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/string-width/-/string-width-4.2.3.tgz}
     engines: {node: '>=8'}
 
   string-width@5.1.2:
-    resolution: {integrity: sha1-FPja7G2B5yIdKjV+Zoyrc728p5Q=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/string-width/-/string-width-5.1.2.tgz}
+    resolution: {integrity: sha1-FPja7G2B5yIdKjV+Zoyrc728p5Q=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/string-width/-/string-width-5.1.2.tgz}
     engines: {node: '>=12'}
 
   strip-ansi@5.2.0:
-    resolution: {integrity: sha1-jJpTb+tq/JYr36WxBKUJHBrZwK4=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/strip-ansi/-/strip-ansi-5.2.0.tgz}
+    resolution: {integrity: sha1-jJpTb+tq/JYr36WxBKUJHBrZwK4=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/strip-ansi/-/strip-ansi-5.2.0.tgz}
     engines: {node: '>=6'}
 
   strip-ansi@6.0.1:
-    resolution: {integrity: sha1-nibGPTD1NEPpSJSVshBdN7Z6hdk=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/strip-ansi/-/strip-ansi-6.0.1.tgz}
+    resolution: {integrity: sha1-nibGPTD1NEPpSJSVshBdN7Z6hdk=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/strip-ansi/-/strip-ansi-6.0.1.tgz}
     engines: {node: '>=8'}
 
   strip-ansi@7.2.0:
-    resolution: {integrity: sha1-0iomlSKDamJ6+NBLXD/Sx/o+MuM=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/strip-ansi/-/strip-ansi-7.2.0.tgz}
+    resolution: {integrity: sha1-0iomlSKDamJ6+NBLXD/Sx/o+MuM=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/strip-ansi/-/strip-ansi-7.2.0.tgz}
     engines: {node: '>=12'}
 
   strip-bom@3.0.0:
@@ -4867,11 +4887,11 @@ packages:
     engines: {node: '>=0.10.0'}
 
   wrap-ansi@7.0.0:
-    resolution: {integrity: sha1-Z+FFz/UQpqaYS98RUpEdadLrnkM=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/wrap-ansi/-/wrap-ansi-7.0.0.tgz}
+    resolution: {integrity: sha1-Z+FFz/UQpqaYS98RUpEdadLrnkM=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/wrap-ansi/-/wrap-ansi-7.0.0.tgz}
     engines: {node: '>=10'}
 
   wrap-ansi@8.1.0:
-    resolution: {integrity: sha1-VtwiNo7lcPrOG0mBmXXZuaXq0hQ=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/wrap-ansi/-/wrap-ansi-8.1.0.tgz}
+    resolution: {integrity: sha1-VtwiNo7lcPrOG0mBmXXZuaXq0hQ=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/wrap-ansi/-/wrap-ansi-8.1.0.tgz}
     engines: {node: '>=12'}
 
   wrappy@1.0.2:
@@ -7985,6 +8005,10 @@ snapshots:
   expo-modules-core@2.2.3:
     dependencies:
       invariant: 2.2.4
+
+  expo-secure-store@14.0.1(expo@52.0.49(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@expo/metro-runtime@4.0.1(react-native@0.76.9(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.3.31)(react@18.3.1)))(react-native@0.76.9(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.3.31)(react@18.3.1))(react@18.3.1)):
+    dependencies:
+      expo: 52.0.49(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@expo/metro-runtime@4.0.1(react-native@0.76.9(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.3.31)(react@18.3.1)))(react-native@0.76.9(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.3.31)(react@18.3.1))(react@18.3.1)
 
   expo-status-bar@2.0.1(react-native@0.76.9(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.3.31)(react@18.3.1))(react@18.3.1):
     dependencies:
