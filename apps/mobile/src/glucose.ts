@@ -7,6 +7,7 @@
 
 import { ApiError, isConnectivityError } from "./api";
 import type { TranslateFn } from "./i18n";
+import { colors } from "./theme";
 
 /** Nightscout's documented `direction` strings -> a simple trend arrow. */
 const DIRECTION_ARROW: Record<string, string> = {
@@ -70,4 +71,70 @@ export function glucoseSyncErrorKey(error: unknown): string {
     }
   }
   return "glucose.syncErrorGeneric";
+}
+
+// ---------------------------------------------------------------------------
+// DISPLAY-ONLY glucose bands (Slice 6 polish).
+//
+// These thresholds exist ONLY to colour/label a reading in this read-only
+// screen (in-range vs out-of-range, at a glance). They are NOT a clinical
+// judgement, they are NOT configurable per-user, and they must NEVER be read
+// by, or feed into, a dose calculation — this module (like the rest of
+// ../glucose.ts and ../screens/GlucoseScreen.tsx) has zero connection to
+// `@t1dine/dose-engine` or `src/dose/*` (CLAUDE.md: "Never put ... probabilistic
+// inference inside the dose calculation path"; keep clinical calculation UI
+// separate from food/glucose-estimation UI).
+// ---------------------------------------------------------------------------
+
+export const GLUCOSE_LOW_THRESHOLD_MGDL = 70;
+export const GLUCOSE_HIGH_THRESHOLD_MGDL = 180;
+
+export type GlucoseBand = "low" | "inRange" | "high";
+
+/** Buckets a single mg/dL value for DISPLAY ONLY — see the module note above. */
+export function glucoseBand(mgdl: number): GlucoseBand {
+  if (mgdl < GLUCOSE_LOW_THRESHOLD_MGDL) return "low";
+  if (mgdl > GLUCOSE_HIGH_THRESHOLD_MGDL) return "high";
+  return "inRange";
+}
+
+export interface GlucoseBandStyle {
+  /** i18n dictionary key — callers must run this through t() before display. */
+  labelKey: string;
+  /** A distinct glyph per band (never colour alone — WCAG 2.2): a downward
+   * triangle for low, a circle for in-range, an upward triangle for high. */
+  icon: string;
+  color: string;
+  /** Soft background tint for a badge/chip fill — always paired with `color` + `icon` + text. */
+  bg: string;
+}
+
+/** Colour + shape + i18n label for a glucose band — reuses the existing
+ * confidence colour scale (see ./theme / @t1dine/design-tokens) so this stays
+ * visually consistent with the rest of the app without introducing new
+ * design tokens. */
+export function glucoseBandStyle(band: GlucoseBand): GlucoseBandStyle {
+  switch (band) {
+    case "low":
+      return { labelKey: "glucose.band.low", icon: "▼", color: colors.confidenceUnverified, bg: colors.confidenceUnverifiedBg };
+    case "high":
+      return { labelKey: "glucose.band.high", icon: "▲", color: colors.confidenceLow, bg: colors.confidenceLowBg };
+    case "inRange":
+    default:
+      return { labelKey: "glucose.band.inRange", icon: "●", color: colors.confidenceHigh, bg: colors.confidenceHighBg };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// "Última sincronização há X" (Slice 6 polish) — purely a display of elapsed
+// wall-clock time since the last successful `fetchGlucose()` call this screen
+// made (demo or live, tracked separately by the caller). Never persisted,
+// never sent anywhere.
+// ---------------------------------------------------------------------------
+
+/** "agora mesmo" / "just now" for a sync in the last minute, otherwise "há {n} min" / "{n} min ago". */
+export function formatSyncAge(t: TranslateFn, syncedAtMs: number, nowMs: number = Date.now()): string {
+  const minutes = Math.max(0, Math.round((nowMs - syncedAtMs) / 60_000));
+  if (minutes <= 0) return t("glucose.lastSyncedJustNow");
+  return t("glucose.lastSyncedMinutesAgo", { count: minutes });
 }

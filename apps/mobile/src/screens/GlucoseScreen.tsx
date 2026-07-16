@@ -2,16 +2,27 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { FadeIn } from "../components/FadeIn";
+import { GlucoseTrendSparkline } from "../components/GlucoseTrendSparkline";
 import { InkSurface } from "../components/InkSurface";
 import { Mascot } from "../components/Mascot";
 import { NightscoutConnectPanel } from "../components/NightscoutConnectPanel";
 import { PressableScale } from "../components/PressableScale";
 import { Skeleton } from "../components/Skeleton";
 import { fetchGlucose, type GlucoseReading, type GlucoseResult } from "../api";
-import { directionArrow, directionLabelKey, formatAge, glucoseSyncErrorKey } from "../glucose";
+import {
+  directionArrow,
+  directionLabelKey,
+  formatAge,
+  formatSyncAge,
+  glucoseBand,
+  glucoseBandStyle,
+  glucoseSyncErrorKey,
+  type GlucoseBandStyle,
+} from "../glucose";
 import { useLanguage } from "../i18n";
 import { clearConnection, isPersistent, loadConnection, saveConnection, type NightscoutConnection } from "../nightscoutStore";
 import { colors, elevation, fontWeights, MIN_TAP_TARGET, radius, spacing, typeScale } from "../theme";
+import { useNowTick } from "../useNowTick";
 
 // Slice 6 — READ-ONLY, explicitly NON-CLINICAL glucose display. This screen
 // only ever calls `fetchGlucose()` — either with `{ mock: true }` (the
@@ -53,6 +64,14 @@ export function GlucoseScreen() {
   const [demoState, setDemoState] = useState<ReadState>({ status: "idle" });
   const [liveState, setLiveState] = useState<ReadState>({ status: "idle" });
 
+  // "Última sincronização há X" (Slice 6 polish) — wall-clock time of the last
+  // successful fetch, tracked separately for the demo feed and a live
+  // Nightscout sync so switching between them never shows the wrong one's
+  // timestamp. Never persisted; reset to `null` whenever the underlying data
+  // it describes is no longer current (a fresh connection, a disconnect).
+  const [demoSyncedAt, setDemoSyncedAt] = useState<number | null>(null);
+  const [liveSyncedAt, setLiveSyncedAt] = useState<number | null>(null);
+
   useEffect(() => {
     let cancelled = false;
     loadConnection()
@@ -70,7 +89,10 @@ export function GlucoseScreen() {
   const loadDemo = useCallback(() => {
     setDemoState({ status: "loading" });
     fetchGlucose({ mock: true, count: READING_COUNT })
-      .then((result) => setDemoState({ status: "ready", result }))
+      .then((result) => {
+        setDemoState({ status: "ready", result });
+        setDemoSyncedAt(Date.now());
+      })
       .catch((error) => setDemoState({ status: "error", messageKey: glucoseSyncErrorKey(error) }));
   }, []);
 
@@ -89,7 +111,10 @@ export function GlucoseScreen() {
     if (!connection) return;
     setLiveState({ status: "loading" });
     fetchGlucose({ url: connection.url, token: connection.token, count: READING_COUNT })
-      .then((result) => setLiveState({ status: "ready", result }))
+      .then((result) => {
+        setLiveState({ status: "ready", result });
+        setLiveSyncedAt(Date.now());
+      })
       .catch((error) => setLiveState({ status: "error", messageKey: glucoseSyncErrorKey(error) }));
   }, [connection]);
 
@@ -98,14 +123,17 @@ export function GlucoseScreen() {
     setConnection({ url, token });
     // A freshly (re)connected site has no synced data yet under this exact
     // url/token pair — reset to "idle" so the UI asks for a fresh, explicit
-    // "Sincronizar" rather than ever showing data from a previous connection.
+    // "Sincronizar" rather than ever showing data (or a stale timestamp) from
+    // a previous connection.
     setLiveState({ status: "idle" });
+    setLiveSyncedAt(null);
   }, []);
 
   const handleDisconnect = useCallback(() => {
     void clearConnection();
     setConnection(null);
     setLiveState({ status: "idle" });
+    setLiveSyncedAt(null);
   }, []);
 
   return (
@@ -130,13 +158,14 @@ export function GlucoseScreen() {
       <DemoToggleRow enabled={demoMode} onToggle={handleToggleDemo} />
 
       {demoMode ? (
-        <GlucoseStateView state={demoState} onAction={loadDemo} actionLabel={t("glucose.syncButton")} />
+        <GlucoseStateView state={demoState} onAction={loadDemo} actionLabel={t("glucose.syncButton")} syncedAt={demoSyncedAt} />
       ) : connection ? (
         <GlucoseStateView
           state={liveState}
           onAction={handleSync}
           actionLabel={t("glucose.syncButton")}
           idleNode={<NotSyncedPrompt onSync={handleSync} />}
+          syncedAt={liveSyncedAt}
         />
       ) : (
         <ConnectPromptEmpty />
@@ -209,11 +238,16 @@ function GlucoseStateView({
   onAction,
   actionLabel,
   idleNode,
+  syncedAt,
 }: {
   state: ReadState;
   onAction: () => void;
   actionLabel: string;
   idleNode?: ReactNode;
+  /** Wall-clock time of the last successful fetch behind `state`, or `null`
+   * if there hasn't been one yet — see the `demoSyncedAt`/`liveSyncedAt`
+   * state in `GlucoseScreen` above. */
+  syncedAt: number | null;
 }) {
   const { t } = useLanguage();
 
@@ -247,12 +281,63 @@ function GlucoseStateView({
     );
   }
 
-  return <GlucoseReady result={state.result} onRefresh={onAction} refreshLabel={actionLabel} />;
+  return <GlucoseReady result={state.result} onRefresh={onAction} refreshLabel={actionLabel} syncedAt={syncedAt} />;
 }
 
-function GlucoseReady({ result, onRefresh, refreshLabel }: { result: GlucoseResult; onRefresh: () => void; refreshLabel: string }) {
+/** Colour + shape + text badge for a single reading's DISPLAY-ONLY band (see
+ * ../glucose.ts) — never colour alone (WCAG 2.2). */
+function BandBadge({ mgdl }: { mgdl: number }) {
+  const { t } = useLanguage();
+  const style = glucoseBandStyle(glucoseBand(mgdl));
+  return (
+    <View style={[styles.bandBadge, { backgroundColor: style.bg }]}>
+      <Text style={[styles.bandBadgeText, { color: style.color }]}>
+        {style.icon} {t(style.labelKey)}
+      </Text>
+    </View>
+  );
+}
+
+function LegendChip({ bandStyle, label }: { bandStyle: GlucoseBandStyle; label: string }) {
+  return (
+    <View style={[styles.legendChip, { backgroundColor: bandStyle.bg }]}>
+      <Text style={[styles.legendChipIcon, { color: bandStyle.color }]}>{bandStyle.icon}</Text>
+      <Text style={styles.legendChipText}>{label}</Text>
+    </View>
+  );
+}
+
+/** Legend for the trend chart's colour bands — repeats the same icon + colour
+ * + text as `BandBadge` so the mapping is explained once, in one place. */
+function BandLegend() {
+  const { t } = useLanguage();
+  return (
+    <View style={styles.legendRow}>
+      <LegendChip bandStyle={glucoseBandStyle("low")} label={t("glucose.legendLow")} />
+      <LegendChip bandStyle={glucoseBandStyle("inRange")} label={t("glucose.legendInRange")} />
+      <LegendChip bandStyle={glucoseBandStyle("high")} label={t("glucose.legendHigh")} />
+    </View>
+  );
+}
+
+function GlucoseReady({
+  result,
+  onRefresh,
+  refreshLabel,
+  syncedAt,
+}: {
+  result: GlucoseResult;
+  onRefresh: () => void;
+  refreshLabel: string;
+  syncedAt: number | null;
+}) {
   const { t } = useLanguage();
   const { newest, readings, allStale, source } = result;
+
+  // Keeps "última sincronização há X" advancing on screen with no user
+  // action required (re-renders every 30s) — see ../useNowTick.ts.
+  const nowTick = useNowTick(30_000);
+  const syncedAtText = syncedAt !== null ? t("glucose.lastSyncedLabel", { when: formatSyncAge(t, syncedAt, nowTick) }) : null;
 
   return (
     <FadeIn>
@@ -263,13 +348,18 @@ function GlucoseReady({ result, onRefresh, refreshLabel }: { result: GlucoseResu
         </PressableScale>
       </View>
 
+      {syncedAtText && <Text style={styles.syncedAtText}>{syncedAtText}</Text>}
+
       {newest ? (
         <InkSurface
           contentStyle={styles.newestContent}
           accessible
-          accessibilityLabel={`${t("glucose.newestLabel")}: ${Math.round(newest.mgdl)} ${t("glucose.mgdlUnit")}, ${newest.mmol.toFixed(1)} ${t("glucose.mmolUnit")}, ${t(directionLabelKey(newest.direction))}, ${formatAge(t, newest.ageMinutes)}`}
+          accessibilityLabel={`${t("glucose.newestLabel")}: ${Math.round(newest.mgdl)} ${t("glucose.mgdlUnit")}, ${newest.mmol.toFixed(1)} ${t("glucose.mmolUnit")}, ${t(directionLabelKey(newest.direction))}, ${formatAge(t, newest.ageMinutes)}, ${t(glucoseBandStyle(glucoseBand(newest.mgdl)).labelKey)}`}
         >
-          <Text style={styles.newestLabel}>{t("glucose.newestLabel")}</Text>
+          <View style={styles.newestHeaderRow}>
+            <Text style={styles.newestLabel}>{t("glucose.newestLabel")}</Text>
+            <BandBadge mgdl={newest.mgdl} />
+          </View>
           <View style={styles.newestValueRow}>
             <Text style={styles.newestArrow}>{directionArrow(newest.direction)}</Text>
             <View>
@@ -298,6 +388,14 @@ function GlucoseReady({ result, onRefresh, refreshLabel }: { result: GlucoseResu
         </View>
       )}
 
+      {readings.length >= 2 && (
+        <>
+          <Text style={styles.sectionTitle}>{t("glucose.trend.title")}</Text>
+          <GlucoseTrendSparkline readings={readings} />
+          <BandLegend />
+        </>
+      )}
+
       {readings.length > 0 && (
         <>
           <Text style={styles.sectionTitle}>{t("glucose.recentTitle")}</Text>
@@ -312,7 +410,8 @@ function GlucoseReady({ result, onRefresh, refreshLabel }: { result: GlucoseResu
 
 function GlucoseRow({ reading }: { reading: GlucoseReading }) {
   const { t } = useLanguage();
-  const label = `${Math.round(reading.mgdl)} ${t("glucose.mgdlUnit")}, ${reading.mmol.toFixed(1)} ${t("glucose.mmolUnit")}, ${t(directionLabelKey(reading.direction))}, ${formatAge(t, reading.ageMinutes)}${reading.stale ? `, ${t("glucose.staleWarning")}` : ""}`;
+  const bandLabel = t(glucoseBandStyle(glucoseBand(reading.mgdl)).labelKey);
+  const label = `${Math.round(reading.mgdl)} ${t("glucose.mgdlUnit")}, ${reading.mmol.toFixed(1)} ${t("glucose.mmolUnit")}, ${t(directionLabelKey(reading.direction))}, ${bandLabel}, ${formatAge(t, reading.ageMinutes)}${reading.stale ? `, ${t("glucose.staleWarning")}` : ""}`;
 
   return (
     <View style={styles.row} accessible accessibilityLabel={label}>
@@ -322,6 +421,7 @@ function GlucoseRow({ reading }: { reading: GlucoseReading }) {
           {Math.round(reading.mgdl)} {t("glucose.mgdlUnit")} • {reading.mmol.toFixed(1)} {t("glucose.mmolUnit")}
         </Text>
         <Text style={styles.rowAge}>{formatAge(t, reading.ageMinutes)}</Text>
+        <BandBadge mgdl={reading.mgdl} />
       </View>
       {reading.stale && (
         <View style={styles.staleTag}>
@@ -386,7 +486,9 @@ const styles = StyleSheet.create({
   sourceText: { fontSize: 12, color: colors.textMuted, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5 },
   refreshButton: { minHeight: MIN_TAP_TARGET, justifyContent: "center", paddingHorizontal: spacing.sm },
   refreshButtonText: { fontSize: 13, color: colors.accent, fontWeight: "700" },
+  syncedAtText: { fontSize: 12, color: colors.textFaint, marginBottom: spacing.sm },
   newestContent: { padding: spacing.lg },
+  newestHeaderRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm },
   newestLabel: { fontSize: 12, color: "rgba(255,255,255,0.6)", fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5 },
   newestValueRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, marginTop: spacing.sm },
   newestArrow: { fontSize: 40, color: colors.focusRing, fontWeight: "700" },
@@ -406,6 +508,17 @@ const styles = StyleSheet.create({
   },
   staleBannerIcon: { color: colors.confidenceLow, fontSize: 16, fontWeight: "700" },
   staleBannerText: { flex: 1, fontSize: 13, color: colors.textSecondary },
+  legendRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs, marginTop: spacing.sm },
+  legendChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+  },
+  legendChipIcon: { fontSize: 11, fontWeight: "700" },
+  legendChipText: { fontSize: 11, fontWeight: "600", color: colors.textSecondary },
   sectionTitle: {
     fontSize: typeScale.overline.size,
     fontWeight: typeScale.overline.weight,
@@ -430,6 +543,8 @@ const styles = StyleSheet.create({
   rowMain: { flex: 1 },
   rowValue: { fontSize: 14, fontWeight: "600", color: colors.textPrimary },
   rowAge: { fontSize: 12, color: colors.textFaint, marginTop: 2 },
+  bandBadge: { alignSelf: "flex-start", borderRadius: radius.pill, paddingHorizontal: spacing.sm, paddingVertical: 3, marginTop: spacing.xs },
+  bandBadgeText: { fontSize: 11, fontWeight: "700" },
   staleTag: { backgroundColor: colors.confidenceLowBg, borderRadius: radius.pill, paddingHorizontal: spacing.sm, paddingVertical: 3 },
   staleTagText: { fontSize: 11, fontWeight: "700", color: colors.confidenceLow },
 });
