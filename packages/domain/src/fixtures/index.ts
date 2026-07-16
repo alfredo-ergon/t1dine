@@ -39,3 +39,27 @@ export const syntheticEnergyObservation: NutrientObservation = {
   confidence: "medium",
   source: syntheticSource,
 };
+
+/**
+ * A micronutrient (iodine) per 100 g in micrograms — exercises the `µg` unit
+ * added for national composition tables (INSA/PortFIR).
+ */
+export const syntheticMicronutrientObservation: NutrientObservation = {
+  nutrientCode: "ID",
+  value: 22,
+  unit: "µg",
+  basisQuantity: 100,
+  basisUnit: "g",
+  method: "analytical",
+  confidence: "medium",
+  source: syntheticSource,
+};
+
+/** A source reference carrying a mandatory attribution string (INSA-style). */
+export const syntheticAttributedSource: SourceReference = {
+  ...syntheticSource,
+  sourceId: "INSA-PT",
+  licence: "LICENCE_REVIEW_REQUIRED",
+  attribution:
+    "Fonte: Base de Dados da Composição de Alimentos. Instituto Nacional de Saúde Doutor Ricardo Jorge, I. P.- INSA. v 7.1 - 2026",
+};

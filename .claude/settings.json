@@ -12,18 +12,10 @@
       "Bash(pnpm --filter * test *)",
       "Bash(pytest *)",
       "Bash(ruff check *)",
-      "Bash(mypy *)"
-    ],
-    "ask": [
-      "Bash(git commit *)",
-      "Bash(git push *)",
-      "Bash(az deployment *)",
-      "Bash(azd up *)",
-      "Bash(azd deploy *)",
-      "mcp__github__.*write.*",
-      "mcp__azure__.*create.*",
-      "mcp__azure__.*delete.*",
-      "mcp__azure-devops__.*create.*"
+      "Bash(mypy *)",
+      "Bash(pnpm --filter @t1dine/api start)",
+      "Bash(curl --retry 60 --retry-delay 1 --retry-connrefused -sf http://localhost:3001/health)",
+      "Bash(PYTHONIOENCODING=utf-8 python -)"
     ],
     "deny": [
       "Read(./.env)",
@@ -39,6 +31,17 @@
       "Bash(terraform destroy *)",
       "Bash(kubectl delete *)",
       "Bash(docker system prune *)"
+    ],
+    "ask": [
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(az deployment *)",
+      "Bash(azd up *)",
+      "Bash(azd deploy *)",
+      "mcp__github__.*write.*",
+      "mcp__azure__.*create.*",
+      "mcp__azure__.*delete.*",
+      "mcp__azure-devops__.*create.*"
     ]
   },
   "hooks": {

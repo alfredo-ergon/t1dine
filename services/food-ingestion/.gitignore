@@ -1,0 +1,8 @@
+# Local build/output artefacts for this service only. Root .gitignore already
+# covers __pycache__/, .pytest_cache/, dist/, build/ repo-wide; this file adds
+# the ingestion-run output directories that must never be committed (they are
+# regenerated from the licensed source workbook, which is itself not owned by
+# this package).
+output/
+data/sources/
+*.egg-info/

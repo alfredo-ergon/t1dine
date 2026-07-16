@@ -14,6 +14,7 @@ import {
   fontWeight,
   shadow,
   gradients as tokenGradients,
+  auroraBackground as tokenAuroraBackground,
   elevation as tokenElevation,
   motion as tokenMotion,
   typeScale as tokenTypeScale,
@@ -101,6 +102,7 @@ export const shadows = shadow;
 
 // v2 design-system passthroughs for the premium redesign.
 export const gradients = tokenGradients;
+export const auroraBackground = tokenAuroraBackground;
 export const elevation = tokenElevation;
 export const motion = tokenMotion;
 export const typeScale = tokenTypeScale;

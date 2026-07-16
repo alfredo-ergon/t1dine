@@ -8,9 +8,23 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { CanonicalFood } from "@t1dine/food-schema";
 import { isCanonicalFood } from "@t1dine/food-schema";
 
+import type { TabKey } from "./components/TabBar";
+
 const FAVOURITES_KEY = "t1dine.favourites";
 const RECENTS_KEY = "t1dine.recents";
 const CUSTOM_FOODS_KEY = "t1dine.customFoods";
+const STARTUP_TAB_KEY = "t1dine.startupTab";
+
+/** The tab the app opens on. User-configurable in the Perfil screen; defaults
+ * to "search" (the primary "find a food to log" flow). Kept here with the
+ * other local, device-only preferences. `TabKey` (from the tab bar) is the
+ * single source of truth for the allowed values. */
+export const DEFAULT_STARTUP_TAB: TabKey = "search";
+const STARTUP_TABS: readonly TabKey[] = ["search", "meal", "favourites", "glucose"];
+
+function isStartupTab(value: unknown): value is TabKey {
+  return typeof value === "string" && (STARTUP_TABS as readonly string[]).includes(value);
+}
 
 /** Cap on how many recently-viewed foods are remembered. */
 export const RECENTS_LIMIT = 20;
@@ -67,4 +81,13 @@ export async function loadCustomFoods(): Promise<CanonicalFood[]> {
 
 export async function saveCustomFoods(foods: CanonicalFood[]): Promise<void> {
   await writeJson(CUSTOM_FOODS_KEY, foods);
+}
+
+export async function loadStartupTab(): Promise<TabKey> {
+  const value = await readJson(STARTUP_TAB_KEY);
+  return isStartupTab(value) ? value : DEFAULT_STARTUP_TAB;
+}
+
+export async function saveStartupTab(tab: TabKey): Promise<void> {
+  await writeJson(STARTUP_TAB_KEY, tab);
 }

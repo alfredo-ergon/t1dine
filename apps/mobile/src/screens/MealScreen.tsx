@@ -6,9 +6,12 @@ import { summariseMeal } from "@t1dine/nutrition";
 
 import { AnimatedCounter } from "../components/AnimatedCounter";
 import { FadeIn } from "../components/FadeIn";
+import { InkSurface } from "../components/InkSurface";
 import { Mascot } from "../components/Mascot";
 import { PressableScale } from "../components/PressableScale";
+import { foodEmoji } from "../foodEmoji";
 import { tPlural, useLanguage } from "../i18n";
+import type { SavedMeal } from "../savedMeals";
 import { confidenceStyle, displayName } from "../search";
 import { colors, elevation, fontWeights, gradients, MIN_TAP_TARGET, radius, spacing, typeScale } from "../theme";
 
@@ -20,10 +23,19 @@ export interface MealScreenProps {
   onEstimateDose: () => void;
   /** Count for the "Refeições guardadas" entry point badge — always reachable, even with an empty current meal. */
   savedMealsCount: number;
+  /** The most recently saved meal, surfaced (highlighted) on an empty meal for one-tap reuse — or null if none exist yet. */
+  latestSavedMeal: SavedMeal | null;
+  /** Loads a saved meal into the current meal for editing ("Usar"). */
+  onUseSavedMeal: (meal: SavedMeal) => void;
   /** Opens the "Refeições guardadas" screen (Slice: refeições repetidas). */
   onOpenSavedMeals: () => void;
-  /** Saves the current meal (as-is) under a user-given name. */
+  /** Saves the current meal (as-is) under a user-given name — always a NEW record. */
   onSaveMeal: (name: string) => void;
+  /** Name of the saved meal the current meal is linked to (loaded via "Usar"),
+   * or null. When set, the save area also offers "Atualizar «name»". */
+  editingSavedMealName: string | null;
+  /** Updates the linked saved meal in place (its items/total) from the current meal. */
+  onUpdateSavedMeal: () => void;
 }
 
 const STEP_GRAMS = 5;
@@ -64,19 +76,25 @@ function MealLineRow({ line, onChangeAmount, onRemove }: MealLineRowProps) {
 
   return (
     <View style={styles.line}>
-      <View style={styles.lineMain}>
-        <Text style={styles.lineName}>{name}</Text>
-        <Text style={styles.lineSub}>
-          {line.carbGrams.toFixed(1)} {t("common.gramsUnit")} {t("meal.carbShort")} • {Math.round(line.energyKcal)} kcal
-        </Text>
-        <View
-          style={[styles.miniBadge, { backgroundColor: lineStyle.bg }]}
-          accessible
-          accessibilityLabel={`${t("confidence.ariaPrefix")} ${t(lineStyle.labelKey)}`}
-        >
-          <Text style={[styles.miniBadgeText, { color: lineStyle.color }]}>
-            {lineStyle.icon} {t(lineStyle.labelKey)}
+      <View style={styles.lineHeader}>
+        {/* Decorative food glyph — hidden from screen readers. */}
+        <View style={styles.emojiTile} accessible={false} importantForAccessibility="no-hide-descendants">
+          <Text style={styles.emoji}>{foodEmoji(line.food)}</Text>
+        </View>
+        <View style={styles.lineMain}>
+          <Text style={styles.lineName}>{name}</Text>
+          <Text style={styles.lineSub}>
+            {line.carbGrams.toFixed(1)} {t("common.gramsUnit")} {t("meal.carbShort")} • {Math.round(line.energyKcal)} kcal
           </Text>
+          <View
+            style={[styles.miniBadge, { backgroundColor: lineStyle.bg }]}
+            accessible
+            accessibilityLabel={`${t("confidence.ariaPrefix")} ${t(lineStyle.labelKey)}`}
+          >
+            <Text style={[styles.miniBadgeText, { color: lineStyle.color }]}>
+              {lineStyle.icon} {t(lineStyle.labelKey)}
+            </Text>
+          </View>
         </View>
       </View>
 
@@ -154,27 +172,69 @@ function SavedMealsEntryCard({ count, onPress }: SavedMealsEntryCardProps) {
   );
 }
 
-interface SaveMealCardProps {
-  onSave: (name: string) => void;
+// The most recent saved meal, surfaced right on an empty Meal screen so the
+// common "repeat my usual meal" case is a single tap ("Usar") instead of
+// drilling into the full list first. Only shown when the current meal is
+// empty (so a one-tap load never silently replaces a meal in progress); the
+// full list stays one tap away via the entry card below.
+function LatestSavedMealCard({ meal, onUse }: { meal: SavedMeal; onUse: (meal: SavedMeal) => void }) {
+  const { t } = useLanguage();
+  return (
+    <View style={styles.latestCard}>
+      <View style={styles.latestHeader}>
+        <View style={styles.latestTile} accessible={false} importantForAccessibility="no-hide-descendants">
+          <Text style={styles.latestGlyph}>🍽</Text>
+        </View>
+        <View style={styles.latestMain}>
+          <Text style={styles.latestKicker}>{t("meal.latestSavedMealKicker")}</Text>
+          <Text style={styles.latestName} numberOfLines={1}>
+            {meal.name}
+          </Text>
+          <Text style={styles.latestMeta}>
+            {tPlural(t, "savedMeals.itemCount", meal.items.length)} • {meal.totalCarbGrams.toFixed(1)} {t("common.gramsUnit")} {t("meal.carbShort")}
+          </Text>
+        </View>
+      </View>
+      <PressableScale
+        onPress={() => onUse(meal)}
+        accessibilityRole="button"
+        accessibilityLabel={`${t("savedMeals.useCta")}: ${meal.name}`}
+        style={styles.latestUseButton}
+      >
+        <Text style={styles.latestUseButtonText}>{t("savedMeals.useCta")}</Text>
+      </PressableScale>
+    </View>
+  );
 }
 
-// "Guardar refeição" — a deliberately secondary/outline action (never the
-// brand-gradient CTA reserved for "Estimar dose") so it never competes with
-// the primary food-to-dose flow, per the existing visual hierarchy on this
-// screen. Local-only UI state (editing/name/error/success) — the actual
-// save is delegated to the parent via `onSave`, matching how ProfileScreen's
-// "Perfil clínico" section shows an optimistic success banner right after
-// calling its own `onSave` prop.
-function SaveMealCard({ onSave }: SaveMealCardProps) {
+interface SaveMealCardProps {
+  /** Saves the current meal as a brand-new saved-meal record. */
+  onSaveNew: (name: string) => void;
+  /** Name of the linked saved meal (loaded via "Usar"), or null. When set,
+   * "Atualizar «name»" is offered alongside "Guardar como nova". */
+  editingSavedMealName: string | null;
+  /** Updates that linked saved meal in place. */
+  onUpdate: () => void;
+}
+
+// Save area — deliberately secondary/outline actions (never the brand-gradient
+// CTA reserved for "Estimar dose") so they never compete with the primary
+// food-to-dose flow. When the current meal was loaded from a saved meal via
+// "Usar", it offers BOTH "Atualizar «name»" (update it in place) and "Guardar
+// como nova"; otherwise just "Guardar refeição". Local-only UI state
+// (editing/name/error/success) — the actual writes are delegated to the parent.
+function SaveMealCard({ onSaveNew, editingSavedMealName, onUpdate }: SaveMealCardProps) {
   const { t } = useLanguage();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [justSaved, setJustSaved] = useState(false);
+  const [justUpdated, setJustUpdated] = useState(false);
 
   const handleOpen = () => {
     setEditing(true);
     setJustSaved(false);
+    setJustUpdated(false);
   };
 
   const handleCancel = () => {
@@ -189,11 +249,17 @@ function SaveMealCard({ onSave }: SaveMealCardProps) {
       setError(t("meal.saveMealNameError"));
       return;
     }
-    onSave(trimmed);
+    onSaveNew(trimmed);
     setEditing(false);
     setName("");
     setError(null);
     setJustSaved(true);
+  };
+
+  const handleUpdate = () => {
+    onUpdate();
+    setJustUpdated(true);
+    setJustSaved(false);
   };
 
   if (editing) {
@@ -239,14 +305,45 @@ function SaveMealCard({ onSave }: SaveMealCardProps) {
 
   return (
     <View>
-      <PressableScale
-        onPress={handleOpen}
-        accessibilityRole="button"
-        accessibilityLabel={t("meal.saveMealCta")}
-        style={styles.saveMealOpenButton}
-      >
-        <Text style={styles.saveMealOpenButtonText}>{t("meal.saveMealCta")}</Text>
-      </PressableScale>
+      {editingSavedMealName ? (
+        <>
+          <PressableScale
+            onPress={handleUpdate}
+            accessibilityRole="button"
+            accessibilityLabel={t("meal.updateSavedMealCta", { name: editingSavedMealName })}
+            style={styles.updateMealButton}
+          >
+            <Text style={styles.updateMealButtonText} numberOfLines={1}>
+              {t("meal.updateSavedMealCta", { name: editingSavedMealName })}
+            </Text>
+          </PressableScale>
+          <PressableScale
+            onPress={handleOpen}
+            accessibilityRole="button"
+            accessibilityLabel={t("meal.saveAsNewCta")}
+            style={styles.saveMealOpenButton}
+          >
+            <Text style={styles.saveMealOpenButtonText}>{t("meal.saveAsNewCta")}</Text>
+          </PressableScale>
+        </>
+      ) : (
+        <PressableScale
+          onPress={handleOpen}
+          accessibilityRole="button"
+          accessibilityLabel={t("meal.saveMealCta")}
+          style={styles.saveMealOpenButton}
+        >
+          <Text style={styles.saveMealOpenButtonText}>{t("meal.saveMealCta")}</Text>
+        </PressableScale>
+      )}
+      {justUpdated && (
+        <FadeIn>
+          <View style={styles.saveMealSuccessBanner} accessible accessibilityLabel={t("meal.updateSavedMealSuccess")}>
+            <Text style={styles.saveMealSuccessIcon}>✓</Text>
+            <Text style={styles.saveMealSuccessText}>{t("meal.updateSavedMealSuccess")}</Text>
+          </View>
+        </FadeIn>
+      )}
       {justSaved && (
         <FadeIn>
           <View style={styles.saveMealSuccessBanner} accessible accessibilityLabel={t("meal.saveMealSuccess")}>
@@ -259,7 +356,19 @@ function SaveMealCard({ onSave }: SaveMealCardProps) {
   );
 }
 
-export function MealScreen({ lines, onChangeAmount, onRemove, onEstimateDose, savedMealsCount, onOpenSavedMeals, onSaveMeal }: MealScreenProps) {
+export function MealScreen({
+  lines,
+  onChangeAmount,
+  onRemove,
+  onEstimateDose,
+  savedMealsCount,
+  latestSavedMeal,
+  onUseSavedMeal,
+  onOpenSavedMeals,
+  onSaveMeal,
+  editingSavedMealName,
+  onUpdateSavedMeal,
+}: MealScreenProps) {
   const { t } = useLanguage();
   // Deterministic, framework-independent meal maths shared with the API —
   // no clinical authority, just food carbohydrate/energy totals.
@@ -270,6 +379,8 @@ export function MealScreen({ lines, onChangeAmount, onRemove, onEstimateDose, sa
     <View style={styles.screen}>
       <Text style={styles.h1}>{t("meal.title")}</Text>
       <Text style={styles.meta}>{tPlural(t, "meal.items", summary.itemCount)}</Text>
+
+      {summary.itemCount === 0 && latestSavedMeal && <LatestSavedMealCard meal={latestSavedMeal} onUse={onUseSavedMeal} />}
 
       <SavedMealsEntryCard count={savedMealsCount} onPress={onOpenSavedMeals} />
 
@@ -289,7 +400,7 @@ export function MealScreen({ lines, onChangeAmount, onRemove, onEstimateDose, sa
       />
 
       {summary.itemCount > 0 && (
-        <View style={styles.totals}>
+        <InkSurface style={styles.totals} contentStyle={styles.totalsContent}>
           <View style={styles.totalsRow}>
             <Text style={styles.totalsLabel}>{t("meal.totalsCarb")}</Text>
             <AnimatedCounter value={summary.totalCarbGrams} decimals={1} style={styles.totalsValueHero} suffix={` ${t("common.gramsUnit")}`} />
@@ -309,10 +420,12 @@ export function MealScreen({ lines, onChangeAmount, onRemove, onEstimateDose, sa
               <Text style={styles.uncertaintyText}>{t("meal.uncertaintyBanner")}</Text>
             </View>
           )}
-        </View>
+        </InkSurface>
       )}
 
-      {summary.itemCount > 0 && <SaveMealCard onSave={onSaveMeal} />}
+      {summary.itemCount > 0 && (
+        <SaveMealCard onSaveNew={onSaveMeal} editingSavedMealName={editingSavedMealName} onUpdate={onUpdateSavedMeal} />
+      )}
 
       <PressableScale
         onPress={onEstimateDose}
@@ -351,7 +464,18 @@ const styles = StyleSheet.create({
     marginVertical: 6,
     ...elevation.sm.native,
   },
-  lineMain: { marginBottom: spacing.sm },
+  lineHeader: { flexDirection: "row", alignItems: "center", marginBottom: spacing.sm },
+  emojiTile: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceSunken,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: spacing.md,
+  },
+  emoji: { fontSize: 20 },
+  lineMain: { flex: 1 },
   lineName: { fontSize: 16, fontWeight: "700", color: colors.textPrimary },
   lineSub: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
   miniBadge: { alignSelf: "flex-start", borderRadius: radius.pill, paddingHorizontal: spacing.sm, paddingVertical: 3, marginTop: spacing.xs },
@@ -388,20 +512,12 @@ const styles = StyleSheet.create({
     borderColor: colors.danger,
   },
   removeButtonText: { color: colors.danger, fontWeight: "700", fontSize: 13 },
-  totals: {
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.hairline,
-    padding: spacing.md,
-    marginTop: spacing.sm,
-    marginBottom: spacing.md,
-    ...elevation.sm.native,
-  },
+  totals: { marginTop: spacing.sm, marginBottom: spacing.md },
+  totalsContent: { padding: spacing.md },
   totalsRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 4 },
-  totalsLabel: { fontSize: 14, color: colors.textMuted },
-  totalsValue: { fontSize: 16, fontWeight: "800", color: colors.textPrimary },
-  totalsValueHero: { fontSize: 22, fontWeight: "800", color: colors.brandDark, fontVariant: ["tabular-nums"] },
+  totalsLabel: { fontSize: 14, color: "rgba(255,255,255,0.72)" },
+  totalsValue: { fontSize: 16, fontWeight: "800", color: colors.onBrand },
+  totalsValueHero: { fontSize: 22, fontWeight: "800", color: colors.focusRing, fontVariant: ["tabular-nums"] },
   uncertaintyBanner: { flexDirection: "row", gap: spacing.sm, borderRadius: radius.md, padding: spacing.sm, marginTop: spacing.sm, alignItems: "flex-start" },
   uncertaintyIcon: { fontSize: 16, fontWeight: "700" },
   uncertaintyText: { flex: 1, fontSize: 13, color: colors.textSecondary },
@@ -421,6 +537,47 @@ const styles = StyleSheet.create({
   estimateDoseButtonTextDisabled: { color: colors.textFaint },
   estimateDoseDisabledHint: { fontSize: 12.5, color: colors.textMuted, textAlign: "center", marginBottom: spacing.md },
 
+  // Highlighted "most recent saved meal" card — a subtle brand accent + a
+  // slightly stronger elevation so it reads as the featured shortcut.
+  latestCard: {
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.brandSoft,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    ...elevation.md.native,
+  },
+  latestHeader: { flexDirection: "row", alignItems: "center", marginBottom: spacing.md },
+  latestTile: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.md,
+    backgroundColor: colors.brandTint,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: spacing.md,
+  },
+  latestGlyph: { fontSize: 22 },
+  latestMain: { flex: 1 },
+  latestKicker: {
+    fontSize: typeScale.overline.size,
+    fontWeight: typeScale.overline.weight,
+    color: colors.brandDark,
+    textTransform: "uppercase",
+    letterSpacing: typeScale.overline.letterSpacing,
+  },
+  latestName: { fontSize: 17, fontWeight: "800", color: colors.textPrimary, marginTop: 2 },
+  latestMeta: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
+  latestUseButton: {
+    minHeight: MIN_TAP_TARGET,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.pill,
+    backgroundColor: colors.brand,
+    ...elevation.sm.native,
+  },
+  latestUseButtonText: { color: colors.onBrand, fontSize: 15, fontWeight: "800" },
   savedMealsCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -456,6 +613,21 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   saveMealOpenButtonText: { color: colors.textPrimary, fontSize: 15, fontWeight: "700" },
+  // The "update this saved meal" action — brand-tinted so it reads as the
+  // primary of the two save options, without borrowing the big gradient CTA
+  // reserved for "Estimar dose".
+  updateMealButton: {
+    minHeight: MIN_TAP_TARGET,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.pill,
+    borderWidth: 1.5,
+    borderColor: colors.brand,
+    backgroundColor: colors.brandTint,
+    marginBottom: spacing.sm,
+    paddingHorizontal: spacing.md,
+  },
+  updateMealButtonText: { color: colors.brandDark, fontSize: 15, fontWeight: "700" },
   saveMealCard: {
     backgroundColor: colors.surfaceElevated,
     borderRadius: radius.lg,

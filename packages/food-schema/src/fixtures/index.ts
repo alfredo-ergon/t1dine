@@ -125,3 +125,48 @@ export const canonicalFoodFixturesByType: Record<FoodTypeName, CanonicalFood> = 
   recipe: recipeFood,
   custom: customFood,
 };
+
+/**
+ * A synthetic INSA/PortFIR-shaped candidate exercising the additive fields
+ * (`preparationState`, `foodGroup`), the `µg` micronutrient unit, and a
+ * mandatory attribution string. Still synthetic — NOT real INSA data.
+ */
+const insaSource: SourceReference = {
+  sourceId: "INSA-PT",
+  sourceRecordId: "SYNTH-579",
+  sourceVersion: "7.1-2026",
+  market: "PT",
+  licence: "LICENCE_REVIEW_REQUIRED",
+  attribution:
+    "Fonte: Base de Dados da Composição de Alimentos. Instituto Nacional de Saúde Doutor Ricardo Jorge, I. P.- INSA. v 7.1 - 2026",
+  retrievedAt: "2026-07-16T00:00:00.000Z",
+  rawSnapshotSha256: "0".repeat(64),
+  mappingVersion: "portfir-1.0",
+};
+
+export const insaStyleFood: CanonicalFood = {
+  id: "pt-insa-synth-579",
+  type: "ingredient",
+  names: [{ language: "pt-PT", name: "Abóbora crua", synonyms: [] }],
+  countries: ["PT"],
+  markets: ["PT"],
+  barcodes: [],
+  cuisineTags: [],
+  dietaryPatternTags: [],
+  mealContextTags: [],
+  clinicalBehaviourTags: [],
+  preparationState: "raw",
+  foodGroup: {
+    level1: "Produtos hortícolas e derivados",
+    level2: "Frutos de hortícolas",
+    level3: "Frutos vegetais de cucurbitáceas",
+    code: "produtos-horticolas-e-derivados",
+  },
+  nutrients: [
+    { nutrientCode: "CHOAVL", value: 1.7, unit: "g", basisQuantity: 100, basisUnit: "g", method: "analytical", confidence: "high", source: insaSource },
+    { nutrientCode: "ENERC", value: 11, unit: "kcal", basisQuantity: 100, basisUnit: "g", method: "analytical", confidence: "high", source: insaSource },
+    { nutrientCode: "FIBTG", value: 0.7, unit: "g", basisQuantity: 100, basisUnit: "g", method: "analytical", confidence: "high", source: insaSource },
+    { nutrientCode: "VITA", value: 160, unit: "µg", basisQuantity: 100, basisUnit: "g", method: "analytical", confidence: "medium", source: insaSource },
+  ],
+  status: "candidate",
+};

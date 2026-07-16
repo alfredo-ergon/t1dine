@@ -54,61 +54,56 @@ export function AreaFilterPanel({ regionGroups, cuisines, selectedRegionId, sele
           )}
         </View>
 
-        <Text style={styles.groupLabel}>{t("filters.regionLabel")}</Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.chipRow}
-          accessibilityRole="radiogroup"
-          accessibilityLabel={t("filters.regionLabel")}
-        >
-          {regions.map((region) => {
-            const isActive = region.id === selectedRegionId;
-            const label = regionLabel(region, language);
-            return (
-              <PressableScale
-                key={region.id}
-                onPress={() => onSelectRegion(isActive ? null : region.id)}
-                accessibilityRole="radio"
-                accessibilityState={{ selected: isActive, checked: isActive }}
-                accessibilityLabel={label}
-                style={[styles.chip, isActive && styles.chipActive]}
-              >
-                <Text style={[styles.chipText, isActive && styles.chipTextActive]}>{label}</Text>
-              </PressableScale>
-            );
-          })}
-        </ScrollView>
+        {/* Chips WRAP (never a horizontal scroll that clips the last chip
+            mid-word and reads as "cut off", especially on web where there's
+            no scrollbar affordance). The whole picker is capped in height and
+            scrolls vertically if a long cuisine list overflows, so it can
+            never push the panel off-screen. */}
+        <ScrollView style={styles.scrollArea} nestedScrollEnabled showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          <Text style={styles.groupLabel}>{t("filters.regionLabel")}</Text>
+          <View style={styles.chipWrap} accessibilityRole="radiogroup" accessibilityLabel={t("filters.regionLabel")}>
+            {regions.map((region) => {
+              const isActive = region.id === selectedRegionId;
+              const label = regionLabel(region, language);
+              return (
+                <PressableScale
+                  key={region.id}
+                  onPress={() => onSelectRegion(isActive ? null : region.id)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: isActive, checked: isActive }}
+                  accessibilityLabel={label}
+                  style={[styles.chip, isActive && styles.chipActive]}
+                >
+                  <Text style={[styles.chipText, isActive && styles.chipTextActive]}>{label}</Text>
+                </PressableScale>
+              );
+            })}
+          </View>
 
-        {cuisines.length > 0 && (
-          <>
-            <Text style={styles.groupLabel}>{t("filters.cuisineLabel")}</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.chipRow}
-              accessibilityRole="radiogroup"
-              accessibilityLabel={t("filters.cuisineLabel")}
-            >
-              {cuisines.map((cuisine) => {
-                const isActive = cuisine === selectedCuisine;
-                const label = cuisineLabel(cuisine, language);
-                return (
-                  <PressableScale
-                    key={cuisine}
-                    onPress={() => onSelectCuisine(isActive ? null : cuisine)}
-                    accessibilityRole="radio"
-                    accessibilityState={{ selected: isActive, checked: isActive }}
-                    accessibilityLabel={label}
-                    style={[styles.chip, isActive && styles.chipActive]}
-                  >
-                    <Text style={[styles.chipText, isActive && styles.chipTextActive]}>{label}</Text>
-                  </PressableScale>
-                );
-              })}
-            </ScrollView>
-          </>
-        )}
+          {cuisines.length > 0 && (
+            <>
+              <Text style={styles.groupLabel}>{t("filters.cuisineLabel")}</Text>
+              <View style={styles.chipWrap} accessibilityRole="radiogroup" accessibilityLabel={t("filters.cuisineLabel")}>
+                {cuisines.map((cuisine) => {
+                  const isActive = cuisine === selectedCuisine;
+                  const label = cuisineLabel(cuisine, language);
+                  return (
+                    <PressableScale
+                      key={cuisine}
+                      onPress={() => onSelectCuisine(isActive ? null : cuisine)}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: isActive, checked: isActive }}
+                      accessibilityLabel={label}
+                      style={[styles.chip, isActive && styles.chipActive]}
+                    >
+                      <Text style={[styles.chipText, isActive && styles.chipTextActive]}>{label}</Text>
+                    </PressableScale>
+                  );
+                })}
+              </View>
+            </>
+          )}
+        </ScrollView>
       </View>
     </FadeIn>
   );
@@ -138,7 +133,10 @@ const styles = StyleSheet.create({
     letterSpacing: typeScale.overline.letterSpacing,
     marginBottom: spacing.xs,
   },
-  chipRow: { gap: spacing.xs, paddingBottom: spacing.sm },
+  // Caps the picker height so a long cuisine list scrolls in place instead of
+  // pushing the panel (and the results list below it) off-screen.
+  scrollArea: { maxHeight: 260 },
+  chipWrap: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs, marginBottom: spacing.sm },
   chip: {
     minHeight: MIN_TAP_TARGET,
     justifyContent: "center",

@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 
 import { FadeIn } from "../components/FadeIn";
 import { PressableScale } from "../components/PressableScale";
 import type { CustomFoodInput } from "../customFood";
 import { useLanguage } from "../i18n";
-import { colors, elevation, fontWeights, MIN_TAP_TARGET, radius, spacing, typeScale } from "../theme";
+import { colors, elevation, fontWeights, gradients, MIN_TAP_TARGET, radius, spacing, typeScale } from "../theme";
 
 export interface CreateFoodScreenProps {
   onCancel: () => void;
@@ -97,8 +98,10 @@ export function CreateFoodScreen({ onCancel, onSubmit }: CreateFoodScreenProps) 
           <PressableScale onPress={onCancel} accessibilityRole="button" accessibilityLabel={t("create.cancelButton")} style={styles.cancelButton}>
             <Text style={styles.cancelButtonText}>{t("create.cancelButton")}</Text>
           </PressableScale>
-          <PressableScale onPress={handleSubmit} accessibilityRole="button" accessibilityLabel={t("create.saveButton")} style={styles.saveButton}>
-            <Text style={styles.saveButtonText}>{t("create.saveButton")}</Text>
+          <PressableScale onPress={handleSubmit} accessibilityRole="button" accessibilityLabel={t("create.saveButton")} style={styles.saveButtonWrap}>
+            <LinearGradient colors={gradients.brand.colors} start={gradients.brand.start} end={gradients.brand.end} style={styles.saveButtonGradient}>
+              <Text style={styles.saveButtonText}>{t("create.saveButton")}</Text>
+            </LinearGradient>
           </PressableScale>
         </View>
       </FadeIn>
@@ -160,14 +163,17 @@ const styles = StyleSheet.create({
     borderColor: colors.borderStrong,
   },
   cancelButtonText: { color: colors.textPrimary, fontSize: 16, fontWeight: "700" },
-  saveButton: {
+  saveButtonWrap: {
     flex: 1,
+    borderRadius: radius.pill,
+    ...elevation.glow.native,
+  },
+  saveButtonGradient: {
     minHeight: MIN_TAP_TARGET,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.pill,
-    backgroundColor: colors.accent,
-    ...elevation.sm.native,
+    overflow: "hidden",
   },
   saveButtonText: { color: colors.onBrand, fontSize: 16, fontWeight: "700" },
 });

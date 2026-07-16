@@ -35,6 +35,16 @@ export interface DerivedSource {
   cadence: string;
   /** Number of fetched foods attributed to this source. */
   foodCount: number;
+  /** Governance status label from the source register, when known. */
+  governanceStatus?: string;
+  /**
+   * Mandatory attribution string the licence obliges us to keep visible — taken
+   * from the food's own provenance (real INSA foods carry it) or, failing that,
+   * declared on the register. Undefined when the source imposes no attribution.
+   */
+  attribution?: string;
+  /** Unresolved licence questions a curator must see, from the register. */
+  openQuestions?: string;
 }
 
 /**
@@ -100,8 +110,15 @@ export function deriveSources(foods: CatalogFood[]): DerivedSource[] {
       sourceId: source.sourceId,
       name: meta?.name ?? source.sourceId,
       market: source.market ?? meta?.market ?? "—",
-      licence: source.licence,
+      // Prefer the register's human-readable licence for known sources; fall back
+      // to the raw provenance licence for anything not in the register.
+      licence: meta?.licence ?? source.licence,
       cadence: meta?.cadence ?? "—",
+      governanceStatus: meta?.governanceStatus,
+      // Attribution can be carried per-food (real INSA provenance) or declared on
+      // the register; prefer the food's own, fall back to the register.
+      attribution: source.attribution ?? meta?.attribution,
+      openQuestions: meta?.openQuestions,
       foodCount: 1,
     });
   }

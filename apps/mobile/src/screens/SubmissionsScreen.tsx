@@ -68,11 +68,23 @@ function SubmissionCard({ submission, t }: SubmissionCardProps) {
 
   return (
     <View style={styles.card}>
-      <Text style={styles.cardName}>{submission.name}</Text>
-      <Text style={styles.cardDate}>{t("submissions.submittedAtLabel", { date })}</Text>
-      <View style={styles.statusPill} accessible accessibilityLabel={t("submissions.statusPending")}>
-        <Text style={styles.statusDot}>●</Text>
-        <Text style={styles.statusText}>{t("submissions.statusPending")}</Text>
+      <View style={styles.cardRow}>
+        {/* Decorative candidate-food glyph — hidden from screen readers (the
+            name/status text already carries the meaning). No CanonicalFood is
+            available for a submission record, so this uses the same static
+            glyph as the "As minhas contribuições" entry point rather than
+            foodEmoji(). */}
+        <View style={styles.tile} accessible={false} importantForAccessibility="no-hide-descendants">
+          <Text style={styles.tileGlyph}>◈</Text>
+        </View>
+        <View style={styles.cardMain}>
+          <Text style={styles.cardName}>{submission.name}</Text>
+          <Text style={styles.cardDate}>{t("submissions.submittedAtLabel", { date })}</Text>
+          <View style={styles.statusPill} accessible accessibilityLabel={t("submissions.statusPending")}>
+            <Text style={styles.statusDot}>●</Text>
+            <Text style={styles.statusText}>{t("submissions.statusPending")}</Text>
+          </View>
+        </View>
       </View>
     </View>
   );
@@ -81,7 +93,7 @@ function SubmissionCard({ submission, t }: SubmissionCardProps) {
 const styles = StyleSheet.create({
   screen: { flex: 1, paddingHorizontal: spacing.xl },
   content: { paddingBottom: 40 },
-  h1: { fontSize: typeScale.title.size, lineHeight: typeScale.title.lineHeight, fontWeight: fontWeights.extrabold, color: colors.textPrimary, marginTop: spacing.sm },
+  h1: { fontSize: typeScale.heading.size, fontWeight: fontWeights.extrabold, color: colors.textPrimary, marginTop: spacing.sm },
   meta: { fontSize: 13, color: colors.textMuted, marginTop: 2, marginBottom: spacing.lg },
   empty: { alignItems: "center", paddingVertical: spacing.xxl },
   emptyTitle: { fontSize: typeScale.heading.size, fontWeight: fontWeights.bold, color: colors.textPrimary, marginTop: spacing.md },
@@ -95,6 +107,18 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     ...elevation.xs.native,
   },
+  cardRow: { flexDirection: "row", alignItems: "flex-start" },
+  tile: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceSunken,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: spacing.md,
+  },
+  tileGlyph: { fontSize: 20, color: colors.brandDark },
+  cardMain: { flex: 1 },
   cardName: { fontSize: 16, fontWeight: "700", color: colors.textPrimary },
   cardDate: { fontSize: 13, color: colors.textMuted, marginTop: 2, marginBottom: spacing.sm },
   statusPill: {

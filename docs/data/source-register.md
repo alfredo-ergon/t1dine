@@ -2,6 +2,7 @@
 
 | Source | Intended use | Authority | Main caution |
 |---|---|---:|---|
+| INSA / PortFIR — BDCA v7.1 (2026) | Portugal-first authoritative composition (`INSA-BDCA`) | High (national institute) | Use granted with mandatory visible attribution; commercial-scale reuse and raw redistribution not addressed — see `docs/data/portfir-source-governance.md` |
 | Existing Comer com DT1 datasets | Migration and parity | Unknown until access is verified | Ownership, licences, versions, transformations |
 | FAO/INFOODS directory and databases | Discover national/regional sources | High | Individual database licences and freshness vary |
 | USDA FoodData Central | US ingredients and branded foods | High | US market relevance and API-key handling |

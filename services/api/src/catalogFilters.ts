@@ -9,25 +9,22 @@
 // shared area taxonomy's design.
 
 import type { CanonicalFood } from "@t1dine/food-schema";
-import { regionForCountry } from "@t1dine/food-schema";
+import { normaliseSearchText, regionForCountry } from "@t1dine/food-schema";
 
-const COMBINING_DIACRITICS = /[̀-ͯ]/g;
-
-/** Accent-insensitive, case-insensitive text normalisation for search. */
-export function normaliseText(value: string): string {
-  return value
-    .normalize("NFD")
-    .replace(COMBINING_DIACRITICS, "")
-    .toLowerCase()
-    .trim();
-}
+// Accent-/case-insensitive normalisation now lives in the shared
+// `@t1dine/food-schema` package (`normaliseSearchText`) so the public catalog
+// search, the search-indexer, and (eventually) the mobile offline catalogue
+// all fold "pao"/"Pão" the same way. No other module imports this alias
+// today, but it is kept so any future consumer of this file's specific name
+// does not break.
+export const normaliseText = normaliseSearchText;
 
 /** Matches a food's localised names/synonyms against an already-normalised
  * query fragment (accent-insensitive substring match). */
 export function matchesQuery(food: CanonicalFood, normalisedQuery: string): boolean {
   return food.names.some((localised) => {
-    if (normaliseText(localised.name).includes(normalisedQuery)) return true;
-    return localised.synonyms.some((synonym) => normaliseText(synonym).includes(normalisedQuery));
+    if (normaliseSearchText(localised.name).includes(normalisedQuery)) return true;
+    return localised.synonyms.some((synonym) => normaliseSearchText(synonym).includes(normalisedQuery));
   });
 }
 
@@ -61,7 +58,7 @@ export interface CatalogFilter {
 /** Applies `q`/`country`/`region`/`cuisine` filtering (each optional, all
  * combined with AND). An absent/blank `q` matches every food. */
 export function filterFoods(foods: CanonicalFood[], filter: CatalogFilter): CanonicalFood[] {
-  const normalisedQuery = filter.q && filter.q.trim().length > 0 ? normaliseText(filter.q) : undefined;
+  const normalisedQuery = filter.q && filter.q.trim().length > 0 ? normaliseSearchText(filter.q) : undefined;
 
   return foods.filter((food) => {
     if (normalisedQuery && !matchesQuery(food, normalisedQuery)) return false;
