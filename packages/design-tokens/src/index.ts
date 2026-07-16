@@ -118,6 +118,27 @@ export const gradients = {
   },
 } as const;
 
+/**
+ * Signature "Aurora" page background (v2). Two soft radial glows — cyan
+ * top-right, emerald top-left — layered over the mist gradient. This
+ * atmospheric wash is what the design system is named for. Framework-agnostic
+ * data only: mobile renders `glows` as react-native-svg <RadialGradient>s over
+ * the `gradients.mist` LinearGradient; the admin/web app can drop `web`
+ * straight into a CSS `background`. Purely decorative — never a11y-meaningful.
+ */
+export const auroraBackground = {
+  glows: [
+    // cyan, top-right — matches `radial-gradient(... at 82% 8% ...)`.
+    { color: "#38BDF8", opacity: 0.1, cx: "0.82", cy: "0.08", r: "0.6" },
+    // emerald, top-left — matches `radial-gradient(... at 6% 4% ...)`.
+    { color: "#0E9F6E", opacity: 0.12, cx: "0.06", cy: "0.04", r: "0.6" },
+  ],
+  web:
+    "radial-gradient(60% 52% at 82% 8%, rgba(56,189,248,0.10), transparent 70%)," +
+    "radial-gradient(58% 48% at 6% 4%, rgba(14,159,110,0.12), transparent 70%)," +
+    "linear-gradient(180deg, #F0FBF6 0%, #F5F7FA 100%)",
+} as const;
+
 /** Elevation scale (v2) — web box-shadow + RN native props. `glow` is the brand halo. */
 export const elevation = {
   xs: { web: "0 1px 2px rgba(15,23,42,0.05)", native: { shadowColor: "#0F172A", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1 } },

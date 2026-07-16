@@ -14,7 +14,7 @@
 
 import type { NutrientObservation, SourceReference } from "@t1dine/domain";
 import { CONFIDENCE_LEVELS, type ConfidenceLevel, type NutrientMethod } from "@t1dine/domain";
-import type { CanonicalFood, FoodType } from "@t1dine/food-schema";
+import type { CanonicalFood, FoodGroup, FoodType } from "@t1dine/food-schema";
 import { collectCanonicalFoodErrors, FOOD_STATUSES, type FoodStatus } from "@t1dine/food-schema";
 
 /** Nutrient codes used across the synthetic catalog (per-100 g basis). */
@@ -26,7 +26,7 @@ export const NUTRIENT_CODE = {
 /** Record-level data-quality signal computed by the portal (never colour-only in the UI). */
 export type DataQualityFlag = "ok" | "warning" | "invalid";
 
-/** A synthetic food source, as shown in the "Fontes" register. */
+/** A food source, as shown in the "Fontes" register. */
 export interface CatalogSource {
   id: string;
   name: string;
@@ -35,6 +35,24 @@ export interface CatalogSource {
   licence: string;
   /** Refresh cadence ("cadência"). */
   cadence: string;
+  /**
+   * Governance status label for the source's licence review (e.g. a real
+   * INSA/PortFIR source approved for use only with mandatory attribution).
+   * Optional & additive — synthetic sources carry none.
+   */
+  governanceStatus?: string;
+  /**
+   * Mandatory, visible attribution string the licence obliges us to display
+   * wherever the source's data appears (INSA/PortFIR mandates a citation).
+   * Optional & additive.
+   */
+  attribution?: string;
+  /**
+   * Short note of unresolved licence questions a curator must be aware of
+   * (e.g. commercial-scale reuse / raw-dataset redistribution not addressed by
+   * the terms). Optional & additive.
+   */
+  openQuestions?: string;
 }
 
 /** A canonical food enriched with everything the curation UI needs to render one row. */
@@ -58,14 +76,29 @@ export interface CatalogFood {
   sourceMeta: CatalogSource | null;
 }
 
-/** Synthetic source register. `id` is referenced by every food's provenance. */
+/**
+ * Source register. `id` is referenced by every food's provenance.
+ *
+ * The INSA-BDCA row mirrors the REAL governed source (see
+ * `services/api/src/catalogData/insaBuilder.ts` and
+ * `docs/data/portfir-source-governance.md`): the live catalogue is real INSA
+ * BDCA v7.1 data, used with mandatory visible attribution. The nutrient VALUES
+ * in this local `CATALOG` remain synthetic placeholders (fallback only), but the
+ * register metadata and attribution obligation below are the real governance.
+ * The remaining rows stay synthetic.
+ */
 export const SOURCES: CatalogSource[] = [
   {
-    id: "INSA-PT",
-    name: "INSA — Tabela da Composição de Alimentos (sintético)",
+    id: "INSA-BDCA",
+    name: "INSA — Base de Dados da Composição de Alimentos (BDCA)",
     market: "PT",
-    licence: "sintético — não redistribuível",
+    licence: "INSA/PortFIR — uso com atribuição obrigatória",
     cadence: "anual",
+    governanceStatus: "Aprovado para uso com atribuição (BDCA v7.1 — 2026)",
+    attribution:
+      "Fonte: Base de Dados da Composição de Alimentos. Instituto Nacional de Saúde Doutor Ricardo Jorge, I. P.- INSA. v 7.1 - 2026",
+    openQuestions:
+      "A reutilização à escala comercial e a redistribuição do conjunto de dados em bruto não são abrangidas pelos termos.",
   },
   {
     id: "OFF-PT",
@@ -99,6 +132,20 @@ export const SOURCES: CatalogSource[] = [
 
 function findSource(id: string): CatalogSource | null {
   return SOURCES.find((source) => source.id === id) ?? null;
+}
+
+/**
+ * Human-readable breadcrumb for a food-group hierarchy (level1 › level2 › level3),
+ * or null when absent. Guards against untrusted/partial shapes (the food may come
+ * from the live API), so a malformed `foodGroup` degrades to null rather than
+ * throwing. Additive: only ever surfaces the levels the source actually provides.
+ */
+export function formatFoodGroup(group: FoodGroup | undefined): string | null {
+  if (!group || typeof group !== "object") return null;
+  const parts = [group.level1, group.level2, group.level3].filter(
+    (part): part is string => typeof part === "string" && part.trim().length > 0,
+  );
+  return parts.length > 0 ? parts.join(" › ") : null;
 }
 
 /**
@@ -157,7 +204,7 @@ const CATALOG_SPECS: FoodSpec[] = [
     energyKcal: 130,
     confidence: "high",
     method: "analytical",
-    sourceId: "INSA-PT",
+    sourceId: "INSA-BDCA",
     sourceRecordId: "INSA-0001",
     cuisineTags: ["portuguesa"],
     mealContextTags: ["almoco", "jantar"],
@@ -172,7 +219,7 @@ const CATALOG_SPECS: FoodSpec[] = [
     energyKcal: 261,
     confidence: "high",
     method: "analytical",
-    sourceId: "INSA-PT",
+    sourceId: "INSA-BDCA",
     sourceRecordId: "INSA-0002",
     cuisineTags: ["portuguesa"],
     mealContextTags: ["pequeno-almoco", "lanche"],
@@ -187,7 +234,7 @@ const CATALOG_SPECS: FoodSpec[] = [
     energyKcal: 86,
     confidence: "high",
     method: "analytical",
-    sourceId: "INSA-PT",
+    sourceId: "INSA-BDCA",
     sourceRecordId: "INSA-0003",
     cuisineTags: ["portuguesa"],
     mealContextTags: ["almoco", "jantar"],
@@ -202,7 +249,7 @@ const CATALOG_SPECS: FoodSpec[] = [
     energyKcal: 95,
     confidence: "medium",
     method: "analytical",
-    sourceId: "INSA-PT",
+    sourceId: "INSA-BDCA",
     sourceRecordId: "INSA-0011",
     mealContextTags: ["lanche"],
   },
@@ -216,7 +263,7 @@ const CATALOG_SPECS: FoodSpec[] = [
     energyKcal: 54,
     confidence: "high",
     method: "analytical",
-    sourceId: "INSA-PT",
+    sourceId: "INSA-BDCA",
     sourceRecordId: "INSA-0012",
     mealContextTags: ["lanche"],
   },

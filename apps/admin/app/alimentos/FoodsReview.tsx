@@ -3,13 +3,14 @@
 import { CONFIDENCE_LEVELS, type ConfidenceLevel } from "@t1dine/domain";
 import { FOOD_STATUSES, type FoodStatus } from "@t1dine/food-schema";
 import { useMemo, useState } from "react";
-import type { CatalogFood } from "../../lib/catalog";
+import { formatFoodGroup, type CatalogFood } from "../../lib/catalog";
 import {
   CONFIDENCE_LABELS,
   confidenceChipVariant,
   DATA_QUALITY_LABELS,
   dataQualityChipVariant,
   FOOD_TYPE_LABELS,
+  PREPARATION_STATE_LABELS,
   STATUS_LABELS,
   statusChipVariant,
   t,
@@ -180,6 +181,11 @@ function FoodRowGroup({
 }: FoodRowGroupProps): JSX.Element {
   const { food, source } = item;
   const isCandidate = food.status === "candidate";
+  // Additive INSA/PortFIR fields — only rendered when the record carries them.
+  const preparationLabel = food.preparationState
+    ? PREPARATION_STATE_LABELS[food.preparationState] ?? food.preparationState
+    : null;
+  const foodGroupLabel = formatFoodGroup(food.foodGroup);
 
   return (
     <>
@@ -254,10 +260,28 @@ function FoodRowGroup({
               <dd>{source.mappingVersion}</dd>
               <dt>{t.common.licence}</dt>
               <dd>{source.licence}</dd>
+              {source.attribution && (
+                <>
+                  <dt>{t.foods.attribution}</dt>
+                  <dd>{source.attribution}</dd>
+                </>
+              )}
               <dt>{t.foods.retrievedAt}</dt>
               <dd>{source.retrievedAt}</dd>
               <dt>{t.foods.digest}</dt>
               <dd className="mono">{source.rawSnapshotSha256}</dd>
+              {preparationLabel && (
+                <>
+                  <dt>{t.foods.preparationState}</dt>
+                  <dd>{preparationLabel}</dd>
+                </>
+              )}
+              {foodGroupLabel && (
+                <>
+                  <dt>{t.foods.foodGroup}</dt>
+                  <dd>{foodGroupLabel}</dd>
+                </>
+              )}
             </dl>
             {item.validationErrors.length > 0 && (
               <>

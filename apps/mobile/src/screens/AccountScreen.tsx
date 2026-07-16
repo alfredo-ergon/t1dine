@@ -13,6 +13,7 @@
 
 import { useState } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 
 import { ApiError, isConnectivityError } from "../api";
 import type { StoredSession } from "../auth";
@@ -20,7 +21,7 @@ import { FadeIn } from "../components/FadeIn";
 import { PressableScale } from "../components/PressableScale";
 import { useLanguage } from "../i18n";
 import { syncStatusLabelKey, type SyncStatus } from "../sync";
-import { colors, elevation, fontWeights, MIN_TAP_TARGET, radius, spacing, typeScale } from "../theme";
+import { colors, elevation, fontWeights, gradients, MIN_TAP_TARGET, radius, spacing, typeScale } from "../theme";
 
 export interface AccountScreenProps {
   session: StoredSession | null;
@@ -126,13 +127,20 @@ export function AccountScreen({ session, syncStatus, onLogin, onRegister, onLogo
               disabled={syncStatus === "syncing"}
               accessibilityRole="button"
               accessibilityLabel={t("account.syncNowButton")}
-              style={[styles.primaryButton, syncStatus === "syncing" && styles.buttonDisabled]}
+              style={[styles.primaryButtonWrap, syncStatus === "syncing" && styles.buttonDisabled]}
             >
-              {syncStatus === "syncing" ? (
-                <ActivityIndicator color={colors.onBrand} />
-              ) : (
-                <Text style={styles.primaryButtonText}>{t("account.syncNowButton")}</Text>
-              )}
+              <LinearGradient
+                colors={gradients.brand.colors}
+                start={gradients.brand.start}
+                end={gradients.brand.end}
+                style={styles.primaryButtonGradient}
+              >
+                {syncStatus === "syncing" ? (
+                  <ActivityIndicator color={colors.onBrand} />
+                ) : (
+                  <Text style={styles.primaryButtonText}>{t("account.syncNowButton")}</Text>
+                )}
+              </LinearGradient>
             </PressableScale>
 
             <PressableScale onPress={onLogout} accessibilityRole="button" accessibilityLabel={t("account.logoutButton")} style={styles.secondaryButton}>
@@ -179,6 +187,7 @@ export function AccountScreen({ session, syncStatus, onLogin, onRegister, onLogo
 
           {errorKey && (
             <View style={styles.errorBanner} accessible accessibilityLabel={t(errorKey)}>
+              <Text style={styles.errorIcon}>⚠</Text>
               <Text style={styles.errorText}>{t(errorKey)}</Text>
             </View>
           )}
@@ -188,9 +197,15 @@ export function AccountScreen({ session, syncStatus, onLogin, onRegister, onLogo
             disabled={busy !== "idle"}
             accessibilityRole="button"
             accessibilityLabel={busy === "login" ? t("account.loggingIn") : t("account.loginButton")}
-            style={[styles.primaryButton, busy !== "idle" && styles.buttonDisabled]}
+            style={[styles.primaryButtonWrap, busy !== "idle" && styles.buttonDisabled]}
           >
-            {busy === "login" ? <ActivityIndicator color={colors.onBrand} /> : <Text style={styles.primaryButtonText}>{t("account.loginButton")}</Text>}
+            <LinearGradient colors={gradients.brand.colors} start={gradients.brand.start} end={gradients.brand.end} style={styles.primaryButtonGradient}>
+              {busy === "login" ? (
+                <ActivityIndicator color={colors.onBrand} />
+              ) : (
+                <Text style={styles.primaryButtonText}>{t("account.loginButton")}</Text>
+              )}
+            </LinearGradient>
           </PressableScale>
 
           <PressableScale
@@ -247,20 +262,27 @@ const styles = StyleSheet.create({
     minHeight: MIN_TAP_TARGET,
   },
   errorBanner: {
+    flexDirection: "row",
+    gap: spacing.sm,
     backgroundColor: colors.confidenceUnverifiedBg,
     borderRadius: radius.lg,
     padding: spacing.md,
     marginTop: spacing.md,
+    alignItems: "flex-start",
   },
-  errorText: { color: colors.danger, fontSize: 14, fontWeight: "600" },
-  primaryButton: {
+  errorIcon: { color: colors.danger, fontSize: 16, fontWeight: "700" },
+  errorText: { flex: 1, color: colors.danger, fontSize: 14, fontWeight: "600" },
+  primaryButtonWrap: {
+    borderRadius: radius.pill,
+    marginTop: spacing.lg,
+    ...elevation.glow.native,
+  },
+  primaryButtonGradient: {
     minHeight: MIN_TAP_TARGET,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.pill,
-    backgroundColor: colors.accent,
-    marginTop: spacing.lg,
-    ...elevation.sm.native,
+    overflow: "hidden",
   },
   primaryButtonText: { color: colors.onBrand, fontSize: 15, fontWeight: "700" },
   secondaryButton: {

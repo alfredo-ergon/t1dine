@@ -162,7 +162,21 @@ function SavedMealCard({ meal, onUse, onClone, onRename, onDelete }: SavedMealCa
       ) : (
         <>
           <View style={styles.cardHeader}>
-            <Text style={styles.cardName}>{meal.name}</Text>
+            {/* Decorative meal glyph — hidden from screen readers. A saved
+                meal has no single CanonicalFood to derive foodEmoji() from
+                (it may bundle several foods), so this uses a fixed "meal"
+                glyph rather than fabricating a per-food icon. */}
+            <View style={styles.tile} accessible={false} importantForAccessibility="no-hide-descendants">
+              <Text style={styles.tileGlyph}>🍽</Text>
+            </View>
+            <View style={styles.cardMain}>
+              <Text style={styles.cardName}>{meal.name}</Text>
+              <Text style={styles.cardMeta}>
+                {tPlural(t, "savedMeals.itemCount", meal.items.length)} • {t("savedMeals.totalCarbLabel")}: {meal.totalCarbGrams.toFixed(1)}{" "}
+                {t("common.gramsUnit")}
+              </Text>
+              <Text style={styles.cardDate}>{t("savedMeals.createdAtLabel", { date: createdDate })}</Text>
+            </View>
             <PressableScale
               onPress={handleStartRename}
               accessibilityRole="button"
@@ -173,12 +187,6 @@ function SavedMealCard({ meal, onUse, onClone, onRename, onDelete }: SavedMealCa
               <Text style={styles.renameIconText}>✎</Text>
             </PressableScale>
           </View>
-
-          <Text style={styles.cardMeta}>
-            {tPlural(t, "savedMeals.itemCount", meal.items.length)} • {t("savedMeals.totalCarbLabel")}: {meal.totalCarbGrams.toFixed(1)}{" "}
-            {t("common.gramsUnit")}
-          </Text>
-          <Text style={styles.cardDate}>{t("savedMeals.createdAtLabel", { date: createdDate })}</Text>
 
           {confirmingDelete ? (
             <View style={styles.confirmCard}>
@@ -271,8 +279,19 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     ...elevation.xs.native,
   },
-  cardHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  cardName: { flex: 1, fontSize: 16, fontWeight: "700", color: colors.textPrimary },
+  cardHeader: { flexDirection: "row", alignItems: "flex-start" },
+  tile: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceSunken,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: spacing.md,
+  },
+  tileGlyph: { fontSize: 20 },
+  cardMain: { flex: 1 },
+  cardName: { fontSize: 16, fontWeight: "700", color: colors.textPrimary },
   renameIconButton: {
     minWidth: MIN_TAP_TARGET,
     minHeight: MIN_TAP_TARGET,

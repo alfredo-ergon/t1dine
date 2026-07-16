@@ -3,7 +3,7 @@
 // components) so an EN toggle can be added later without touching the views.
 
 import type { ConfidenceLevel } from "@t1dine/domain";
-import type { FoodStatus, FoodType } from "@t1dine/food-schema";
+import type { FoodStatus, FoodType, PreparationState } from "@t1dine/food-schema";
 import type { DataQualityFlag } from "./catalog";
 
 export const t = {
@@ -102,10 +102,13 @@ export const t = {
     digest: "Resumo (SHA-256)",
     retrievedAt: "Obtido em",
     validationErrors: "Erros de validação",
+    attribution: "Atribuição",
+    preparationState: "Preparação",
+    foodGroup: "Grupo alimentar",
   },
   sources: {
     title: "Fontes",
-    lede: "Registo das fontes de dados alimentares sintéticas e respetivas licenças e cadências.",
+    lede: "Registo das fontes de dados alimentares e respetivas licenças e cadências.",
     columns: {
       id: "ID",
       name: "Nome",
@@ -114,6 +117,12 @@ export const t = {
       cadence: "Cadência",
       foodCount: "N.º de alimentos",
     },
+    governanceTitle: "Governança das fontes",
+    governanceLede:
+      "Estado de governança e obrigações de licença por fonte. A atribuição obrigatória tem de permanecer visível onde os dados são apresentados.",
+    governanceStatus: "Estado de governança",
+    attribution: "Atribuição obrigatória",
+    openQuestionsLabel: "Questões de licença em aberto",
   },
   auth: {
     title: "Sessão de curador",
@@ -435,6 +444,21 @@ export const FOOD_TYPE_LABELS: Record<FoodType, string> = {
   restaurant: "Restauração",
   recipe: "Receita",
   custom: "Personalizado",
+};
+
+/** pt-PT labels for the controlled preparation-state vocabulary (INSA foods). */
+export const PREPARATION_STATE_LABELS: Record<PreparationState, string> = {
+  raw: "Cru",
+  cooked: "Cozido",
+  roasted: "Assado",
+  fried: "Frito",
+  grilled: "Grelhado",
+  stewed: "Estufado",
+  dried: "Seco/desidratado",
+  candied: "Cristalizado",
+  preserved: "Conservado",
+  reconstituted: "Reconstituído",
+  unknown: "Desconhecido",
 };
 
 /** Where a stored/submitted food originated (the review-queue "Origem" chip).

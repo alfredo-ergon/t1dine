@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from "react-native";
 import type { CanonicalFood } from "@t1dine/food-schema";
 
+import { foodEmoji } from "../foodEmoji";
 import { useLanguage } from "../i18n";
 import { carbPer100g, displayName, FOOD_TYPE_KEY } from "../search";
 import { colors, elevation, MIN_TAP_TARGET, radius, spacing } from "../theme";
@@ -30,19 +31,26 @@ export function FoodRow({ food, isFavourite, onPress, onToggleFavourite }: FoodR
     <View style={styles.card}>
       <View style={styles.row}>
         <PressableScale
-          style={styles.main}
+          style={({ pressed }) => [styles.main, pressed && styles.mainPressed]}
           onPress={() => onPress(food)}
           accessibilityRole="button"
           accessibilityLabel={`${primaryName}, ${typeLabel}, ${carb ?? "?"} ${t("common.gramsCarbsPer100")}`}
           scaleTo={0.98}
         >
-          <Text style={styles.name} numberOfLines={1}>
-            {primaryName}
-          </Text>
-          <Text style={styles.sub} numberOfLines={1}>
-            {secondaryName} • {typeLabel}
-          </Text>
-          <ConfidenceBadge food={food} />
+          {/* Decorative food glyph — hidden from screen readers (the name/type
+              label already carries the meaning). */}
+          <View style={styles.emojiTile} accessible={false} importantForAccessibility="no-hide-descendants">
+            <Text style={styles.emoji}>{foodEmoji(food)}</Text>
+          </View>
+          <View style={styles.textCol}>
+            <Text style={styles.name} numberOfLines={1}>
+              {primaryName}
+            </Text>
+            <Text style={styles.sub} numberOfLines={1}>
+              {secondaryName} • {typeLabel}
+            </Text>
+            <ConfidenceBadge food={food} />
+          </View>
         </PressableScale>
 
         <View style={styles.right}>
@@ -79,7 +87,19 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     overflow: "hidden",
   },
-  main: { flex: 1, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  main: { flex: 1, flexDirection: "row", alignItems: "center", paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  mainPressed: { backgroundColor: colors.surfaceSunken },
+  emojiTile: {
+    width: 42,
+    height: 42,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceSunken,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: spacing.md,
+  },
+  emoji: { fontSize: 22 },
+  textCol: { flex: 1 },
   name: { fontSize: 17, fontWeight: "700", color: colors.textPrimary },
   // Single deliberate gap down to the confidence chip below — the chip
   // itself carries its own `marginTop` (see ConfidenceBadge), so this row

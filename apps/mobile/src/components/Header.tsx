@@ -65,7 +65,7 @@ export function Header({ showBack, onBack, onCreateFood, onOpenProfile, onOpenAc
 
   return (
     <LinearGradient colors={gradients.ink.colors} start={gradients.ink.start} end={gradients.ink.end} style={styles.gradient}>
-      <View style={[styles.header, isCompact && styles.headerCompact]} onLayout={handleLayout}>
+      <View style={[styles.header, isCompact && styles.headerCompact, !showBack && styles.headerWithGreeting]} onLayout={handleLayout}>
         <View style={styles.left}>
           {showBack ? (
             <PressableScale
@@ -131,6 +131,13 @@ export function Header({ showBack, onBack, onCreateFood, onOpenProfile, onOpenAc
           <LanguageSwitch />
         </View>
       </View>
+      {/* Warm greeting on the branded ink surface — only on the main tabs, not
+          on stacked/detail screens (where the Back control replaces the brand). */}
+      {!showBack && (
+        <Text style={[styles.greeting, isCompact && styles.greetingCompact]} numberOfLines={1}>
+          {t("app.greeting")}
+        </Text>
+      )}
     </LinearGradient>
   );
 }
@@ -157,6 +164,21 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   headerCompact: {
+    paddingHorizontal: spacing.lg,
+  },
+  // When the greeting line renders below, the header row gives up most of its
+  // bottom padding so the two sit as one tight block.
+  headerWithGreeting: {
+    paddingBottom: spacing.xs,
+  },
+  greeting: {
+    color: "rgba(255,255,255,0.78)",
+    fontSize: 14,
+    fontWeight: "600",
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.lg,
+  },
+  greetingCompact: {
     paddingHorizontal: spacing.lg,
   },
   // `minWidth: 0` overrides the flexbox default of "shrink no smaller than my

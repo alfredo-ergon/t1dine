@@ -5,7 +5,13 @@ import {
   isNutrientObservation,
   isSourceReference,
 } from "@t1dine/domain";
-import { syntheticCarbObservation, syntheticEnergyObservation, syntheticSource } from "../src/fixtures/index";
+import {
+  syntheticAttributedSource,
+  syntheticCarbObservation,
+  syntheticEnergyObservation,
+  syntheticMicronutrientObservation,
+  syntheticSource,
+} from "../src/fixtures/index";
 
 describe("SourceReference validation", () => {
   it("accepts a well-formed synthetic source", () => {
@@ -22,6 +28,15 @@ describe("SourceReference validation", () => {
     delete withoutLicence.licence;
     expect(isSourceReference(withoutLicence)).toBe(false);
   });
+
+  it("accepts an optional attribution string", () => {
+    expect(isSourceReference(syntheticAttributedSource)).toBe(true);
+  });
+
+  it("rejects an empty attribution when the field is present", () => {
+    const bad = { ...syntheticSource, attribution: "   " };
+    expect(isSourceReference(bad)).toBe(false);
+  });
 });
 
 describe("NutrientObservation validation", () => {
@@ -29,6 +44,11 @@ describe("NutrientObservation validation", () => {
     expect(isNutrientObservation(syntheticCarbObservation)).toBe(true);
     expect(isNutrientObservation(syntheticEnergyObservation)).toBe(true);
     expect(collectNutrientObservationErrors(syntheticCarbObservation)).toEqual([]);
+  });
+
+  it("accepts a micrograms (µg) micronutrient observation", () => {
+    expect(isNutrientObservation(syntheticMicronutrientObservation)).toBe(true);
+    expect(collectNutrientObservationErrors(syntheticMicronutrientObservation)).toEqual([]);
   });
 
   it("rejects a non-positive basis quantity", () => {

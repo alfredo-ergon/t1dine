@@ -9,9 +9,23 @@ import type { CanonicalFood } from "./index.js";
 
 export const FOOD_TYPES = ["ingredient", "packaged", "restaurant", "recipe", "custom"] as const;
 export const FOOD_STATUSES = ["candidate", "approved", "retired"] as const;
+export const PREPARATION_STATES = [
+  "raw",
+  "cooked",
+  "roasted",
+  "fried",
+  "grilled",
+  "stewed",
+  "dried",
+  "candied",
+  "preserved",
+  "reconstituted",
+  "unknown",
+] as const;
 
 export type FoodTypeName = (typeof FOOD_TYPES)[number];
 export type FoodStatus = (typeof FOOD_STATUSES)[number];
+export type PreparationStateName = (typeof PREPARATION_STATES)[number];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -25,8 +39,30 @@ function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === "string");
 }
 
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
 function oneOf<T extends readonly string[]>(allowed: T, value: unknown): value is T[number] {
   return typeof value === "string" && (allowed as readonly string[]).includes(value);
+}
+
+export function collectFoodGroupErrors(value: unknown, path: string): string[] {
+  const errors: string[] = [];
+  if (!isRecord(value)) {
+    return [`${path} must be an object`];
+  }
+  if (!isNonEmptyString(value.level1)) errors.push(`${path}.level1 must be a non-empty string`);
+  if (value.level2 !== undefined && !isNonEmptyString(value.level2)) {
+    errors.push(`${path}.level2, when present, must be a non-empty string`);
+  }
+  if (value.level3 !== undefined && !isNonEmptyString(value.level3)) {
+    errors.push(`${path}.level3, when present, must be a non-empty string`);
+  }
+  if (value.code !== undefined && !isNonEmptyString(value.code)) {
+    errors.push(`${path}.code, when present, must be a non-empty string`);
+  }
+  return errors;
 }
 
 export function collectLocalisedNameErrors(value: unknown, path: string): string[] {
@@ -69,6 +105,21 @@ export function collectCanonicalFoodErrors(value: unknown, path = "food"): strin
     value.nutrients.forEach((nutrient, i) =>
       errors.push(...collectNutrientObservationErrors(nutrient, `${path}.nutrients[${i}]`)),
     );
+  }
+
+  // Optional, additive fields — only validated when present (never required so
+  // the existing synthetic catalog stays valid).
+  if (value.preparationState !== undefined && !oneOf(PREPARATION_STATES, value.preparationState)) {
+    errors.push(`${path}.preparationState, when present, must be one of ${PREPARATION_STATES.join(", ")}`);
+  }
+  if (value.foodGroup !== undefined) {
+    errors.push(...collectFoodGroupErrors(value.foodGroup, `${path}.foodGroup`));
+  }
+  if (value.ediblePortion !== undefined && !(isFiniteNumber(value.ediblePortion) && value.ediblePortion > 0 && value.ediblePortion <= 1)) {
+    errors.push(`${path}.ediblePortion, when present, must be a number in (0, 1]`);
+  }
+  if (value.density !== undefined && !(isFiniteNumber(value.density) && value.density > 0)) {
+    errors.push(`${path}.density, when present, must be a number greater than 0`);
   }
 
   return errors;

@@ -8,7 +8,7 @@
 
 import type { NutrientObservation, SourceReference } from "./index.js";
 
-export const NUTRIENT_UNITS = ["g", "mg", "kcal", "kJ"] as const;
+export const NUTRIENT_UNITS = ["g", "mg", "µg", "kcal", "kJ"] as const;
 export const BASIS_UNITS = ["g", "ml", "serving"] as const;
 export const NUTRIENT_METHODS = ["analytical", "declared", "calculated", "estimated"] as const;
 export const CONFIDENCE_LEVELS = ["high", "medium", "low", "unverified"] as const;
@@ -56,6 +56,9 @@ export function collectSourceReferenceErrors(value: unknown, path = "source"): s
   if (!isNonEmptyString(value.mappingVersion)) errors.push(`${path}.mappingVersion must be a non-empty string`);
   if (value.market !== undefined && !isNonEmptyString(value.market)) {
     errors.push(`${path}.market, when present, must be a non-empty ISO country code`);
+  }
+  if (value.attribution !== undefined && !isNonEmptyString(value.attribution)) {
+    errors.push(`${path}.attribution, when present, must be a non-empty string`);
   }
   if (value.effectiveAt !== undefined && !isIsoTimestamp(value.effectiveAt)) {
     errors.push(`${path}.effectiveAt, when present, must be an ISO-8601 timestamp`);

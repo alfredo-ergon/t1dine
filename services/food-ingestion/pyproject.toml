@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "food-ingestion"
+version = "0.1.0"
+description = "T1Dine food-composition ingestion workers (immutable snapshots, deterministic mapping, quality checks, candidate generation)."
+requires-python = ">=3.12"
+dependencies = [
+    "openpyxl",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+]
+
+[tool.setuptools.packages.find]
+include = ["food_ingestion*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

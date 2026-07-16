@@ -36,6 +36,12 @@ jobs:
       - name: Unit and contract tests
         run: pnpm test
 
+      - name: Food-ingestion Python tests (PortFIR adapter)
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e services/food-ingestion pytest
+          python -m pytest services/food-ingestion -q
+
       - name: Dose-engine isolation guard
         run: pnpm boundaries
 
