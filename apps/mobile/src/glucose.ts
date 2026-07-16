@@ -5,6 +5,7 @@
 // insulin/dose value. Keep it that way: clinical calculation UI and food/
 // glucose-estimation UI stay strictly separate (CLAUDE.md).
 
+import { ApiError, isConnectivityError } from "./api";
 import type { TranslateFn } from "./i18n";
 
 /** Nightscout's documented `direction` strings -> a simple trend arrow. */
@@ -49,4 +50,24 @@ export function directionLabelKey(direction: string | undefined): string {
 export function formatAge(t: TranslateFn, ageMinutes: number): string {
   if (ageMinutes <= 0) return t("glucose.justNow");
   return t("glucose.ageMinutesAgo", { count: ageMinutes });
+}
+
+/**
+ * Maps a failed `fetchGlucose()` call to an i18n key for a fail-closed,
+ * user-facing message — NEVER the server's raw `message`/`error` text (which
+ * this app must not trust or echo verbatim) and NEVER the url/token that was
+ * sent. Distinguishes "no connectivity" (network/timeout) from an
+ * authoritative upstream failure (a bad Nightscout url/token, or Nightscout
+ * itself being unreachable/malformed) so the two can get different, more
+ * actionable copy.
+ */
+export function glucoseSyncErrorKey(error: unknown): string {
+  if (error instanceof ApiError) {
+    if (isConnectivityError(error)) return "glucose.syncErrorOffline";
+    if (error.code === "invalid_body") return "glucose.syncErrorInvalidConnection";
+    if (error.code === "upstream_unreachable" || error.code === "upstream_error" || error.code === "upstream_malformed") {
+      return "glucose.syncErrorUpstream";
+    }
+  }
+  return "glucose.syncErrorGeneric";
 }

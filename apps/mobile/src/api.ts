@@ -17,8 +17,11 @@
 import type { CanonicalFood, ContinentGroup, Region } from "@t1dine/food-schema";
 import { isCanonicalFood } from "@t1dine/food-schema";
 
-/** Single place to point the app at a different API host. */
-export const API_BASE_URL = "http://localhost:3001";
+/** Single place to point the app at a different API host. Defaults to the
+ * local dev server; override for on-device testing over a LAN by setting the
+ * Expo public env var `EXPO_PUBLIC_API_BASE_URL` (e.g. http://192.168.1.224:3001)
+ * — a physical phone cannot reach the PC's `localhost`. */
+export const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? "http://localhost:3001";
 
 const DEFAULT_TIMEOUT_MS = 4000;
 
@@ -391,24 +394,53 @@ function isGlucoseReading(value: unknown): value is GlucoseReading {
   return true;
 }
 
-/**
- * Fetches recent glucose readings in mock mode only (`{ mock: true }`) —
- * this app never asks a user for a Nightscout URL/token; it only displays
- * the deterministic offline-safe demo feed the API exposes for Slice 6.
- * Read-only, display-only: never call this from anywhere that computes a
- * dose or insulin-related value.
- */
-export async function fetchGlucose(opts?: { count?: number }): Promise<GlucoseResult> {
-  const body: { mock: true; count?: number } = { mock: true };
-  if (opts?.count !== undefined) {
-    body.count = opts.count;
-  }
+export interface FetchGlucoseOptions {
+  /** Nightscout base URL. Required for a live (non-mock) fetch; the caller
+   * (GlucoseScreen) supplies this per-request from the secure store
+   * (../nightscoutStore.ts) — this module never persists it. */
+  url?: string;
+  /** Nightscout read-token. Same per-request, never-persisted contract as
+   * `url` — a HIGH-IMPACT credential (CLAUDE.md). This module only ever puts
+   * it in the outgoing request body; it is never logged, never read back out
+   * of the response, and never retained after this call resolves/rejects. */
+  token?: string;
+  /** How many recent readings to request (API default 12, max 288). */
+  count?: number;
+  /** `true` to use the API's deterministic, fully-offline demo feed instead
+   * of a live Nightscout fetch — the "ver exemplo" toggle in GlucoseScreen. */
+  mock?: boolean;
+}
 
-  const json = await fetchJson("/integrations/nightscout/glucose", {
+/**
+ * Fetches recent glucose readings — either the API's deterministic demo feed
+ * (`{ mock: true }`, works with no Nightscout account at all) or a live
+ * Nightscout read via the API's proxy (`{ url, token }`, both required
+ * outside mock mode). Read-only, display-only: never call this from anywhere
+ * that computes a dose or insulin-related value, and never log/persist the
+ * `url`/`token` passed in — they are used only to build this one request.
+ */
+export async function fetchGlucose(opts: FetchGlucoseOptions = {}): Promise<GlucoseResult> {
+  const body: Record<string, unknown> = {};
+  if (opts.url !== undefined) body.url = opts.url;
+  if (opts.token !== undefined) body.token = opts.token;
+  if (opts.count !== undefined) body.count = opts.count;
+  if (opts.mock !== undefined) body.mock = opts.mock;
+
+  // Uses `rawFetch` (not `fetchJson`) so a non-2xx response's `error` code
+  // (e.g. `"upstream_unreachable"`, `"invalid_body"`) can be surfaced to the
+  // caller via `ApiError.code` — GlucoseScreen maps this to a precise,
+  // localised, never-token-echoing message (see ../glucose.ts's
+  // `glucoseSyncErrorKey`). Never logs `status`/`json` itself.
+  const { status, json } = await rawFetch("/integrations/nightscout/glucose", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+
+  if (status < 200 || status >= 300) {
+    const code = isRecord(json) && typeof json["error"] === "string" ? json["error"] : undefined;
+    throw new ApiError("http", `T1Dine glucose request failed (HTTP ${status}).`, status, code);
+  }
 
   if (!isRecord(json)) {
     throw new ApiError("invalid_response", "T1Dine API returned an unexpected glucose response shape.");
