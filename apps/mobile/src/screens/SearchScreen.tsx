@@ -7,6 +7,7 @@ import { AnimatedCounter } from "../components/AnimatedCounter";
 import { AreaFilterPanel } from "../components/AreaFilterPanel";
 import { FadeIn } from "../components/FadeIn";
 import { FoodRow } from "../components/FoodRow";
+import { InkSurface } from "../components/InkSurface";
 import { Mascot } from "../components/Mascot";
 import { PressableScale } from "../components/PressableScale";
 import { Skeleton } from "../components/Skeleton";
@@ -106,8 +107,6 @@ export function SearchScreen({
 
   return (
     <View style={styles.screen}>
-      <Text style={styles.tagline}>{t("app.tagline")}</Text>
-
       <View style={styles.inputWrap}>
         <Text style={styles.inputIcon}>⌕</Text>
         <TextInput
@@ -120,7 +119,20 @@ export function SearchScreen({
           autoCapitalize="none"
           accessibilityLabel={t("search.hint")}
           accessibilityHint={t("search.hint")}
+          returnKeyType="search"
+          clearButtonMode="never"
         />
+        {query.length > 0 && (
+          <PressableScale
+            onPress={() => onChangeQuery("")}
+            accessibilityRole="button"
+            accessibilityLabel={t("search.clear")}
+            hitSlop={8}
+            style={styles.clearButton}
+          >
+            <Text style={styles.clearIcon}>×</Text>
+          </PressableScale>
+        )}
       </View>
 
       <View style={styles.sourceRow}>
@@ -182,8 +194,9 @@ export function SearchScreen({
       />
 
       {mealItemCount > 0 && (
-        <View
+        <InkSurface
           style={styles.mealBar}
+          contentStyle={styles.mealBarContent}
           accessible
           accessibilityLabel={`${t("search.currentMeal")}: ${tPlural(t, "meal.items", mealItemCount)}, ${mealCarbGrams.toFixed(1)} ${t("common.gramsUnit")} ${t("meal.carbShort")}`}
         >
@@ -195,15 +208,14 @@ export function SearchScreen({
             <AnimatedCounter value={mealCarbGrams} decimals={1} style={styles.mealBarCarbs} suffix={` ${t("common.gramsUnit")}`} />
             <Text style={styles.mealBarCarbLabel}>{t("meal.carbShort")}</Text>
           </View>
-        </View>
+        </InkSurface>
       )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, paddingHorizontal: spacing.xl },
-  tagline: { fontSize: typeScale.subheading.size, fontWeight: typeScale.subheading.weight, color: colors.textSecondary, marginTop: 2, marginBottom: spacing.md },
+  screen: { flex: 1, paddingHorizontal: spacing.xl, paddingTop: spacing.xs },
   inputWrap: {
     flexDirection: "row",
     alignItems: "center",
@@ -216,6 +228,16 @@ const styles = StyleSheet.create({
     ...elevation.sm.native,
   },
   inputIcon: { fontSize: 17, color: colors.textFaint, marginRight: spacing.xs },
+  clearButton: {
+    minWidth: 32,
+    minHeight: 32,
+    borderRadius: radius.pill,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surfaceSunken,
+    marginLeft: spacing.xs,
+  },
+  clearIcon: { fontSize: 18, lineHeight: 20, color: colors.textMuted, fontWeight: "700" },
   input: {
     flex: 1,
     paddingVertical: 12,
@@ -268,22 +290,17 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
   },
   createCtaText: { color: colors.onBrand, fontSize: 15, fontWeight: "700" },
-  mealBar: {
+  mealBar: { marginBottom: 14 },
+  mealBarContent: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: colors.surfaceGlass,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.hairline,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    marginBottom: 14,
-    ...elevation.lg.native,
+    paddingHorizontal: 18,
+    paddingVertical: 15,
   },
-  mealBarLabel: { color: colors.textPrimary, fontSize: 15, fontWeight: "700" },
-  mealBarSub: { color: colors.textMuted, fontSize: 12, marginTop: 1 },
+  mealBarLabel: { color: colors.onBrand, fontSize: 15, fontWeight: "700" },
+  mealBarSub: { color: "rgba(255,255,255,0.72)", fontSize: 12, marginTop: 1 },
   mealBarCarbWrap: { alignItems: "flex-end" },
-  mealBarCarbs: { color: colors.brandDark, fontSize: 20, fontWeight: "800", fontVariant: ["tabular-nums"] },
-  mealBarCarbLabel: { color: colors.textMuted, fontSize: 11 },
+  mealBarCarbs: { color: colors.focusRing, fontSize: 24, fontWeight: "800", fontVariant: ["tabular-nums"] },
+  mealBarCarbLabel: { color: "rgba(255,255,255,0.72)", fontSize: 11 },
 });

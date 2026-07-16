@@ -6,19 +6,12 @@ import type { NutrientObservation } from "@t1dine/domain";
 import type { CanonicalFood } from "@t1dine/food-schema";
 
 import { CATALOG } from "./catalog";
+import { normalise } from "./normalise";
 import { colors } from "./theme";
 
-function normalise(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/[áàâãä]/g, "a")
-    .replace(/[éèêë]/g, "e")
-    .replace(/[íìîï]/g, "i")
-    .replace(/[óòôõö]/g, "o")
-    .replace(/[úùûü]/g, "u")
-    .replace(/ç/g, "c")
-    .trim();
-}
+// Re-exported for backward compatibility — the canonical definition now lives
+// in ./normalise so ./foodEmoji can reuse it without importing the catalog.
+export { normalise };
 
 // Portuguese is the platform default (pt-PT), English is a toggle — so the
 // primary display name defaults to pt-PT and falls back to English, then to
@@ -37,14 +30,63 @@ function haystack(food: CanonicalFood): string {
     .join(" ");
 }
 
+/** True when any word in `text` starts with `term`. A word boundary is the
+ * start of the string or any non-alphanumeric char, so "peru" is a word-start
+ * match in "peru, hamburguer" AND in "fiambre, peito de peru". */
+function wordStartsWith(text: string, term: string): boolean {
+  if (text.startsWith(term)) return true;
+  for (let i = 1; i < text.length; i += 1) {
+    const prev = text.charCodeAt(i - 1);
+    const isAlnum = (prev >= 97 && prev <= 122) || (prev >= 48 && prev <= 57);
+    if (!isAlnum && text.startsWith(term, i)) return true;
+  }
+  return false;
+}
+
+/**
+ * Relevance-ranked, accent- and case-insensitive offline search.
+ *
+ * A food matches when EVERY whitespace-separated term appears somewhere in its
+ * searchable text (names + synonyms). Results are then ranked so the most
+ * on-target foods surface first — a name that *starts with* the query beats one
+ * where the query is only a mid-word substring, which beats a match that only
+ * hits a synonym. Ties break by shorter name, then alphabetically. Empty query
+ * → the whole catalog, alphabetical.
+ *
+ * (Previously this sorted purely alphabetically, so searching "peru" put
+ * "Fiambre, peito de peru" above "Peru inteiro…".)
+ */
 export function searchFoods(query: string, catalog: CanonicalFood[] = CATALOG): CanonicalFood[] {
   const q = normalise(query);
   if (q.length === 0) {
     return [...catalog].sort((a, b) => displayName(a).localeCompare(displayName(b)));
   }
-  return catalog
-    .filter((food) => haystack(food).includes(q))
-    .sort((a, b) => displayName(a).localeCompare(displayName(b)));
+  const terms = q.split(/\s+/).filter(Boolean);
+
+  const scored: { food: CanonicalFood; score: number; name: string }[] = [];
+  for (const food of catalog) {
+    const hay = haystack(food);
+    // AND: every term must appear somewhere in the searchable text.
+    if (!terms.every((t) => hay.includes(t))) continue;
+
+    const name = normalise(displayName(food, "pt"));
+    let score: number;
+    if (name.startsWith(q)) {
+      score = 0; // primary name starts with the whole query
+    } else if (wordStartsWith(name, terms[0]!)) {
+      score = 1; // a word in the primary name starts with the first term
+    } else if (name.includes(q)) {
+      score = 2; // the whole query appears mid-name
+    } else if (terms.every((t) => name.includes(t))) {
+      score = 3; // all terms are in the primary name, but scattered
+    } else {
+      score = 4; // matched only via a synonym / secondary-language name
+    }
+    scored.push({ food, score, name });
+  }
+
+  scored.sort((a, b) => a.score - b.score || a.name.length - b.name.length || a.name.localeCompare(b.name));
+  return scored.map((s) => s.food);
 }
 
 export function nutrient(food: CanonicalFood, code: string): NutrientObservation | undefined {
