@@ -27,6 +27,7 @@ type Vars = Record<string, string | number>;
 const pt: Dictionary = {
   "app.name": "T1Dine",
   "app.tagline": "O que estou a comer?",
+  "app.greeting": "O que vais comer hoje?",
 
   "splash.tagline": "A tua refeição, com confiança.",
   "splash.loading": "A preparar tudo…",
@@ -66,6 +67,7 @@ const pt: Dictionary = {
 
   "search.placeholder": "Procurar alimentos — ex. pão, arroz, apple",
   "search.hint": "Escreva o nome de um alimento em português ou inglês",
+  "search.clear": "Limpar pesquisa",
   "search.results.one": "{count} alimento",
   "search.results.other": "{count} alimentos",
   "search.emptyTitle": "Sem resultados offline",
@@ -101,6 +103,8 @@ const pt: Dictionary = {
   "detail.methodLabel": "Método",
   "detail.retrievedLabel": "Obtido em",
   "detail.licenceLabel": "Licença",
+  "detail.quantityLabel": "Quantidade",
+  "detail.portionCarbLabel": "Nesta porção",
   "detail.addButton": "Adicionar à refeição",
   "detail.submitTitle": "Contribuir para a base de dados",
   "detail.submitHint": "Enviar este alimento para revisão. Só fica disponível para todos depois de aprovado por um curador.",
@@ -127,6 +131,9 @@ const pt: Dictionary = {
 
   "meal.savedMealsOpenCta": "Refeições guardadas",
   "meal.saveMealCta": "Guardar refeição",
+  "meal.updateSavedMealCta": "Atualizar «{name}»",
+  "meal.updateSavedMealSuccess": "Refeição guardada atualizada.",
+  "meal.saveAsNewCta": "Guardar como nova",
   "meal.saveMealNameLabel": "Nome da refeição",
   "meal.saveMealNamePlaceholder": "ex. Pequeno-almoço de semana",
   "meal.saveMealNameError": "Introduza um nome para a refeição.",
@@ -185,6 +192,8 @@ const pt: Dictionary = {
 
   "profile.openLabel": "Perfil e definições",
   "profile.title": "Perfil",
+  "profile.startupTitle": "Página inicial",
+  "profile.startupBody": "Escolha o separador que abre quando inicia a app.",
   "profile.exportTitle": "Exportar os meus dados",
   "profile.exportBody": "Cria uma cópia, em formato JSON, dos dados guardados neste dispositivo: favoritos, recentes, alimentos personalizados, a refeição atual e as refeições guardadas.",
   "profile.exportButton": "Gerar exportação",
@@ -316,6 +325,7 @@ const pt: Dictionary = {
 const en: Dictionary = {
   "app.name": "T1Dine",
   "app.tagline": "What am I eating?",
+  "app.greeting": "What are you eating today?",
 
   "splash.tagline": "Your meal, with confidence.",
   "splash.loading": "Getting things ready…",
@@ -352,6 +362,7 @@ const en: Dictionary = {
 
   "search.placeholder": "Search foods — e.g. pao, arroz, apple",
   "search.hint": "Type a food name in Portuguese or English",
+  "search.clear": "Clear search",
   "search.results.one": "{count} food",
   "search.results.other": "{count} foods",
   "search.emptyTitle": "No matches offline",
@@ -387,6 +398,8 @@ const en: Dictionary = {
   "detail.methodLabel": "Method",
   "detail.retrievedLabel": "Retrieved",
   "detail.licenceLabel": "Licence",
+  "detail.quantityLabel": "Quantity",
+  "detail.portionCarbLabel": "In this portion",
   "detail.addButton": "Add to meal",
   "detail.submitTitle": "Contribute to the database",
   "detail.submitHint": "Send this food for review. It only becomes available to everyone once a curator approves it.",
@@ -413,6 +426,9 @@ const en: Dictionary = {
 
   "meal.savedMealsOpenCta": "Saved meals",
   "meal.saveMealCta": "Save meal",
+  "meal.updateSavedMealCta": "Update “{name}”",
+  "meal.updateSavedMealSuccess": "Saved meal updated.",
+  "meal.saveAsNewCta": "Save as new",
   "meal.saveMealNameLabel": "Meal name",
   "meal.saveMealNamePlaceholder": "e.g. Weekday breakfast",
   "meal.saveMealNameError": "Enter a name for the meal.",
@@ -471,6 +487,8 @@ const en: Dictionary = {
 
   "profile.openLabel": "Profile and settings",
   "profile.title": "Profile",
+  "profile.startupTitle": "Home screen",
+  "profile.startupBody": "Choose which tab opens when the app starts.",
   "profile.exportTitle": "Export my data",
   "profile.exportBody": "Creates a JSON copy of the data stored on this device: favourites, recents, custom foods, the current meal, and saved meals.",
   "profile.exportButton": "Generate export",
