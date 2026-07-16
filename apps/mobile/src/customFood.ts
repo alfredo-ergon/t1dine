@@ -14,6 +14,11 @@ export interface CustomFoodInput {
   nameEn: string;
   carbPer100g: number;
   energyPer100gKcal: number;
+  /** Optional barcode to associate with this food (Slice: barcode scanning —
+   * the "not found" fallback pre-fills this from the scanned/typed code so
+   * the food becomes findable by barcode next time). Absent for the normal
+   * "+ Novo alimento" entry point. */
+  barcode?: string;
 }
 
 export function createCustomFoodId(): string {
@@ -60,7 +65,7 @@ export function buildCustomFood(input: CustomFoodInput, id: string = createCusto
     ],
     countries: [],
     markets: [],
-    barcodes: [],
+    barcodes: input.barcode ? [input.barcode] : [],
     cuisineTags: [],
     dietaryPatternTags: [],
     mealContextTags: [],

@@ -87,6 +87,9 @@ importers:
       expo:
         specifier: ~54.0.0
         version: 54.0.35(@babel/core@7.29.7)(@expo/metro-runtime@6.1.2)(react-native@0.81.5(@babel/core@7.29.7)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
+      expo-camera:
+        specifier: ~17.0.8
+        version: 17.0.10(expo@54.0.35)(react-native-web@0.21.2(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.7)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       expo-linear-gradient:
         specifier: ~15.0.8
         version: 15.0.8(expo@54.0.35)(react-native@0.81.5(@babel/core@7.29.7)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
@@ -203,10 +206,10 @@ packages:
         optional: true
 
   '@babel/code-frame@7.10.4':
-    resolution: {integrity: sha1-Fo2ho26Q2miujUnA8bSMfGJJITo=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/code-frame/-/code-frame-7.10.4.tgz}
+    resolution: {integrity: sha1-Fo2ho26Q2miujUnA8bSMfGJJITo=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/code-frame/-/code-frame-7.10.4.tgz}
 
   '@babel/code-frame@7.29.7':
-    resolution: {integrity: sha1-8vu/6ofESiFZDsUVt3iywm2IZuc=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/code-frame/-/code-frame-7.29.7.tgz}
+    resolution: {integrity: sha1-8vu/6ofESiFZDsUVt3iywm2IZuc=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/code-frame/-/code-frame-7.29.7.tgz}
     engines: {node: '>=6.9.0'}
 
   '@babel/compat-data@7.29.7':
@@ -214,7 +217,7 @@ packages:
     engines: {node: '>=6.9.0'}
 
   '@babel/core@7.29.7':
-    resolution: {integrity: sha1-gMELFySAgpaLV6hXuRZAlx8gcPc=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/core/-/core-7.29.7.tgz}
+    resolution: {integrity: sha1-gMELFySAgpaLV6hXuRZAlx8gcPc=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/core/-/core-7.29.7.tgz}
     engines: {node: '>=6.9.0'}
 
   '@babel/generator@7.29.7':
@@ -269,7 +272,7 @@ packages:
     engines: {node: '>=6.9.0'}
 
   '@babel/helper-plugin-utils@7.29.7':
-    resolution: {integrity: sha1-wKB2bxoTYX2KF0B9erj51IYiXqQ=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/helper-plugin-utils/-/helper-plugin-utils-7.29.7.tgz}
+    resolution: {integrity: sha1-wKB2bxoTYX2KF0B9erj51IYiXqQ=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/helper-plugin-utils/-/helper-plugin-utils-7.29.7.tgz}
     engines: {node: '>=6.9.0'}
 
   '@babel/helper-remap-async-to-generator@7.29.7':
@@ -313,7 +316,7 @@ packages:
     engines: {node: '>=6.9.0'}
 
   '@babel/parser@7.29.7':
-    resolution: {integrity: sha1-g3uHOHy/XsVTDLY0s8Yi9o7bkzQ=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/parser/-/parser-7.29.7.tgz}
+    resolution: {integrity: sha1-g3uHOHy/XsVTDLY0s8Yi9o7bkzQ=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/parser/-/parser-7.29.7.tgz}
     engines: {node: '>=6.0.0'}
     hasBin: true
 
@@ -684,15 +687,15 @@ packages:
       '@babel/core': ^7.0.0-0
 
   '@babel/runtime@7.29.7':
-    resolution: {integrity: sha1-EgIkUMRaTabY2Ch7GKT/Ldsj92g=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/runtime/-/runtime-7.29.7.tgz}
+    resolution: {integrity: sha1-EgIkUMRaTabY2Ch7GKT/Ldsj92g=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/runtime/-/runtime-7.29.7.tgz}
     engines: {node: '>=6.9.0'}
 
   '@babel/template@7.29.7':
-    resolution: {integrity: sha1-TZ1ABPZFzdME3pWMclFieE7KxwA=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/template/-/template-7.29.7.tgz}
+    resolution: {integrity: sha1-TZ1ABPZFzdME3pWMclFieE7KxwA=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/template/-/template-7.29.7.tgz}
     engines: {node: '>=6.9.0'}
 
   '@babel/traverse@7.29.7':
-    resolution: {integrity: sha1-xHsHpBuV2gkH0Ca13YlNmN59Ly0=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/traverse/-/traverse-7.29.7.tgz}
+    resolution: {integrity: sha1-xHsHpBuV2gkH0Ca13YlNmN59Ly0=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/traverse/-/traverse-7.29.7.tgz}
     engines: {node: '>=6.9.0'}
 
   '@babel/types@7.29.7':
@@ -1405,7 +1408,7 @@ packages:
     engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
 
   '@jest/schemas@29.6.3':
-    resolution: {integrity: sha1-Qwtc6KTgBEp+OBlmMwWnswkcjgM=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@jest/schemas/-/schemas-29.6.3.tgz}
+    resolution: {integrity: sha1-Qwtc6KTgBEp+OBlmMwWnswkcjgM=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@jest/schemas/-/schemas-29.6.3.tgz}
     engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
 
   '@jest/transform@29.7.0':
@@ -1550,7 +1553,7 @@ packages:
     resolution: {integrity: sha1-uKwX0bvM0++aH5IWZdBNQs/4WXY=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@react-native/normalize-colors/-/normalize-colors-0.74.89.tgz}
 
   '@react-native/normalize-colors@0.81.5':
-    resolution: {integrity: sha1-HKbLZ3K7cyTfKxGqs1In6s1r3+c=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@react-native/normalize-colors/-/normalize-colors-0.81.5.tgz}
+    resolution: {integrity: sha1-HKbLZ3K7cyTfKxGqs1In6s1r3+c=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@react-native/normalize-colors/-/normalize-colors-0.81.5.tgz}
 
   '@react-native/virtualized-lists@0.81.5':
     resolution: {integrity: sha1-JBI/3tFpktfkbsxMzUc76TnqjBs=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@react-native/virtualized-lists/-/virtualized-lists-0.81.5.tgz}
@@ -1750,7 +1753,7 @@ packages:
     resolution: {integrity: sha1-WWoXRyM2lNUPatinhp/Lb1bPWEE=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@types/json-schema/-/json-schema-7.0.15.tgz}
 
   '@types/node@24.13.2':
-    resolution: {integrity: sha1-O5soCnBVEoNZ8SXrEGfZoZDzmFQ=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@types/node/-/node-24.13.2.tgz}
+    resolution: {integrity: sha1-O5soCnBVEoNZ8SXrEGfZoZDzmFQ=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@types/node/-/node-24.13.2.tgz}
 
   '@types/pg@8.20.0':
     resolution: {integrity: sha1-i9A9OsaxkUOo3n1mqdE9oyzZFSY=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@types/pg/-/pg-8.20.0.tgz}
@@ -1761,7 +1764,7 @@ packages:
       '@types/react': ^19.0.0
 
   '@types/react@19.1.17':
-    resolution: {integrity: sha1-i+C5xUbO3jibkwqY6z+tGJfyCcM=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@types/react/-/react-19.1.17.tgz}
+    resolution: {integrity: sha1-i+C5xUbO3jibkwqY6z+tGJfyCcM=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@types/react/-/react-19.1.17.tgz}
 
   '@types/stack-utils@2.0.3':
     resolution: {integrity: sha1-YgkyHrLBcSp+dGZCK4yx/A2d1dg=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@types/stack-utils/-/stack-utils-2.0.3.tgz}
@@ -1970,7 +1973,7 @@ packages:
     resolution: {integrity: sha1-vNZ5HqWuCXJeF+WtmIE0zUCz2RE=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/argparse/-/argparse-1.0.10.tgz}
 
   argparse@2.0.1:
-    resolution: {integrity: sha1-JG9Q88p4oyQPbJl+ipvR6sSeSzg=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/argparse/-/argparse-2.0.1.tgz}
+    resolution: {integrity: sha1-JG9Q88p4oyQPbJl+ipvR6sSeSzg=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/argparse/-/argparse-2.0.1.tgz}
 
   asap@2.0.6:
     resolution: {integrity: sha1-5QNHYR1+aQlDIIu9r+vLwvuGbUY=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/asap/-/asap-2.0.6.tgz}
@@ -2150,7 +2153,7 @@ packages:
     engines: {node: '>=4'}
 
   chalk@4.1.2:
-    resolution: {integrity: sha1-qsTit3NKdAhnrrFr8CqtVWoeegE=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/chalk/-/chalk-4.1.2.tgz}
+    resolution: {integrity: sha1-qsTit3NKdAhnrrFr8CqtVWoeegE=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/chalk/-/chalk-4.1.2.tgz}
     engines: {node: '>=10'}
 
   check-error@2.1.3:
@@ -2170,10 +2173,10 @@ packages:
     resolution: {integrity: sha1-DDePKMma78NgcF+hVd4BE5l/Yvw=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/chromium-edge-launcher/-/chromium-edge-launcher-0.2.0.tgz}
 
   ci-info@2.0.0:
-    resolution: {integrity: sha1-Z6npZL4xpR4V5QENWObxKDQAL0Y=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/ci-info/-/ci-info-2.0.0.tgz}
+    resolution: {integrity: sha1-Z6npZL4xpR4V5QENWObxKDQAL0Y=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/ci-info/-/ci-info-2.0.0.tgz}
 
   ci-info@3.9.0:
-    resolution: {integrity: sha1-QnmmICinsfJi80c/yWBfXiGMWbQ=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/ci-info/-/ci-info-3.9.0.tgz}
+    resolution: {integrity: sha1-QnmmICinsfJi80c/yWBfXiGMWbQ=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/ci-info/-/ci-info-3.9.0.tgz}
     engines: {node: '>=8'}
 
   cli-cursor@2.1.0:
@@ -2243,7 +2246,7 @@ packages:
     engines: {node: '>= 0.10.0'}
 
   convert-source-map@2.0.0:
-    resolution: {integrity: sha1-S1YPZJ/E6RjdCrdc9JYei8iC2Co=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/convert-source-map/-/convert-source-map-2.0.0.tgz}
+    resolution: {integrity: sha1-S1YPZJ/E6RjdCrdc9JYei8iC2Co=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/convert-source-map/-/convert-source-map-2.0.0.tgz}
 
   cookie@1.1.1:
     resolution: {integrity: sha1-O7m9/II2nbnC9pyTycPOsxDIizw=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/cookie/-/cookie-1.1.1.tgz}
@@ -2506,6 +2509,17 @@ packages:
       react: '*'
       react-native: '*'
 
+  expo-camera@17.0.10:
+    resolution: {integrity: sha1-s6IX8OuBGm41IsKv+fQr5XiqZFY=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/expo-camera/-/expo-camera-17.0.10.tgz}
+    peerDependencies:
+      expo: '*'
+      react: '*'
+      react-native: '*'
+      react-native-web: '*'
+    peerDependenciesMeta:
+      react-native-web:
+        optional: true
+
   expo-constants@18.0.13:
     resolution: {integrity: sha1-ARfx89Q757ZFGSwPT0MftO/EgD0=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/expo-constants/-/expo-constants-18.0.13.tgz}
     peerDependencies:
@@ -2590,7 +2604,7 @@ packages:
     resolution: {integrity: sha1-On1WtVnWy8PrUSMlJE5hmmXGxSU=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/fast-deep-equal/-/fast-deep-equal-3.1.3.tgz}
 
   fast-json-stable-stringify@2.1.0:
-    resolution: {integrity: sha1-h0v2nG9ATCtdmcSBNBOZ/VWJJjM=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/fast-json-stable-stringify/-/fast-json-stable-stringify-2.1.0.tgz}
+    resolution: {integrity: sha1-h0v2nG9ATCtdmcSBNBOZ/VWJJjM=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/fast-json-stable-stringify/-/fast-json-stable-stringify-2.1.0.tgz}
 
   fast-json-stringify@7.0.0:
     resolution: {integrity: sha1-DfPWe3S/4HrXFa+sTICMbHVlSds=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/fast-json-stringify/-/fast-json-stringify-7.0.0.tgz}
@@ -2614,7 +2628,7 @@ packages:
     resolution: {integrity: sha1-ynUKENySW8ixiDn9ID4+9LPO1nU=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/fastq/-/fastq-1.20.1.tgz}
 
   fb-watchman@2.0.2:
-    resolution: {integrity: sha1-6VJO5rXHfp5QAa8PhfOtu4YjJVw=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/fb-watchman/-/fb-watchman-2.0.2.tgz}
+    resolution: {integrity: sha1-6VJO5rXHfp5QAa8PhfOtu4YjJVw=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/fb-watchman/-/fb-watchman-2.0.2.tgz}
 
   fbjs-css-vars@1.0.2:
     resolution: {integrity: sha1-IWVRE2rgL+JVkyw+yHdfGOLAeLg=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/fbjs-css-vars/-/fbjs-css-vars-1.0.2.tgz}
@@ -2652,7 +2666,7 @@ packages:
     engines: {node: '>=8'}
 
   find-up@5.0.0:
-    resolution: {integrity: sha1-TJKBnstwg1YeT0okCoa+UZj1Nvw=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/find-up/-/find-up-5.0.0.tgz}
+    resolution: {integrity: sha1-TJKBnstwg1YeT0okCoa+UZj1Nvw=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/find-up/-/find-up-5.0.0.tgz}
     engines: {node: '>=10'}
 
   flat-cache@4.0.1:
@@ -2902,7 +2916,7 @@ packages:
     engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
 
   jest-worker@29.7.0:
-    resolution: {integrity: sha1-rK0HOsu663JivVOJ4bz0PhAFjUo=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/jest-worker/-/jest-worker-29.7.0.tgz}
+    resolution: {integrity: sha1-rK0HOsu663JivVOJ4bz0PhAFjUo=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/jest-worker/-/jest-worker-29.7.0.tgz}
     engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
 
   jimp-compact@0.16.1:
@@ -2919,7 +2933,7 @@ packages:
     hasBin: true
 
   js-yaml@4.3.0:
-    resolution: {integrity: sha1-0ZAFcqf3zwtfVAyDZz5gutNDZZI=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/js-yaml/-/js-yaml-4.3.0.tgz}
+    resolution: {integrity: sha1-0ZAFcqf3zwtfVAyDZz5gutNDZZI=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/js-yaml/-/js-yaml-4.3.0.tgz}
     hasBin: true
 
   jsc-safe-url@0.2.4:
@@ -3061,7 +3075,7 @@ packages:
     engines: {node: '>=8'}
 
   locate-path@6.0.0:
-    resolution: {integrity: sha1-VTIeswn+u8WcSAHZMackUqaB0oY=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/locate-path/-/locate-path-6.0.0.tgz}
+    resolution: {integrity: sha1-VTIeswn+u8WcSAHZMackUqaB0oY=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/locate-path/-/locate-path-6.0.0.tgz}
     engines: {node: '>=10'}
 
   lodash.debounce@4.0.8:
@@ -3136,11 +3150,11 @@ packages:
     engines: {node: '>=20.19.4'}
 
   metro-config@0.83.3:
-    resolution: {integrity: sha1-ow56abXPjErExLaLG0wzZJrhKaI=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/metro-config/-/metro-config-0.83.3.tgz}
+    resolution: {integrity: sha1-ow56abXPjErExLaLG0wzZJrhKaI=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/metro-config/-/metro-config-0.83.3.tgz}
     engines: {node: '>=20.19.4'}
 
   metro-core@0.83.3:
-    resolution: {integrity: sha1-AH6T99GYN3faiYjfsQOtiXyYNbg=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/metro-core/-/metro-core-0.83.3.tgz}
+    resolution: {integrity: sha1-AH6T99GYN3faiYjfsQOtiXyYNbg=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/metro-core/-/metro-core-0.83.3.tgz}
     engines: {node: '>=20.19.4'}
 
   metro-file-map@0.83.3:
@@ -3177,12 +3191,12 @@ packages:
     engines: {node: '>=20.19.4'}
 
   metro@0.83.3:
-    resolution: {integrity: sha1-Hn4EwVUZr3RviTLH+cVT2Sw56SI=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/metro/-/metro-0.83.3.tgz}
+    resolution: {integrity: sha1-Hn4EwVUZr3RviTLH+cVT2Sw56SI=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/metro/-/metro-0.83.3.tgz}
     engines: {node: '>=20.19.4'}
     hasBin: true
 
   micromatch@4.0.8:
-    resolution: {integrity: sha1-1m+hjzpHB2eJMgubGvMr2G2fogI=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/micromatch/-/micromatch-4.0.8.tgz}
+    resolution: {integrity: sha1-1m+hjzpHB2eJMgubGvMr2G2fogI=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/micromatch/-/micromatch-4.0.8.tgz}
     engines: {node: '>=8.6'}
 
   mime-db@1.52.0:
@@ -3378,7 +3392,7 @@ packages:
     engines: {node: '>=6'}
 
   p-limit@3.1.0:
-    resolution: {integrity: sha1-4drMvnjQ0TiMoYxk/qOOPlfjcGs=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/p-limit/-/p-limit-3.1.0.tgz}
+    resolution: {integrity: sha1-4drMvnjQ0TiMoYxk/qOOPlfjcGs=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/p-limit/-/p-limit-3.1.0.tgz}
     engines: {node: '>=10'}
 
   p-locate@4.1.0:
@@ -3386,7 +3400,7 @@ packages:
     engines: {node: '>=8'}
 
   p-locate@5.0.0:
-    resolution: {integrity: sha1-g8gxXGeFAF470CGDlBHJ4RDm2DQ=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/p-locate/-/p-locate-5.0.0.tgz}
+    resolution: {integrity: sha1-g8gxXGeFAF470CGDlBHJ4RDm2DQ=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/p-locate/-/p-locate-5.0.0.tgz}
     engines: {node: '>=10'}
 
   p-try@2.2.0:
@@ -3406,7 +3420,7 @@ packages:
     engines: {node: '>= 0.8'}
 
   path-exists@4.0.0:
-    resolution: {integrity: sha1-UTvb4tO5XXdi6METfvoZXGxhtbM=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/path-exists/-/path-exists-4.0.0.tgz}
+    resolution: {integrity: sha1-UTvb4tO5XXdi6METfvoZXGxhtbM=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/path-exists/-/path-exists-4.0.0.tgz}
     engines: {node: '>=8'}
 
   path-is-absolute@1.0.1:
@@ -3469,11 +3483,11 @@ packages:
     resolution: {integrity: sha1-PTIa8+q5ObCDyPkpodEs2oHCa2s=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/picocolors/-/picocolors-1.1.1.tgz}
 
   picomatch@2.3.2:
-    resolution: {integrity: sha1-WpQpFeJrNy3A8OZ1MUmhbmscVgE=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/picomatch/-/picomatch-2.3.2.tgz}
+    resolution: {integrity: sha1-WpQpFeJrNy3A8OZ1MUmhbmscVgE=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/picomatch/-/picomatch-2.3.2.tgz}
     engines: {node: '>=8.6'}
 
   picomatch@4.0.5:
-    resolution: {integrity: sha1-UepXoX2G9gX4EDlZX7xA7QalX6s=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/picomatch/-/picomatch-4.0.5.tgz}
+    resolution: {integrity: sha1-UepXoX2G9gX4EDlZX7xA7QalX6s=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/picomatch/-/picomatch-4.0.5.tgz}
     engines: {node: '>=12'}
 
   pino-abstract-transport@3.0.0:
@@ -3538,7 +3552,7 @@ packages:
     engines: {node: '>=6'}
 
   pretty-format@29.7.0:
-    resolution: {integrity: sha1-ykLHWDEPNlv6caC9oKgHFgt3aBI=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/pretty-format/-/pretty-format-29.7.0.tgz}
+    resolution: {integrity: sha1-ykLHWDEPNlv6caC9oKgHFgt3aBI=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/pretty-format/-/pretty-format-29.7.0.tgz}
     engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
 
   proc-log@4.2.0:
@@ -3628,7 +3642,7 @@ packages:
         optional: true
 
   react-refresh@0.14.2:
-    resolution: {integrity: sha1-ODPaAc4y2kcPH5NrnUd9pccCi/k=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/react-refresh/-/react-refresh-0.14.2.tgz}
+    resolution: {integrity: sha1-ODPaAc4y2kcPH5NrnUd9pccCi/k=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/react-refresh/-/react-refresh-0.14.2.tgz}
     engines: {node: '>=0.10.0'}
 
   react@19.1.0:
@@ -3684,11 +3698,11 @@ packages:
     engines: {node: '>= 4.0.0'}
 
   resolve-from@4.0.0:
-    resolution: {integrity: sha1-SrzYUq0y3Xuqv+m0DgCjbbXzkuY=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/resolve-from/-/resolve-from-4.0.0.tgz}
+    resolution: {integrity: sha1-SrzYUq0y3Xuqv+m0DgCjbbXzkuY=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/resolve-from/-/resolve-from-4.0.0.tgz}
     engines: {node: '>=4'}
 
   resolve-from@5.0.0:
-    resolution: {integrity: sha1-w1IlhD3493bfIcV1V7wIfp39/Gk=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/resolve-from/-/resolve-from-5.0.0.tgz}
+    resolution: {integrity: sha1-w1IlhD3493bfIcV1V7wIfp39/Gk=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/resolve-from/-/resolve-from-5.0.0.tgz}
     engines: {node: '>=8'}
 
   resolve-workspace-root@2.0.1:
@@ -3814,7 +3828,7 @@ packages:
     resolution: {integrity: sha1-E01oEpd1ZDfMBcoBNw06elcQde0=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/sisteransi/-/sisteransi-1.0.5.tgz}
 
   slash@3.0.0:
-    resolution: {integrity: sha1-ZTm+hwwWWtvVJAIg2+Nh8bxNRjQ=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/slash/-/slash-3.0.0.tgz}
+    resolution: {integrity: sha1-ZTm+hwwWWtvVJAIg2+Nh8bxNRjQ=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/slash/-/slash-3.0.0.tgz}
     engines: {node: '>=8'}
 
   slugify@1.6.9:
@@ -3880,11 +3894,11 @@ packages:
     engines: {node: '>=8'}
 
   strip-ansi@5.2.0:
-    resolution: {integrity: sha1-jJpTb+tq/JYr36WxBKUJHBrZwK4=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/strip-ansi/-/strip-ansi-5.2.0.tgz}
+    resolution: {integrity: sha1-jJpTb+tq/JYr36WxBKUJHBrZwK4=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/strip-ansi/-/strip-ansi-5.2.0.tgz}
     engines: {node: '>=6'}
 
   strip-ansi@6.0.1:
-    resolution: {integrity: sha1-nibGPTD1NEPpSJSVshBdN7Z6hdk=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/strip-ansi/-/strip-ansi-6.0.1.tgz}
+    resolution: {integrity: sha1-nibGPTD1NEPpSJSVshBdN7Z6hdk=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/strip-ansi/-/strip-ansi-6.0.1.tgz}
     engines: {node: '>=8'}
 
   strip-bom@3.0.0:
@@ -4211,10 +4225,10 @@ packages:
         optional: true
 
   vlq@1.0.1:
-    resolution: {integrity: sha1-wAP258C0we3WI/1u5Qu8DWod5Gg=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/vlq/-/vlq-1.0.1.tgz}
+    resolution: {integrity: sha1-wAP258C0we3WI/1u5Qu8DWod5Gg=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/vlq/-/vlq-1.0.1.tgz}
 
   walker@1.0.8:
-    resolution: {integrity: sha1-vUmNtHev5XPcBBhfAR06uKjXZT8=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/walker/-/walker-1.0.8.tgz}
+    resolution: {integrity: sha1-vUmNtHev5XPcBBhfAR06uKjXZT8=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/walker/-/walker-1.0.8.tgz}
 
   warn-once@0.1.1:
     resolution: {integrity: sha1-lSCI9PtWiW5z/U5qN2cnKj/MzkM=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/warn-once/-/warn-once-0.1.1.tgz}
@@ -4231,7 +4245,7 @@ packages:
     resolution: {integrity: sha1-JFNCdeKnvGvnvIZhHMFq4KVlSHE=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/webidl-conversions/-/webidl-conversions-3.0.1.tgz}
 
   webidl-conversions@5.0.0:
-    resolution: {integrity: sha1-rlnIoAsSFUOirMZcBDT1ew/BGv8=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/webidl-conversions/-/webidl-conversions-5.0.0.tgz}
+    resolution: {integrity: sha1-rlnIoAsSFUOirMZcBDT1ew/BGv8=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/webidl-conversions/-/webidl-conversions-5.0.0.tgz}
     engines: {node: '>=8'}
 
   whatwg-fetch@3.6.20:
@@ -4262,7 +4276,7 @@ packages:
     engines: {node: '>=0.10.0'}
 
   wrap-ansi@7.0.0:
-    resolution: {integrity: sha1-Z+FFz/UQpqaYS98RUpEdadLrnkM=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/wrap-ansi/-/wrap-ansi-7.0.0.tgz}
+    resolution: {integrity: sha1-Z+FFz/UQpqaYS98RUpEdadLrnkM=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/wrap-ansi/-/wrap-ansi-7.0.0.tgz}
     engines: {node: '>=10'}
 
   wrappy@1.0.2:
@@ -6918,6 +6932,15 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
       - typescript
+
+  expo-camera@17.0.10(expo@54.0.35)(react-native-web@0.21.2(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.7)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0):
+    dependencies:
+      expo: 54.0.35(@babel/core@7.29.7)(@expo/metro-runtime@6.1.2)(react-native@0.81.5(@babel/core@7.29.7)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
+      invariant: 2.2.4
+      react: 19.1.0
+      react-native: 0.81.5(@babel/core@7.29.7)(@types/react@19.1.17)(react@19.1.0)
+    optionalDependencies:
+      react-native-web: 0.21.2(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
 
   expo-constants@18.0.13(expo@54.0.35)(react-native@0.81.5(@babel/core@7.29.7)(@types/react@19.1.17)(react@19.1.0)):
     dependencies:

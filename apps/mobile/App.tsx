@@ -22,6 +22,7 @@ import { LanguageProvider, useLanguage } from "./src/i18n";
 import { clearConnection as clearNightscoutConnection } from "./src/nightscoutStore";
 import { displayName, searchFoods } from "./src/search";
 import { AccountScreen } from "./src/screens/AccountScreen";
+import { BarcodeScanScreen } from "./src/screens/BarcodeScanScreen";
 import { CreateFoodScreen } from "./src/screens/CreateFoodScreen";
 import { DetailScreen } from "./src/screens/DetailScreen";
 import { DoseReviewScreen } from "./src/screens/DoseReviewScreen";
@@ -56,12 +57,13 @@ import { colors, gradients, spacing } from "./src/theme";
 // already does.
 type Overlay =
   | { kind: "detail"; food: CanonicalFood }
-  | { kind: "create" }
+  | { kind: "create"; barcode?: string }
   | { kind: "profile" }
   | { kind: "account" }
   | { kind: "doseReview" }
   | { kind: "submissions" }
   | { kind: "savedMeals" }
+  | { kind: "barcodeScan" }
   | null;
 
 function AppShell() {
@@ -270,6 +272,23 @@ function AppShell() {
     },
     [recordRecent],
   );
+
+  // Barcode scanning (Slice: barcode scanning). A match against `allFoods`
+  // (catalog + the user's own custom foods, unfiltered by area) opens Detail
+  // exactly like a normal search selection; a miss hands the scanned/typed
+  // code to CreateFoodScreen's pre-fill rather than silently discarding it —
+  // there is no external (e.g. Open Food Facts) lookup in this version.
+  const handleBarcodeFound = useCallback(
+    (food: CanonicalFood) => {
+      recordRecent(food.id);
+      setOverlay({ kind: "detail", food });
+    },
+    [recordRecent],
+  );
+
+  const handleBarcodeNotFound = useCallback((barcode: string) => {
+    setOverlay({ kind: "create", barcode });
+  }, []);
 
   // Slice 5 — local data rights: "Apagar todos os meus dados". Resets every
   // piece of locally persisted state (favourites, recents, custom foods,
@@ -539,7 +558,18 @@ function AppShell() {
           />
         )}
 
-        {overlay?.kind === "create" && <CreateFoodScreen onCancel={() => setOverlay(null)} onSubmit={handleCreateFood} />}
+        {overlay?.kind === "create" && (
+          <CreateFoodScreen onCancel={() => setOverlay(null)} onSubmit={handleCreateFood} prefillBarcode={overlay.barcode ?? null} />
+        )}
+
+        {overlay?.kind === "barcodeScan" && (
+          <BarcodeScanScreen
+            foods={allFoods}
+            onFound={handleBarcodeFound}
+            onNotFound={handleBarcodeNotFound}
+            onCancel={() => setOverlay(null)}
+          />
+        )}
 
         {overlay?.kind === "profile" && (
           <ProfileScreen
@@ -598,6 +628,7 @@ function AppShell() {
                 onSelectFood={handleSelectFood}
                 onToggleFavourite={handleToggleFavourite}
                 onCreateFood={() => setOverlay({ kind: "create" })}
+                onScanBarcode={() => setOverlay({ kind: "barcodeScan" })}
                 mealItemCount={mealSummary.itemCount}
                 mealCarbGrams={mealSummary.totalCarbGrams}
                 catalogSource={catalogSource}

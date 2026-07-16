@@ -11,6 +11,12 @@ import { colors, elevation, fontWeights, gradients, MIN_TAP_TARGET, radius, spac
 export interface CreateFoodScreenProps {
   onCancel: () => void;
   onSubmit: (input: CustomFoodInput) => void;
+  /** Pre-fills a scanned/typed barcode from the barcode "not found" fallback
+   * (BarcodeScanScreen) so the food created here becomes findable by that
+   * exact code next time. `null`/undefined for the normal "+ Novo alimento"
+   * entry point, which has no barcode context. Shown read-only — the user
+   * cannot edit a scanned code from this form. */
+  prefillBarcode?: string | null;
 }
 
 interface FormErrors {
@@ -19,7 +25,7 @@ interface FormErrors {
   energy?: string;
 }
 
-export function CreateFoodScreen({ onCancel, onSubmit }: CreateFoodScreenProps) {
+export function CreateFoodScreen({ onCancel, onSubmit, prefillBarcode = null }: CreateFoodScreenProps) {
   const { t } = useLanguage();
   const [namePt, setNamePt] = useState("");
   const [nameEn, setNameEn] = useState("");
@@ -39,7 +45,13 @@ export function CreateFoodScreen({ onCancel, onSubmit }: CreateFoodScreenProps) 
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
-    onSubmit({ namePt: namePt.trim(), nameEn: nameEn.trim(), carbPer100g: carbValue, energyPer100gKcal: energyValue });
+    onSubmit({
+      namePt: namePt.trim(),
+      nameEn: nameEn.trim(),
+      carbPer100g: carbValue,
+      energyPer100gKcal: energyValue,
+      ...(prefillBarcode ? { barcode: prefillBarcode } : {}),
+    });
   };
 
   return (
@@ -50,6 +62,21 @@ export function CreateFoodScreen({ onCancel, onSubmit }: CreateFoodScreenProps) 
           <Text style={styles.noticeIcon}>◌</Text>
           <Text style={styles.noticeText}>{t("create.unverifiedNotice")}</Text>
         </View>
+
+        {prefillBarcode && (
+          <View
+            style={styles.barcodeNotice}
+            accessible
+            accessibilityLabel={`${t("create.barcodeLabel")}: ${prefillBarcode}. ${t("create.barcodePrefillNote")}`}
+          >
+            <Text style={styles.barcodeNoticeIcon}>▤</Text>
+            <View style={styles.barcodeNoticeTextWrap}>
+              <Text style={styles.barcodeNoticeLabel}>{t("create.barcodeLabel")}</Text>
+              <Text style={styles.barcodeNoticeValue}>{prefillBarcode}</Text>
+              <Text style={styles.barcodeNoticeHint}>{t("create.barcodePrefillNote")}</Text>
+            </View>
+          </View>
+        )}
 
         <View style={styles.formCard}>
           <Text style={styles.label}>{t("create.namePtLabel")}</Text>
@@ -123,6 +150,28 @@ const styles = StyleSheet.create({
   },
   noticeIcon: { color: colors.confidenceUnverified, fontSize: 16, fontWeight: "700" },
   noticeText: { flex: 1, fontSize: 13, color: colors.textSecondary },
+  barcodeNotice: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    backgroundColor: colors.brandTint,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.brand,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+    alignItems: "flex-start",
+  },
+  barcodeNoticeIcon: { color: colors.brandDark, fontSize: 20 },
+  barcodeNoticeTextWrap: { flex: 1 },
+  barcodeNoticeLabel: {
+    fontSize: typeScale.overline.size,
+    fontWeight: typeScale.overline.weight,
+    color: colors.brandDark,
+    textTransform: "uppercase",
+    letterSpacing: typeScale.overline.letterSpacing,
+  },
+  barcodeNoticeValue: { fontSize: 16, fontWeight: "700", color: colors.textPrimary, marginTop: 2, fontVariant: ["tabular-nums"] },
+  barcodeNoticeHint: { fontSize: 12, color: colors.textSecondary, marginTop: 4 },
   formCard: {
     backgroundColor: colors.surfaceElevated,
     borderRadius: radius.lg,

@@ -24,6 +24,8 @@ export interface SearchScreenProps {
   onSelectFood: (food: CanonicalFood) => void;
   onToggleFavourite: (food: CanonicalFood) => void;
   onCreateFood: () => void;
+  /** Opens the barcode scan flow (Slice: barcode scanning) — camera on native, manual entry on web. */
+  onScanBarcode: () => void;
   mealItemCount: number;
   mealCarbGrams: number;
   /** "online" once the API catalog has loaded successfully; "offline" while using the bundled local catalog. */
@@ -84,6 +86,7 @@ export function SearchScreen({
   onSelectFood,
   onToggleFavourite,
   onCreateFood,
+  onScanBarcode,
   mealItemCount,
   mealCarbGrams,
   catalogSource,
@@ -107,32 +110,43 @@ export function SearchScreen({
 
   return (
     <View style={styles.screen}>
-      <View style={styles.inputWrap}>
-        <Text style={styles.inputIcon}>⌕</Text>
-        <TextInput
-          style={styles.input}
-          placeholder={t("search.placeholder")}
-          placeholderTextColor={colors.textFaint}
-          value={query}
-          onChangeText={onChangeQuery}
-          autoCorrect={false}
-          autoCapitalize="none"
-          accessibilityLabel={t("search.hint")}
-          accessibilityHint={t("search.hint")}
-          returnKeyType="search"
-          clearButtonMode="never"
-        />
-        {query.length > 0 && (
-          <PressableScale
-            onPress={() => onChangeQuery("")}
-            accessibilityRole="button"
-            accessibilityLabel={t("search.clear")}
-            hitSlop={8}
-            style={styles.clearButton}
-          >
-            <Text style={styles.clearIcon}>×</Text>
-          </PressableScale>
-        )}
+      <View style={styles.searchRow}>
+        <View style={styles.inputWrap}>
+          <Text style={styles.inputIcon}>⌕</Text>
+          <TextInput
+            style={styles.input}
+            placeholder={t("search.placeholder")}
+            placeholderTextColor={colors.textFaint}
+            value={query}
+            onChangeText={onChangeQuery}
+            autoCorrect={false}
+            autoCapitalize="none"
+            accessibilityLabel={t("search.hint")}
+            accessibilityHint={t("search.hint")}
+            returnKeyType="search"
+            clearButtonMode="never"
+          />
+          {query.length > 0 && (
+            <PressableScale
+              onPress={() => onChangeQuery("")}
+              accessibilityRole="button"
+              accessibilityLabel={t("search.clear")}
+              hitSlop={8}
+              style={styles.clearButton}
+            >
+              <Text style={styles.clearIcon}>×</Text>
+            </PressableScale>
+          )}
+        </View>
+        <PressableScale
+          onPress={onScanBarcode}
+          accessibilityRole="button"
+          accessibilityLabel={t("search.scanBarcodeLabel")}
+          accessibilityHint={t("search.scanBarcodeHint")}
+          style={styles.scanButton}
+        >
+          <Text style={styles.scanButtonIcon}>▤</Text>
+        </PressableScale>
       </View>
 
       <View style={styles.sourceRow}>
@@ -216,7 +230,9 @@ export function SearchScreen({
 
 const styles = StyleSheet.create({
   screen: { flex: 1, paddingHorizontal: spacing.xl, paddingTop: spacing.xs },
+  searchRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   inputWrap: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     borderWidth: 1,
@@ -227,6 +243,18 @@ const styles = StyleSheet.create({
     minHeight: MIN_TAP_TARGET,
     ...elevation.sm.native,
   },
+  scanButton: {
+    minWidth: MIN_TAP_TARGET,
+    minHeight: MIN_TAP_TARGET,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.lg,
+    backgroundColor: colors.brandTint,
+    borderWidth: 1,
+    borderColor: colors.brand,
+    ...elevation.sm.native,
+  },
+  scanButtonIcon: { fontSize: 20, color: colors.brandDark },
   inputIcon: { fontSize: 17, color: colors.textFaint, marginRight: spacing.xs },
   clearButton: {
     minWidth: 32,

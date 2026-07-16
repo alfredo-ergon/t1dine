@@ -23,6 +23,7 @@
 import type { NutrientObservation, SourceReference } from "@t1dine/domain";
 import type { CanonicalFood, FoodGroup, PreparationState } from "@t1dine/food-schema";
 import { defaultConfidence, NUTRIENT_DEFINITIONS, NUTRIENTS } from "@t1dine/food-schema";
+import { translateInsaName } from "./insaNames.js";
 
 /**
  * One INSA food as compact generated data:
@@ -81,9 +82,11 @@ function slug(value: string): string {
  * Map one INSA record to a CanonicalFood, given the nutrient `order` the values
  * were generated against. Values are analytically determined by INSA, so
  * `method: "analytical"`; confidence is unit-derived (macros high, micronutrients
- * medium — see `defaultConfidence`). English name mirrors the Portuguese name
- * for now (INSA is PT-only; a proper EN localisation is a later, separate task —
- * tracked, not silently invented).
+ * medium — see `defaultConfidence`). INSA is PT-only, so the `en` name is a
+ * machine-assisted glossary translation (`translateInsaName`) — token-wise,
+ * transparent, and NOT human-reviewed: known food vocabulary is translated while
+ * any unknown term (brands, rare species, regional preparations) stays Portuguese
+ * verbatim rather than being invented. The pt-PT name remains the source of truth.
  */
 export function buildInsaFood(row: InsaRow, order: readonly string[]): CanonicalFood {
   const [code, name, level1, level2, level3, prep, basisUnit, values] = row;
@@ -118,7 +121,7 @@ export function buildInsaFood(row: InsaRow, order: readonly string[]): Canonical
     type: "ingredient",
     names: [
       { language: "pt-PT", name, synonyms: [] },
-      { language: "en", name, synonyms: [] },
+      { language: "en", name: translateInsaName(name), synonyms: [] },
     ],
     countries: ["PT"],
     markets: ["PT"],
