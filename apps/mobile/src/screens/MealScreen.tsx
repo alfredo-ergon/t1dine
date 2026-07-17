@@ -36,6 +36,20 @@ export interface MealScreenProps {
   editingSavedMealName: string | null;
   /** Updates the linked saved meal in place (its items/total) from the current meal. */
   onUpdateSavedMeal: () => void;
+  /** Count for the "Diário" entry point badge — always reachable, even with an empty current meal. */
+  historyCount: number;
+  /** Opens the "Diário" screen (meal HISTORY — a dated log of meals actually eaten). */
+  onOpenHistory: () => void;
+  /** Logs the current meal (as-is), snapshotted under an optional user-given
+   * name, as a NEW entry in the Diário — never overwrites an existing entry. */
+  onLogMeal: (name?: string) => void;
+  /** Display label of the Diário entry the current meal is linked to (loaded
+   * via "Editar" in the Diário), or null. When set, the log area also offers
+   * "Atualizar registo «label»". */
+  editingHistoryEntryLabel: string | null;
+  /** Corrects the linked Diário entry in place (its items/total) from the
+   * current meal, preserving its original logged date/time. */
+  onUpdateHistoryEntry: () => void;
 }
 
 const STEP_GRAMS = 5;
@@ -165,6 +179,35 @@ function SavedMealsEntryCard({ count, onPress }: SavedMealsEntryCardProps) {
       </View>
       <Text style={styles.savedMealsText}>
         {t("meal.savedMealsOpenCta")}
+        {count > 0 ? ` (${count})` : ""}
+      </Text>
+      <Text style={styles.savedMealsChevron}>›</Text>
+    </PressableScale>
+  );
+}
+
+// Entry point to "Diário" (meal HISTORY — a dated log of meals actually
+// eaten, distinct from "Refeições guardadas" above, which are reusable
+// TEMPLATES with no date). Kept visible regardless of whether the current
+// meal has any items, exactly like SavedMealsEntryCard, since browsing past
+// entries is a normal thing to do independent of what's currently being
+// built.
+interface HistoryEntryCardProps {
+  count: number;
+  onPress: () => void;
+}
+
+function DiaryEntryCard({ count, onPress }: HistoryEntryCardProps) {
+  const { t } = useLanguage();
+  const label = count > 0 ? `${t("meal.historyOpenCta")} (${count})` : t("meal.historyOpenCta");
+
+  return (
+    <PressableScale onPress={onPress} accessibilityRole="button" accessibilityLabel={label} style={styles.savedMealsCard}>
+      <View style={styles.savedMealsIconWrap}>
+        <Text style={styles.savedMealsIcon}>📖</Text>
+      </View>
+      <Text style={styles.savedMealsText}>
+        {t("meal.historyOpenCta")}
         {count > 0 ? ` (${count})` : ""}
       </Text>
       <Text style={styles.savedMealsChevron}>›</Text>
@@ -356,6 +399,149 @@ function SaveMealCard({ onSaveNew, editingSavedMealName, onUpdate }: SaveMealCar
   );
 }
 
+interface LogMealCardProps {
+  /** Logs the current meal as a brand-new Diário entry, under an optional name. */
+  onLogNew: (name?: string) => void;
+  /** Display label of the linked Diário entry (loaded via "Editar"), or null.
+   * When set, "Atualizar registo «label»" is offered alongside "Registar como nova". */
+  editingHistoryEntryLabel: string | null;
+  /** Corrects that linked entry in place. */
+  onUpdate: () => void;
+}
+
+// The "Registar no diário" area — deliberately secondary/outline actions
+// (never the brand-gradient CTA reserved for "Estimar dose"), mirroring
+// SaveMealCard's own visual weight right above it. The meal's optional NAME
+// is the only thing that differs from SaveMealCard's flow (a saved meal's
+// name is required; a logged meal's is optional — see ../mealHistory.ts).
+// When the current meal was loaded from the Diário via "Editar", this offers
+// BOTH "Atualizar registo «label»" (correct that entry in place, preserving
+// its original logged date/time) and "Registar como nova" (log a brand-new,
+// separate entry instead); otherwise just "Registar no diário". Local-only
+// UI state (editing/name/success) — the actual writes are delegated to the
+// parent, exactly like SaveMealCard.
+function LogMealCard({ onLogNew, editingHistoryEntryLabel, onUpdate }: LogMealCardProps) {
+  const { t } = useLanguage();
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState("");
+  const [justLogged, setJustLogged] = useState(false);
+  const [justUpdated, setJustUpdated] = useState(false);
+
+  const handleOpen = () => {
+    setEditing(true);
+    setJustLogged(false);
+    setJustUpdated(false);
+  };
+
+  const handleCancel = () => {
+    setEditing(false);
+    setName("");
+  };
+
+  const handleConfirm = () => {
+    const trimmed = name.trim();
+    onLogNew(trimmed.length > 0 ? trimmed : undefined);
+    setEditing(false);
+    setName("");
+    setJustLogged(true);
+  };
+
+  const handleUpdate = () => {
+    onUpdate();
+    setJustUpdated(true);
+    setJustLogged(false);
+  };
+
+  if (editing) {
+    return (
+      <FadeIn>
+        <View style={styles.saveMealCard}>
+          <Text style={styles.saveMealLabel}>{t("meal.logMealNameLabel")}</Text>
+          <TextInput
+            style={styles.saveMealInput}
+            value={name}
+            onChangeText={setName}
+            placeholder={t("meal.logMealNamePlaceholder")}
+            placeholderTextColor={colors.textFaint}
+            accessibilityLabel={t("meal.logMealNameLabel")}
+            autoFocus
+          />
+          <View style={styles.saveMealButtonRow}>
+            <PressableScale
+              onPress={handleCancel}
+              accessibilityRole="button"
+              accessibilityLabel={t("meal.logMealCancel")}
+              style={styles.saveMealCancelButton}
+            >
+              <Text style={styles.saveMealCancelButtonText}>{t("meal.logMealCancel")}</Text>
+            </PressableScale>
+            <PressableScale
+              onPress={handleConfirm}
+              accessibilityRole="button"
+              accessibilityLabel={t("meal.logMealConfirm")}
+              style={styles.saveMealConfirmButton}
+            >
+              <Text style={styles.saveMealConfirmButtonText}>{t("meal.logMealConfirm")}</Text>
+            </PressableScale>
+          </View>
+        </View>
+      </FadeIn>
+    );
+  }
+
+  return (
+    <View>
+      {editingHistoryEntryLabel ? (
+        <>
+          <PressableScale
+            onPress={handleUpdate}
+            accessibilityRole="button"
+            accessibilityLabel={t("meal.updateHistoryEntryCta", { name: editingHistoryEntryLabel })}
+            style={styles.updateMealButton}
+          >
+            <Text style={styles.updateMealButtonText} numberOfLines={1}>
+              {t("meal.updateHistoryEntryCta", { name: editingHistoryEntryLabel })}
+            </Text>
+          </PressableScale>
+          <PressableScale
+            onPress={handleOpen}
+            accessibilityRole="button"
+            accessibilityLabel={t("meal.logAsNewCta")}
+            style={styles.saveMealOpenButton}
+          >
+            <Text style={styles.saveMealOpenButtonText}>{t("meal.logAsNewCta")}</Text>
+          </PressableScale>
+        </>
+      ) : (
+        <PressableScale
+          onPress={handleOpen}
+          accessibilityRole="button"
+          accessibilityLabel={t("meal.logMealCta")}
+          style={styles.saveMealOpenButton}
+        >
+          <Text style={styles.saveMealOpenButtonText}>{t("meal.logMealCta")}</Text>
+        </PressableScale>
+      )}
+      {justUpdated && (
+        <FadeIn>
+          <View style={styles.saveMealSuccessBanner} accessible accessibilityLabel={t("meal.updateHistoryEntrySuccess")}>
+            <Text style={styles.saveMealSuccessIcon}>✓</Text>
+            <Text style={styles.saveMealSuccessText}>{t("meal.updateHistoryEntrySuccess")}</Text>
+          </View>
+        </FadeIn>
+      )}
+      {justLogged && (
+        <FadeIn>
+          <View style={styles.saveMealSuccessBanner} accessible accessibilityLabel={t("meal.logMealSuccess")}>
+            <Text style={styles.saveMealSuccessIcon}>✓</Text>
+            <Text style={styles.saveMealSuccessText}>{t("meal.logMealSuccess")}</Text>
+          </View>
+        </FadeIn>
+      )}
+    </View>
+  );
+}
+
 export function MealScreen({
   lines,
   onChangeAmount,
@@ -368,6 +554,11 @@ export function MealScreen({
   onSaveMeal,
   editingSavedMealName,
   onUpdateSavedMeal,
+  historyCount,
+  onOpenHistory,
+  onLogMeal,
+  editingHistoryEntryLabel,
+  onUpdateHistoryEntry,
 }: MealScreenProps) {
   const { t } = useLanguage();
   // Deterministic, framework-independent meal maths shared with the API —
@@ -383,6 +574,7 @@ export function MealScreen({
       {summary.itemCount === 0 && latestSavedMeal && <LatestSavedMealCard meal={latestSavedMeal} onUse={onUseSavedMeal} />}
 
       <SavedMealsEntryCard count={savedMealsCount} onPress={onOpenSavedMeals} />
+      <DiaryEntryCard count={historyCount} onPress={onOpenHistory} />
 
       <FlatList
         data={summary.lines}
@@ -425,6 +617,10 @@ export function MealScreen({
 
       {summary.itemCount > 0 && (
         <SaveMealCard onSaveNew={onSaveMeal} editingSavedMealName={editingSavedMealName} onUpdate={onUpdateSavedMeal} />
+      )}
+
+      {summary.itemCount > 0 && (
+        <LogMealCard onLogNew={onLogMeal} editingHistoryEntryLabel={editingHistoryEntryLabel} onUpdate={onUpdateHistoryEntry} />
       )}
 
       <PressableScale

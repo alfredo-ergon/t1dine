@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Animated, StyleSheet, Text, View, type LayoutChangeEvent } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useLanguage } from "../i18n";
 import { durations, easings } from "../motionUtils";
@@ -31,6 +32,9 @@ const BAR_PADDING = 4;
 export function TabBar({ active, onChange, mealItemCount }: TabBarProps) {
   const { t } = useLanguage();
   const reduceMotion = useReducedMotion();
+  // Bottom safe-area inset (Android nav bar / gesture pill / iOS home indicator)
+  // so the floating tab bar never sits under the system navigation.
+  const insets = useSafeAreaInsets();
   const [barWidth, setBarWidth] = useState(0);
   const indicatorX = useRef(new Animated.Value(0)).current;
 
@@ -58,7 +62,7 @@ export function TabBar({ active, onChange, mealItemCount }: TabBarProps) {
   };
 
   return (
-    <View style={styles.bar} accessibilityRole="tablist" onLayout={handleLayout}>
+    <View style={[styles.bar, { marginBottom: spacing.md + insets.bottom }]} accessibilityRole="tablist" onLayout={handleLayout}>
       {segmentWidth > 0 && (
         <Animated.View
           pointerEvents="none"

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { StyleSheet, Text, View, type LayoutChangeEvent } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useLanguage } from "../i18n";
 import { colors, elevation, gradients, MIN_TAP_TARGET, radius, spacing, typeScale } from "../theme";
@@ -48,6 +49,10 @@ const overlay = {
 // gradient so it reads as one premium, branded surface across every screen.
 export function Header({ showBack, onBack, onCreateFood, onOpenProfile, onOpenAccount }: HeaderProps) {
   const { t } = useLanguage();
+  // Top safe-area inset (status bar / notch / camera cutout). The ink gradient
+  // extends up under the status bar and the header content is padded below it,
+  // so nothing hides behind the system bar on Android/iOS.
+  const insets = useSafeAreaInsets();
   // Default to `true` (compact) until the first onLayout measurement lands,
   // so there is never a flash of the wide/text-label layout — compact is the
   // layout that is guaranteed to fit everywhere.
@@ -64,7 +69,7 @@ export function Header({ showBack, onBack, onCreateFood, onOpenProfile, onOpenAc
   const accountInitial = t("account.openLabel").charAt(0).toUpperCase();
 
   return (
-    <LinearGradient colors={gradients.ink.colors} start={gradients.ink.start} end={gradients.ink.end} style={styles.gradient}>
+    <LinearGradient colors={gradients.ink.colors} start={gradients.ink.start} end={gradients.ink.end} style={[styles.gradient, { paddingTop: insets.top }]}>
       <View style={[styles.header, isCompact && styles.headerCompact, !showBack && styles.headerWithGreeting]} onLayout={handleLayout}>
         <View style={styles.left}>
           {showBack ? (
