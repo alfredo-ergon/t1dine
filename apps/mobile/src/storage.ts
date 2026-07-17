@@ -9,7 +9,18 @@ import type { CanonicalFood } from "@t1dine/food-schema";
 import { isCanonicalFood } from "@t1dine/food-schema";
 
 import type { TabKey } from "./components/TabBar";
+import { getActiveProfileId, migrateLegacyKey, profileKey } from "./profiles";
 
+// Slice: caregiver profiles ("Perfis"). Favourites/recents/custom foods are
+// per-profile — a caregiver's own recently-viewed/favourited foods must never
+// leak into a dependent's profile, and vice versa. `STARTUP_TAB_KEY` below is
+// deliberately NOT namespaced: which tab the app opens on is a device-level
+// UI convenience, not personal food/health data.
+//
+// Each of these three legacy key names is now used as the "base" passed to
+// `profileKey`/`migrateLegacyKey` — the pre-profiles data that used to live
+// directly under it is inherited, non-destructively, by the default profile
+// (see `migrateLegacyKey` in ./profiles.ts).
 const FAVOURITES_KEY = "t1dine.favourites";
 const RECENTS_KEY = "t1dine.recents";
 const CUSTOM_FOODS_KEY = "t1dine.customFoods";
@@ -54,25 +65,34 @@ function isStringArray(value: unknown): value is string[] {
 }
 
 export async function loadFavouriteIds(): Promise<string[]> {
-  const value = await readJson(FAVOURITES_KEY);
+  const profileId = getActiveProfileId();
+  const key = profileKey(FAVOURITES_KEY, profileId);
+  await migrateLegacyKey(FAVOURITES_KEY, profileId, key);
+  const value = await readJson(key);
   return isStringArray(value) ? value : [];
 }
 
 export async function saveFavouriteIds(ids: string[]): Promise<void> {
-  await writeJson(FAVOURITES_KEY, ids);
+  await writeJson(profileKey(FAVOURITES_KEY, getActiveProfileId()), ids);
 }
 
 export async function loadRecentIds(): Promise<string[]> {
-  const value = await readJson(RECENTS_KEY);
+  const profileId = getActiveProfileId();
+  const key = profileKey(RECENTS_KEY, profileId);
+  await migrateLegacyKey(RECENTS_KEY, profileId, key);
+  const value = await readJson(key);
   return isStringArray(value) ? value.slice(0, RECENTS_LIMIT) : [];
 }
 
 export async function saveRecentIds(ids: string[]): Promise<void> {
-  await writeJson(RECENTS_KEY, ids.slice(0, RECENTS_LIMIT));
+  await writeJson(profileKey(RECENTS_KEY, getActiveProfileId()), ids.slice(0, RECENTS_LIMIT));
 }
 
 export async function loadCustomFoods(): Promise<CanonicalFood[]> {
-  const value = await readJson(CUSTOM_FOODS_KEY);
+  const profileId = getActiveProfileId();
+  const key = profileKey(CUSTOM_FOODS_KEY, profileId);
+  await migrateLegacyKey(CUSTOM_FOODS_KEY, profileId, key);
+  const value = await readJson(key);
   if (!Array.isArray(value)) return [];
   // Re-validate every record: a future schema change or a hand-edited
   // storage blob must degrade to "skip the bad record", never crash.
@@ -80,7 +100,28 @@ export async function loadCustomFoods(): Promise<CanonicalFood[]> {
 }
 
 export async function saveCustomFoods(foods: CanonicalFood[]): Promise<void> {
-  await writeJson(CUSTOM_FOODS_KEY, foods);
+  await writeJson(profileKey(CUSTOM_FOODS_KEY, getActiveProfileId()), foods);
+}
+
+/**
+ * Removes THIS SPECIFIC profile's favourites/recents/custom foods — used
+ * when a profile is deleted (App.tsx's handleDeleteProfile) or when every
+ * profile's data is wiped ("Apagar todos os meus dados"). Takes an explicit
+ * `profileId` (not necessarily the active one) since a profile being deleted
+ * is never the active one (../profiles.ts's deleteProfile refuses that).
+ * Never touches the legacy un-namespaced key or any OTHER profile's
+ * namespaced key.
+ */
+export async function clearProfileData(profileId: string): Promise<void> {
+  try {
+    await AsyncStorage.multiRemove([
+      profileKey(FAVOURITES_KEY, profileId),
+      profileKey(RECENTS_KEY, profileId),
+      profileKey(CUSTOM_FOODS_KEY, profileId),
+    ]);
+  } catch {
+    // Best-effort persistence only.
+  }
 }
 
 export async function loadStartupTab(): Promise<TabKey> {

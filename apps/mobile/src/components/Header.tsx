@@ -17,6 +17,14 @@ interface HeaderProps {
   onOpenProfile: () => void;
   /** Opens the "Conta" screen (Slice: accounts + multi-device sync). */
   onOpenAccount: () => void;
+  /** Slice: caregiver profiles ("Perfis") — the ACTIVE profile's display
+   * name, shown persistently (see `profileChip` below) so it is obvious at a
+   * glance which profile is active on EVERY screen, including stacked/detail
+   * screens (`showBack === true`) — a caregiver must never log a
+   * dependent's meal against the wrong profile. */
+  activeProfileName: string;
+  /** Opens the profile switcher (../screens/ProfilesScreen.tsx). */
+  onOpenProfiles: () => void;
 }
 
 // Below this MEASURED header width, the "+ Novo alimento" / "Conta" pill
@@ -47,7 +55,7 @@ const overlay = {
 // (Slice 5 — export/delete data), and the PT | EN language switch — always
 // reachable regardless of which tab is active. Rendered on the signature ink
 // gradient so it reads as one premium, branded surface across every screen.
-export function Header({ showBack, onBack, onCreateFood, onOpenProfile, onOpenAccount }: HeaderProps) {
+export function Header({ showBack, onBack, onCreateFood, onOpenProfile, onOpenAccount, activeProfileName, onOpenProfiles }: HeaderProps) {
   const { t } = useLanguage();
   // Top safe-area inset (status bar / notch / camera cutout). The ink gradient
   // extends up under the status bar and the header content is padded below it,
@@ -136,6 +144,25 @@ export function Header({ showBack, onBack, onCreateFood, onOpenProfile, onOpenAc
           <LanguageSwitch />
         </View>
       </View>
+      {/* Active-profile chip — Slice: caregiver profiles ("Perfis"). ALWAYS
+          rendered (both here and when `showBack` replaces the brand row
+          above with Back), on its own row so a long profile name never
+          competes for space with the action-icon cluster. This is the
+          "unmistakable" safety affordance: a caregiver must be able to tell,
+          at a glance, on every screen, which profile they're currently
+          viewing/logging against, and reach the switcher from anywhere. */}
+      <PressableScale
+        onPress={onOpenProfiles}
+        accessibilityRole="button"
+        accessibilityLabel={t("profiles.chipAccessibilityLabel", { name: activeProfileName })}
+        style={({ pressed }) => [styles.profileChip, isCompact && styles.profileChipCompact, pressed && styles.overlayPressed]}
+      >
+        <Text style={styles.profileChipIcon}>👤</Text>
+        <Text style={styles.profileChipText} numberOfLines={1} ellipsizeMode="tail">
+          {activeProfileName}
+        </Text>
+        <Text style={styles.profileChipCaret}>▾</Text>
+      </PressableScale>
       {/* Warm greeting on the branded ink surface — only on the main tabs, not
           on stacked/detail screens (where the Back control replaces the brand). */}
       {!showBack && (
@@ -186,6 +213,27 @@ const styles = StyleSheet.create({
   greetingCompact: {
     paddingHorizontal: spacing.lg,
   },
+  profileChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: 6,
+    minHeight: MIN_TAP_TARGET,
+    maxWidth: "82%",
+    marginHorizontal: spacing.xl,
+    marginBottom: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.pill,
+    backgroundColor: overlay.fill,
+    borderWidth: 1,
+    borderColor: overlay.border,
+  },
+  profileChipCompact: {
+    marginHorizontal: spacing.lg,
+  },
+  profileChipIcon: { fontSize: 14 },
+  profileChipText: { flexShrink: 1, color: colors.onBrand, fontSize: 14, fontWeight: "800" },
+  profileChipCaret: { color: "rgba(255,255,255,0.72)", fontSize: 12, fontWeight: "700" },
   // `minWidth: 0` overrides the flexbox default of "shrink no smaller than my
   // content" (the classic overlap bug on web, where react-native-web compiles
   // straight to CSS flexbox) so the brand mark can truncate/shrink instead of

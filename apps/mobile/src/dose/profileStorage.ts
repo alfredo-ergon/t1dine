@@ -15,8 +15,15 @@
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+import { getActiveProfileId, migrateLegacyKey, profileKey } from "../profiles";
 import { DEFAULT_DOSE_PROFILE, type DoseProfile, type GlucoseUnit } from "./profile";
 
+// Slice: caregiver profiles ("Perfis"). The clinical Dose Assist profile is
+// per-profile too — a caregiver's own carb ratio/correction factor must never
+// be applied to a dependent's estimate, or vice versa (this is a KEY-only
+// namespacing change — no dose calculation/maths in ../dose/index or
+// packages/dose-engine is touched). `DOSE_PROFILE_KEY` below is used as the
+// "base" passed to `profileKey`/`migrateLegacyKey`.
 const DOSE_PROFILE_KEY = "t1dine.doseProfile";
 
 function isFinitePositiveNumber(value: unknown): value is number {
@@ -49,10 +56,14 @@ export interface LoadedDoseProfile {
   hasSavedProfile: boolean;
 }
 
-/** Loads the persisted clinical profile, falling back to the safe built-in default. */
+/** Loads the ACTIVE profile's persisted clinical profile, falling back to
+ * the safe built-in default. */
 export async function loadDoseProfile(): Promise<LoadedDoseProfile> {
+  const profileId = getActiveProfileId();
+  const key = profileKey(DOSE_PROFILE_KEY, profileId);
+  await migrateLegacyKey(DOSE_PROFILE_KEY, profileId, key);
   try {
-    const raw = await AsyncStorage.getItem(DOSE_PROFILE_KEY);
+    const raw = await AsyncStorage.getItem(key);
     if (!raw) {
       return { profile: DEFAULT_DOSE_PROFILE, hasSavedProfile: false };
     }
@@ -70,10 +81,24 @@ export async function loadDoseProfile(): Promise<LoadedDoseProfile> {
 
 export async function saveDoseProfile(profile: DoseProfile): Promise<void> {
   try {
-    await AsyncStorage.setItem(DOSE_PROFILE_KEY, JSON.stringify(profile));
+    await AsyncStorage.setItem(profileKey(DOSE_PROFILE_KEY, getActiveProfileId()), JSON.stringify(profile));
   } catch {
     // Best-effort persistence only; offline-first UX must not block on
     // storage errors (matches ../storage.ts's writeJson).
+  }
+}
+
+/**
+ * Removes THIS SPECIFIC profile's clinical Dose Assist profile — used when a
+ * profile is deleted (App.tsx's handleDeleteProfile) or when every profile's
+ * data is wiped ("Apagar todos os meus dados"). Takes an explicit
+ * `profileId` (not necessarily the active one).
+ */
+export async function clearProfileData(profileId: string): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(profileKey(DOSE_PROFILE_KEY, profileId));
+  } catch {
+    // Best-effort persistence only.
   }
 }
 

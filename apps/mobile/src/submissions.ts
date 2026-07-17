@@ -9,6 +9,11 @@
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+import { getActiveProfileId, migrateLegacyKey, profileKey } from "./profiles";
+
+// Slice: caregiver profiles ("Perfis"). "As minhas contribuições" is
+// per-profile — see ../mealHistory.ts's identical note. `SUBMISSIONS_KEY`
+// below is used as the "base" passed to `profileKey`/`migrateLegacyKey`.
 const SUBMISSIONS_KEY = "t1dine.mySubmissions";
 
 /** Always "pending" today — this app has no way to learn that a curator has
@@ -37,11 +42,15 @@ function isSubmissionRecord(value: unknown): value is SubmissionRecord {
   );
 }
 
-/** Loads every submission recorded on this device, newest first. Never
- * throws — corrupt/unavailable storage degrades to an empty list. */
+/** Loads every submission recorded on this device (for the ACTIVE profile),
+ * newest first. Never throws — corrupt/unavailable storage degrades to an
+ * empty list. */
 export async function loadSubmissions(): Promise<SubmissionRecord[]> {
+  const profileId = getActiveProfileId();
+  const key = profileKey(SUBMISSIONS_KEY, profileId);
+  await migrateLegacyKey(SUBMISSIONS_KEY, profileId, key);
   try {
-    const raw = await AsyncStorage.getItem(SUBMISSIONS_KEY);
+    const raw = await AsyncStorage.getItem(key);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return [];
@@ -51,16 +60,30 @@ export async function loadSubmissions(): Promise<SubmissionRecord[]> {
   }
 }
 
-/** Records a just-submitted food at the front of the list (de-duplicated by
- * id, in case the same submission id were ever recorded twice). Best-effort:
- * a storage failure here must never surface as an error on top of an already
- * -successful submission. */
+/** Records a just-submitted food (for the ACTIVE profile) at the front of the
+ * list (de-duplicated by id, in case the same submission id were ever
+ * recorded twice). Best-effort: a storage failure here must never surface as
+ * an error on top of an already-successful submission. */
 export async function recordSubmission(record: SubmissionRecord): Promise<void> {
   try {
     const existing = await loadSubmissions();
     const next = [record, ...existing.filter((item) => item.id !== record.id)];
-    await AsyncStorage.setItem(SUBMISSIONS_KEY, JSON.stringify(next));
+    await AsyncStorage.setItem(profileKey(SUBMISSIONS_KEY, getActiveProfileId()), JSON.stringify(next));
   } catch {
     // Best-effort persistence only — the submission itself already succeeded.
+  }
+}
+
+/**
+ * Removes THIS SPECIFIC profile's entire submissions list — used when a
+ * profile is deleted (App.tsx's handleDeleteProfile) or when every profile's
+ * data is wiped ("Apagar todos os meus dados"). Takes an explicit
+ * `profileId` (not necessarily the active one).
+ */
+export async function clearProfileData(profileId: string): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(profileKey(SUBMISSIONS_KEY, profileId));
+  } catch {
+    // Best-effort persistence only.
   }
 }
