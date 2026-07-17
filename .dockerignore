@@ -1,0 +1,22 @@
+# Keep the Docker build context small and clean — deps are installed inside the
+# image; local caches, build outputs, and the raw licensed dataset never ship.
+node_modules
+**/node_modules
+.git
+.github
+.expo
+**/.expo
+.next
+**/.next
+**/dist
+**/build
+**/*.log
+**/coverage
+.playwright-mcp
+# Raw licensed source data (git-ignored anyway) — never bake into the image.
+docs/data/*.xlsx
+docs/data/*.xls
+docs/data/*.csv
+# Python caches from the ingestion service.
+**/__pycache__
+**/*.pyc
