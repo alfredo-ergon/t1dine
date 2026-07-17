@@ -40,6 +40,10 @@ export interface MealScreenProps {
   historyCount: number;
   /** Opens the "Diário" screen (meal HISTORY — a dated log of meals actually eaten). */
   onOpenHistory: () => void;
+  /** Count for the "Receitas" entry point badge — always reachable, even with an empty current meal. */
+  recipesCount: number;
+  /** Opens the "Receitas" screen (recipe carb calculator — build a dish from ingredients, add portions to the meal). */
+  onOpenRecipes: () => void;
   /** Logs the current meal (as-is), snapshotted under an optional user-given
    * name, as a NEW entry in the Diário — never overwrites an existing entry. */
   onLogMeal: (name?: string) => void;
@@ -208,6 +212,33 @@ function DiaryEntryCard({ count, onPress }: HistoryEntryCardProps) {
       </View>
       <Text style={styles.savedMealsText}>
         {t("meal.historyOpenCta")}
+        {count > 0 ? ` (${count})` : ""}
+      </Text>
+      <Text style={styles.savedMealsChevron}>›</Text>
+    </PressableScale>
+  );
+}
+
+// Entry point to "Receitas" (recipe carb calculator — Slice: Receitas). Same
+// always-visible shape as SavedMealsEntryCard/DiaryEntryCard above: browsing
+// or building a recipe is a normal thing to do independent of the current
+// meal's contents, so this never hides behind "add a food first".
+interface RecipesEntryCardProps {
+  count: number;
+  onPress: () => void;
+}
+
+function RecipesEntryCard({ count, onPress }: RecipesEntryCardProps) {
+  const { t } = useLanguage();
+  const label = count > 0 ? `${t("meal.recipesOpenCta")} (${count})` : t("meal.recipesOpenCta");
+
+  return (
+    <PressableScale onPress={onPress} accessibilityRole="button" accessibilityLabel={label} style={styles.savedMealsCard}>
+      <View style={styles.savedMealsIconWrap}>
+        <Text style={styles.savedMealsIcon}>🍲</Text>
+      </View>
+      <Text style={styles.savedMealsText}>
+        {t("meal.recipesOpenCta")}
         {count > 0 ? ` (${count})` : ""}
       </Text>
       <Text style={styles.savedMealsChevron}>›</Text>
@@ -559,6 +590,8 @@ export function MealScreen({
   onLogMeal,
   editingHistoryEntryLabel,
   onUpdateHistoryEntry,
+  recipesCount,
+  onOpenRecipes,
 }: MealScreenProps) {
   const { t } = useLanguage();
   // Deterministic, framework-independent meal maths shared with the API —
@@ -575,6 +608,7 @@ export function MealScreen({
 
       <SavedMealsEntryCard count={savedMealsCount} onPress={onOpenSavedMeals} />
       <DiaryEntryCard count={historyCount} onPress={onOpenHistory} />
+      <RecipesEntryCard count={recipesCount} onPress={onOpenRecipes} />
 
       <FlatList
         data={summary.lines}
