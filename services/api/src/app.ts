@@ -9,14 +9,18 @@
 
 import Fastify, { type FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
+import rateLimit from "@fastify/rate-limit";
 import { healthRoutes } from "./modules/health.js";
 import { catalogRoutes } from "./modules/catalog.js";
 import { adminRoutes, resolveAdminEmails } from "./modules/admin.js";
 import { aiConfigRoutes } from "./modules/aiConfigAdmin.js";
 import { mealsRoutes } from "./modules/meals.js";
-import { nightscoutRoutes, type NightscoutDeps } from "./modules/nightscout.js";
+import { nightscoutRoutes, type NightscoutTestOverrides } from "./modules/nightscout.js";
 import { authRoutes, resolveAuthSecret } from "./modules/auth.js";
 import { syncRoutes } from "./modules/sync.js";
+import { resolveCorsOptions } from "./cors.js";
+import { isRateLimitingEnabled, resolveGlobalRateLimit } from "./rateLimit.js";
+import { genericErrorHandler } from "./errorHandler.js";
 import { CATALOG } from "./catalog.js";
 import { InMemoryMealRepository } from "./repositories/inMemoryMealRepository.js";
 import type { MealRepository } from "./repositories/mealRepository.js";
@@ -32,10 +36,13 @@ import type { FoodAiProvider } from "./foodAi.js";
 import type { ResolveAiProviderDeps } from "./aiProviderResolution.js";
 
 export interface BuildAppOptions {
-  /** Injectable fetch/clock for the read-only Nightscout module — lets tests
-   * exercise it deterministically and fully offline. Defaults to real
-   * `fetch`/`Date.now` when omitted, so existing callers are unaffected. */
-  nightscout?: NightscoutDeps;
+  /** Injectable fetch/clock/DNS-resolver overrides for the read-only
+   * Nightscout module — lets tests exercise it deterministically and fully
+   * offline. Defaults to real `fetch`/`Date.now`/DNS resolution when
+   * omitted, so existing callers are unaffected. The HMAC secret backing
+   * that route's `requireAuth` always comes from `authSecret` below, never
+   * from this bag — see `NightscoutDeps` in `./modules/nightscout.ts`. */
+  nightscout?: NightscoutTestOverrides;
   /** Injectable meal persistence PORT. Defaults to a fresh
    * `InMemoryMealRepository` per app instance — the same deterministic
    * `meal-1`, `meal-2`, ... id behaviour the old in-process `Map` provided —
@@ -101,7 +108,26 @@ export interface BuildAppOptions {
 export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const app = Fastify({ logger: false });
 
-  void app.register(cors);
+  // CORS allowlist (security review M2): permissive in dev/test (unchanged
+  // from before this hardening pass), an env-driven allowlist in prod — see
+  // `./cors.ts`.
+  void app.register(cors, resolveCorsOptions());
+
+  // Global rate limiting (security review H2/M3): skipped entirely under
+  // test (`NODE_ENV === "test"`, set by vitest by default) so the existing,
+  // fast-repeating `app.inject()` suites never flake — see `./rateLimit.ts`.
+  // Per-route tighter overrides (auth, Nightscout, off-lookup, submissions)
+  // are configured directly on those routes and are inert no-ops whenever
+  // this plugin is not registered.
+  if (isRateLimitingEnabled()) {
+    void app.register(rateLimit, resolveGlobalRateLimit());
+  }
+
+  // Generic fallback error handler (security review L1): never echoes an
+  // uncaught error's message back to the caller — see `./errorHandler.ts`.
+  // Every existing typed 4xx response in this codebase replies directly
+  // rather than throwing, so this never affects those.
+  app.setErrorHandler(genericErrorHandler);
 
   const mealRepository = options.mealRepository ?? new InMemoryMealRepository();
   const userRepository = options.userRepository ?? new InMemoryUserRepository();
@@ -138,8 +164,8 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
       ...(options.aiProviderResolutionDeps ? { aiProviderResolutionDeps: options.aiProviderResolutionDeps } : {}),
     }),
   );
-  void app.register(mealsRoutes(mealRepository));
-  void app.register(nightscoutRoutes(options.nightscout ?? {}));
+  void app.register(mealsRoutes({ repository: mealRepository, secret: authSecret }));
+  void app.register(nightscoutRoutes({ secret: authSecret, ...(options.nightscout ?? {}) }));
   void app.register(authRoutes({ repository: userRepository, secret: authSecret }));
   void app.register(syncRoutes({ repository: userDataRepository, secret: authSecret }));
 

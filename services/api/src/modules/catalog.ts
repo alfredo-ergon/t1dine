@@ -20,6 +20,7 @@ import { AREA_TAXONOMY, collectCanonicalFoodErrors } from "@t1dine/food-schema";
 import type { CanonicalFood } from "@t1dine/food-schema";
 import { filterFoods } from "../catalogFilters.js";
 import type { CatalogFilter } from "../catalogFilters.js";
+import { resolveOffLookupRateLimit, resolveSubmissionsRateLimit } from "../rateLimit.js";
 import { FoodIdTakenError } from "../repositories/foodRepository.js";
 import type { FoodRepository } from "../repositories/foodRepository.js";
 import { optionalAuth } from "./auth.js";
@@ -135,68 +136,76 @@ export function catalogRoutes(deps: CatalogDeps) {
     // future OFF-specific confirm flow) like any other user-supplied
     // candidate, so it goes through the normal review queue rather than
     // being trusted just because it came back from this endpoint.
-    app.get("/catalog/off-lookup", async (request, reply) => {
-      const parsedQuery = offLookupQuerySchema.safeParse(request.query);
-      if (!parsedQuery.success) {
-        return reply.status(400).send({
-          error: "invalid_barcode",
-          message: "barcode query parameter failed validation.",
-          issues: parsedQuery.error.issues.map((issue) => issue.message),
-        });
-      }
-
-      const result = await lookupOffProduct(parsedQuery.data.barcode, { fetchImpl: offFetchImpl });
-
-      if (result.status === "error") {
-        return reply.status(502).send({ error: "off_unavailable" });
-      }
-      if (result.status === "not_found") {
-        return reply.status(404).send({ error: "not_found" });
-      }
-
-      return reply.send({ source: "openfoodfacts", food: result.food, attribution: result.attribution });
-    });
-
-    app.post("/catalog/submissions", { preHandler: optionalAuthPreHandler }, async (request, reply) => {
-      const parsedBody = submissionBodySchema.safeParse(request.body);
-      if (!parsedBody.success) {
-        return reply.status(400).send({
-          error: "invalid_body",
-          message: "Body must be a JSON object.",
-          issues: parsedBody.error.issues.map((issue) => issue.message),
-        });
-      }
-
-      const foodErrors = collectCanonicalFoodErrors(parsedBody.data, "food");
-      if (foodErrors.length > 0) {
-        return reply.status(400).send({
-          error: "invalid_food",
-          message: "Submission failed canonical-food validation.",
-          issues: foodErrors,
-        });
-      }
-
-      // Safe to narrow now: `parsedBody.data` has just passed
-      // `collectCanonicalFoodErrors`, the same runtime validator underlying
-      // `isCanonicalFood`.
-      const food = parsedBody.data as unknown as CanonicalFood;
-      // `optionalAuth` sets `request.userId` only for a valid bearer token;
-      // absent that, the submission is recorded as anonymous.
-      const submittedBy = request.userId ?? null;
-
-      try {
-        // ALWAYS a candidate — `insertSubmission` hardcodes
-        // `status: "candidate"`/`source: "user"` regardless of what the
-        // submitted body's own `status` field said; a user submission is
-        // never auto-approved.
-        const stored = await deps.foodRepository.insertSubmission(food, submittedBy);
-        return reply.status(201).send({ id: stored.id, status: stored.status });
-      } catch (error) {
-        if (error instanceof FoodIdTakenError) {
-          return reply.status(409).send({ error: "id_taken", message: error.message });
+    app.get(
+      "/catalog/off-lookup",
+      { config: { rateLimit: resolveOffLookupRateLimit() } },
+      async (request, reply) => {
+        const parsedQuery = offLookupQuerySchema.safeParse(request.query);
+        if (!parsedQuery.success) {
+          return reply.status(400).send({
+            error: "invalid_barcode",
+            message: "barcode query parameter failed validation.",
+            issues: parsedQuery.error.issues.map((issue) => issue.message),
+          });
         }
-        throw error;
-      }
-    });
+
+        const result = await lookupOffProduct(parsedQuery.data.barcode, { fetchImpl: offFetchImpl });
+
+        if (result.status === "error") {
+          return reply.status(502).send({ error: "off_unavailable" });
+        }
+        if (result.status === "not_found") {
+          return reply.status(404).send({ error: "not_found" });
+        }
+
+        return reply.send({ source: "openfoodfacts", food: result.food, attribution: result.attribution });
+      },
+    );
+
+    app.post(
+      "/catalog/submissions",
+      { preHandler: optionalAuthPreHandler, config: { rateLimit: resolveSubmissionsRateLimit() } },
+      async (request, reply) => {
+        const parsedBody = submissionBodySchema.safeParse(request.body);
+        if (!parsedBody.success) {
+          return reply.status(400).send({
+            error: "invalid_body",
+            message: "Body must be a JSON object.",
+            issues: parsedBody.error.issues.map((issue) => issue.message),
+          });
+        }
+
+        const foodErrors = collectCanonicalFoodErrors(parsedBody.data, "food");
+        if (foodErrors.length > 0) {
+          return reply.status(400).send({
+            error: "invalid_food",
+            message: "Submission failed canonical-food validation.",
+            issues: foodErrors,
+          });
+        }
+
+        // Safe to narrow now: `parsedBody.data` has just passed
+        // `collectCanonicalFoodErrors`, the same runtime validator underlying
+        // `isCanonicalFood`.
+        const food = parsedBody.data as unknown as CanonicalFood;
+        // `optionalAuth` sets `request.userId` only for a valid bearer token;
+        // absent that, the submission is recorded as anonymous.
+        const submittedBy = request.userId ?? null;
+
+        try {
+          // ALWAYS a candidate — `insertSubmission` hardcodes
+          // `status: "candidate"`/`source: "user"` regardless of what the
+          // submitted body's own `status` field said; a user submission is
+          // never auto-approved.
+          const stored = await deps.foodRepository.insertSubmission(food, submittedBy);
+          return reply.status(201).send({ id: stored.id, status: stored.status });
+        } catch (error) {
+          if (error instanceof FoodIdTakenError) {
+            return reply.status(409).send({ error: "id_taken", message: error.message });
+          }
+          throw error;
+        }
+      },
+    );
   };
 }

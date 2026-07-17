@@ -6,6 +6,7 @@
 
 import { describe, expect, it } from "vitest";
 import { buildApp } from "../src/app.js";
+import { resolveAuthTokenMaxAgeMs, signToken, verifyToken } from "../src/modules/auth.js";
 
 const TEST_AUTH_SECRET = "test-only-fixed-auth-secret-for-vitest-auth";
 
@@ -195,5 +196,66 @@ describe("requireAuth (exercised via a protected sync route)", () => {
     });
 
     expect(response.statusCode).toBe(200);
+  });
+
+  it("rejects a token older than the max token age (M1), end-to-end via a protected route", async () => {
+    const app = freshApp();
+    const thirtyOneDaysMs = 31 * 24 * 60 * 60 * 1000;
+    const staleToken = signToken("some-user-id", TEST_AUTH_SECRET, Date.now() - thirtyOneDaysMs);
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/sync/state",
+      headers: { authorization: `Bearer ${staleToken}` },
+    });
+
+    expect(response.statusCode).toBe(401);
+  });
+});
+
+describe("verifyToken token TTL (M1)", () => {
+  const TTL_SECRET = "test-only-fixed-auth-secret-for-vitest-ttl";
+  const DEFAULT_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+
+  it("accepts a token issued just inside the default 30-day max-age window", () => {
+    const issuedAt = 1_700_000_000_000;
+    const token = signToken("user-1", TTL_SECRET, issuedAt);
+    const now = issuedAt + DEFAULT_MAX_AGE_MS - 1;
+
+    const verified = verifyToken(token, TTL_SECRET, { now: () => now });
+
+    expect(verified?.userId).toBe("user-1");
+    expect(verified?.issuedAt).toBe(issuedAt);
+  });
+
+  it("rejects a token issued just past the default 30-day max-age window", () => {
+    const issuedAt = 1_700_000_000_000;
+    const token = signToken("user-1", TTL_SECRET, issuedAt);
+    const now = issuedAt + DEFAULT_MAX_AGE_MS + 1;
+
+    const verified = verifyToken(token, TTL_SECRET, { now: () => now });
+
+    expect(verified).toBeNull();
+  });
+
+  it("honours a custom maxAgeMs override, independent of the default", () => {
+    const issuedAt = 1_700_000_000_000;
+    const token = signToken("user-1", TTL_SECRET, issuedAt);
+
+    const withinCustomWindow = verifyToken(token, TTL_SECRET, { now: () => issuedAt + 500, maxAgeMs: 1000 });
+    const pastCustomWindow = verifyToken(token, TTL_SECRET, { now: () => issuedAt + 1500, maxAgeMs: 1000 });
+
+    expect(withinCustomWindow?.userId).toBe("user-1");
+    expect(pastCustomWindow).toBeNull();
+  });
+
+  it("resolveAuthTokenMaxAgeMs falls back to 30 days when AUTH_TOKEN_MAX_AGE_MS is unset or invalid", () => {
+    expect(resolveAuthTokenMaxAgeMs({})).toBe(DEFAULT_MAX_AGE_MS);
+    expect(resolveAuthTokenMaxAgeMs({ AUTH_TOKEN_MAX_AGE_MS: "not-a-number" })).toBe(DEFAULT_MAX_AGE_MS);
+    expect(resolveAuthTokenMaxAgeMs({ AUTH_TOKEN_MAX_AGE_MS: "-5" })).toBe(DEFAULT_MAX_AGE_MS);
+  });
+
+  it("resolveAuthTokenMaxAgeMs honours AUTH_TOKEN_MAX_AGE_MS when set to a positive number", () => {
+    expect(resolveAuthTokenMaxAgeMs({ AUTH_TOKEN_MAX_AGE_MS: "1000" })).toBe(1000);
   });
 });

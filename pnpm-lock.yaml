@@ -154,6 +154,9 @@ importers:
       '@fastify/cors':
         specifier: ^10.0.2
         version: 10.1.0
+      '@fastify/rate-limit':
+        specifier: ^10.2.0
+        version: 10.3.0
       '@t1dine/domain':
         specifier: workspace:*
         version: link:../../packages/domain
@@ -1209,6 +1212,9 @@ packages:
   '@fastify/proxy-addr@5.1.0':
     resolution: {integrity: sha1-9TYLXdg8fePUG0Fb5Kq4SuRKoQY=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@fastify/proxy-addr/-/proxy-addr-5.1.0.tgz}
 
+  '@fastify/rate-limit@10.3.0':
+    resolution: {integrity: sha1-PPalbA490Y/ApWcnZ117odmpvXs=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@fastify/rate-limit/-/rate-limit-10.3.0.tgz}
+
   '@humanfs/core@0.19.2':
     resolution: {integrity: sha1-qCcsoDsqz0kmcCIrIyC2xCG/3mA=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@humanfs/core/-/core-0.19.2.tgz}
     engines: {node: '>=18.18.0'}
@@ -1440,6 +1446,10 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha1-2xXWeByTHzolGj2sOVAcmKYIL9A=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz}
+
+  '@lukeed/ms@2.0.2':
+    resolution: {integrity: sha1-B/CeWadMUvTYjG21wQVOgZU44qg=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@lukeed/ms/-/ms-2.0.2.tgz}
+    engines: {node: '>=8'}
 
   '@next/env@15.5.20':
     resolution: {integrity: sha1-InqBMHhu8fTTZl5+xI5hoLDrLF4=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@next/env/-/env-15.5.20.tgz}
@@ -5550,6 +5560,12 @@ snapshots:
       '@fastify/forwarded': 3.0.1
       ipaddr.js: 2.4.0
 
+  '@fastify/rate-limit@10.3.0':
+    dependencies:
+      '@lukeed/ms': 2.0.2
+      fastify-plugin: 5.1.0
+      toad-cache: 3.7.4
+
   '@humanfs/core@0.19.2':
     dependencies:
       '@humanfs/types': 0.15.0
@@ -5755,6 +5771,8 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
+
+  '@lukeed/ms@2.0.2': {}
 
   '@next/env@15.5.20': {}
 
