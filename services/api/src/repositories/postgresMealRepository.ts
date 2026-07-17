@@ -19,6 +19,7 @@ interface MealRow {
   id: string;
   created_at: Date;
   summary: MealSummary;
+  owner_id: string;
 }
 
 export class PostgresMealRepository implements MealRepository {
@@ -28,6 +29,12 @@ export class PostgresMealRepository implements MealRepository {
    * Idempotently creates the `meals_id_seq` sequence, the `meals` table, and
    * a supporting index. Safe to call on every process startup — every
    * statement is `IF NOT EXISTS`.
+   *
+   * `owner_id` (security review M4 — see `../modules/meals.ts`) is added via
+   * a separate idempotent `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` rather
+   * than only the `CREATE TABLE`, so a table created before this hardening
+   * pass gets the column added (backfilled blank) rather than the migration
+   * silently doing nothing on an existing table.
    */
   async migrate(): Promise<void> {
     await this.pool.query("CREATE SEQUENCE IF NOT EXISTS meals_id_seq");
@@ -35,18 +42,21 @@ export class PostgresMealRepository implements MealRepository {
       CREATE TABLE IF NOT EXISTS meals (
         id text PRIMARY KEY,
         created_at timestamptz NOT NULL DEFAULT now(),
-        summary jsonb NOT NULL
+        summary jsonb NOT NULL,
+        owner_id text NOT NULL DEFAULT ''
       )
     `);
+    await this.pool.query("ALTER TABLE meals ADD COLUMN IF NOT EXISTS owner_id text NOT NULL DEFAULT ''");
     await this.pool.query("CREATE INDEX IF NOT EXISTS meals_created_at_idx ON meals (created_at)");
+    await this.pool.query("CREATE INDEX IF NOT EXISTS meals_owner_id_idx ON meals (owner_id)");
   }
 
-  async save(summary: MealSummary): Promise<{ id: string }> {
+  async save(summary: MealSummary, ownerId: string): Promise<{ id: string }> {
     const result = await this.pool.query<{ id: string }>(
-      `INSERT INTO meals (id, summary)
-       VALUES ('meal-' || nextval('meals_id_seq'), $1::jsonb)
+      `INSERT INTO meals (id, summary, owner_id)
+       VALUES ('meal-' || nextval('meals_id_seq'), $1::jsonb, $2)
        RETURNING id`,
-      [JSON.stringify(summary)],
+      [JSON.stringify(summary), ownerId],
     );
 
     const row = result.rows[0];
@@ -60,7 +70,7 @@ export class PostgresMealRepository implements MealRepository {
 
   async get(id: string): Promise<StoredMeal | null> {
     const result = await this.pool.query<MealRow>(
-      "SELECT id, created_at, summary FROM meals WHERE id = $1",
+      "SELECT id, created_at, summary, owner_id FROM meals WHERE id = $1",
       [id],
     );
 
@@ -71,6 +81,7 @@ export class PostgresMealRepository implements MealRepository {
       id: row.id,
       createdAt: row.created_at.toISOString(),
       summary: row.summary,
+      ownerId: row.owner_id,
     };
   }
 

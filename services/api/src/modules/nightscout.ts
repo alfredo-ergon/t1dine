@@ -27,9 +27,22 @@
 //   5. Glucose readings are health data. They must never be written to
 //      server logs — this handler never calls `console.*`/`app.log.*` with
 //      reading values, and relies on the app-wide logger being disabled.
+//   6. AUTH + SSRF (security review H1): this route requires a valid bearer
+//      token (`requireAuth`, see `./auth.ts`) — an unauthenticated caller
+//      never reaches the fetch logic below at all. Outside mock mode, the
+//      caller-supplied `url` is validated by `../ssrfGuard.ts` BEFORE any
+//      request is made: non-`https` urls and hosts that are (or resolve to)
+//      a loopback/private/link-local/metadata address are rejected with a
+//      GENERIC error that reveals nothing about internal reachability. This
+//      prevents the endpoint being used as a blind proxy into this
+//      deployment's own network.
 
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import { requireAuth } from "./auth.js";
+import { resolveNightscoutRateLimit } from "../rateLimit.js";
+import { defaultDnsLookup, isBlockedTarget } from "../ssrfGuard.js";
+import type { DnsLookupImpl } from "../ssrfGuard.js";
 
 const MS_PER_MINUTE = 60_000;
 const DEFAULT_COUNT = 12;
@@ -263,119 +276,151 @@ function buildEntriesUrl(baseUrl: string, count: number, token: string | undefin
 // Plugin
 // ---------------------------------------------------------------------------
 
-export interface NightscoutDeps {
+/** Public test-seam overrides accepted via `buildApp({ nightscout: {...} })`
+ * (see `../app.ts`'s `BuildAppOptions.nightscout`). `secret` is NOT part of
+ * this bag — it always comes from the app's own resolved `authSecret`, never
+ * from an arbitrary caller of `buildApp`. */
+export interface NightscoutTestOverrides {
   /** Injectable so tests never hit the network. Defaults to global `fetch`. */
   fetchImpl?: typeof fetch;
   /** Injectable clock so freshness/staleness is deterministic in tests. */
   now?: () => number;
+  /** Injectable DNS resolver for the SSRF guard (see `../ssrfGuard.ts`) —
+   * lets tests exercise the "resolves to a private address" and "safe
+   * fallback on resolution failure" paths deterministically, with no real
+   * DNS/network access. Defaults to a real resolver. */
+  dnsLookupImpl?: DnsLookupImpl;
+}
+
+export interface NightscoutDeps extends NightscoutTestOverrides {
+  /** HMAC secret backing `requireAuth` on this route (H1) — always
+   * required, unlike the test-only overrides above. */
+  secret: string;
 }
 
 /**
  * Builds the Nightscout route plugin. Returns a plain Fastify plugin function
  * (rather than taking dependencies as Fastify-registered options) so the
- * injected `fetchImpl`/`now` are captured in a closure with full type safety,
- * with no need for an `unknown`-typed Fastify options bag.
+ * injected `fetchImpl`/`now`/`dnsLookupImpl` are captured in a closure with
+ * full type safety, with no need for an `unknown`-typed Fastify options bag.
  */
-export function nightscoutRoutes(deps: NightscoutDeps = {}) {
+export function nightscoutRoutes(deps: NightscoutDeps) {
   const fetchImpl = deps.fetchImpl ?? fetch;
   const now = deps.now ?? (() => Date.now());
+  const dnsLookupImpl = deps.dnsLookupImpl ?? defaultDnsLookup;
+  const authPreHandler = requireAuth(deps.secret);
 
   return async function registerNightscoutRoutes(app: FastifyInstance): Promise<void> {
-    app.post("/integrations/nightscout/glucose", async (request, reply) => {
-      const parsedBody = glucoseRequestSchema.safeParse(request.body ?? {});
-      if (!parsedBody.success) {
-        return reply.status(400).send({
-          error: "invalid_body",
-          message: "Nightscout request body failed validation.",
-          issues: parsedBody.error.issues.map((issue) => `${issue.path.join(".") || "body"}: ${issue.message}`),
-        });
-      }
+    app.post(
+      "/integrations/nightscout/glucose",
+      { preHandler: authPreHandler, config: { rateLimit: resolveNightscoutRateLimit() } },
+      async (request, reply) => {
+        const parsedBody = glucoseRequestSchema.safeParse(request.body ?? {});
+        if (!parsedBody.success) {
+          return reply.status(400).send({
+            error: "invalid_body",
+            message: "Nightscout request body failed validation.",
+            issues: parsedBody.error.issues.map((issue) => `${issue.path.join(".") || "body"}: ${issue.message}`),
+          });
+        }
 
-      const { url, count, mock, staleAfterMinutes } = parsedBody.data;
-      const effectiveCount = count ?? DEFAULT_COUNT;
-      const effectiveStaleAfterMinutes = staleAfterMinutes ?? DEFAULT_STALE_AFTER_MINUTES;
-      const useMock = mock === true || process.env["NIGHTSCOUT_MODE"] === "mock";
-      // Read the injected clock exactly once per request so entry generation
-      // and freshness computation agree on "now".
-      const nowMs = now();
+        const { url, count, mock, staleAfterMinutes } = parsedBody.data;
+        const effectiveCount = count ?? DEFAULT_COUNT;
+        const effectiveStaleAfterMinutes = staleAfterMinutes ?? DEFAULT_STALE_AFTER_MINUTES;
+        const useMock = mock === true || process.env["NIGHTSCOUT_MODE"] === "mock";
+        // Read the injected clock exactly once per request so entry generation
+        // and freshness computation agree on "now".
+        const nowMs = now();
 
-      if (useMock) {
-        const rawEntries = buildMockEntries(effectiveCount, nowMs);
-        const readings = normaliseEntries(rawEntries, nowMs, effectiveStaleAfterMinutes);
-        return reply.send(buildResponsePayload("mock", readings));
-      }
+        if (useMock) {
+          const rawEntries = buildMockEntries(effectiveCount, nowMs);
+          const readings = normaliseEntries(rawEntries, nowMs, effectiveStaleAfterMinutes);
+          return reply.send(buildResponsePayload("mock", readings));
+        }
 
-      if (!url) {
-        return reply.status(400).send({
-          error: "invalid_body",
-          message: "A Nightscout base url is required outside mock mode.",
-          issues: ["url: required when mock is not enabled and NIGHTSCOUT_MODE is not \"mock\""],
-        });
-      }
+        if (!url) {
+          return reply.status(400).send({
+            error: "invalid_body",
+            message: "A Nightscout base url is required outside mock mode.",
+            issues: ["url: required when mock is not enabled and NIGHTSCOUT_MODE is not \"mock\""],
+          });
+        }
 
-      // `requestUrl` embeds the token when one was supplied. It is used
-      // only as the `fetchImpl` target and is never logged or returned.
-      const requestUrl = buildEntriesUrl(url, effectiveCount, parsedBody.data.token);
+        // SSRF guard (H1) — see `../ssrfGuard.ts` and safety rule 6 above.
+        // Deliberately GENERIC: never reveals which rule matched (protocol,
+        // literal IP, or a DNS-resolved address), so a caller cannot use this
+        // endpoint to fingerprint the deployment's internal network.
+        if (await isBlockedTarget(url, { dnsLookupImpl })) {
+          return reply.status(400).send({
+            error: "invalid_url",
+            message: "The requested Nightscout url is not allowed.",
+          });
+        }
 
-      let response: Response;
-      try {
-        response = await fetchImpl(requestUrl, { method: "GET" });
-      } catch {
-        // Never log or surface `error` here: on some runtimes a fetch failure
-        // includes the request URL (and therefore the token) in its message.
-        return reply.status(502).send({
-          error: "upstream_unreachable",
-          message: "Failed to reach the Nightscout site.",
-        });
-      }
+        // `requestUrl` embeds the token when one was supplied. It is used
+        // only as the `fetchImpl` target and is never logged or returned.
+        const requestUrl = buildEntriesUrl(url, effectiveCount, parsedBody.data.token);
 
-      if (!response.ok) {
-        // Deliberately generic: never echoes the request URL (which may
-        // carry the token) or any response body back to the caller.
-        return reply.status(502).send({
-          error: "upstream_error",
-          message: `Nightscout responded with HTTP status ${response.status}.`,
-        });
-      }
+        let response: Response;
+        try {
+          response = await fetchImpl(requestUrl, { method: "GET" });
+        } catch {
+          // Never log or surface `error` here: on some runtimes a fetch failure
+          // includes the request URL (and therefore the token) in its message.
+          return reply.status(502).send({
+            error: "upstream_unreachable",
+            message: "Failed to reach the Nightscout site.",
+          });
+        }
 
-      let rawJson: unknown;
-      try {
-        rawJson = await response.json();
-      } catch {
-        // The response body was not valid JSON at all — fail closed rather
-        // than guessing. Distinct from `upstream_unreachable` (the site
-        // itself responded; its payload just cannot be parsed).
-        return reply.status(502).send({
-          error: "upstream_malformed",
-          message: "Nightscout returned glucose data in an unexpected format.",
-        });
-      }
+        if (!response.ok) {
+          // Deliberately generic: never echoes the request URL (which may
+          // carry the token) or any response body back to the caller.
+          return reply.status(502).send({
+            error: "upstream_error",
+            message: `Nightscout responded with HTTP status ${response.status}.`,
+          });
+        }
 
-      const parsedShape = z.array(z.unknown()).safeParse(rawJson);
-      if (!parsedShape.success) {
-        // The top-level shape itself is untrustworthy (not even a JSON
-        // array) — this cannot be salvaged entry-by-entry, so fail closed
-        // rather than fabricate readings from a payload we cannot trust the
-        // shape of.
-        return reply.status(502).send({
-          error: "upstream_malformed",
-          message: "Nightscout returned glucose data in an unexpected format.",
-        });
-      }
+        let rawJson: unknown;
+        try {
+          rawJson = await response.json();
+        } catch {
+          // The response body was not valid JSON at all — fail closed rather
+          // than guessing. Distinct from `upstream_unreachable` (the site
+          // itself responded; its payload just cannot be parsed).
+          return reply.status(502).send({
+            error: "upstream_malformed",
+            message: "Nightscout returned glucose data in an unexpected format.",
+          });
+        }
 
-      // Validate one entry at a time and drop anything malformed (see
-      // `filterValidEntries`) — a single corrupt record must not discard
-      // every other well-formed reading in the same response.
-      const validEntries = filterValidEntries(parsedShape.data);
+        const parsedShape = z.array(z.unknown()).safeParse(rawJson);
+        if (!parsedShape.success) {
+          // The top-level shape itself is untrustworthy (not even a JSON
+          // array) — this cannot be salvaged entry-by-entry, so fail closed
+          // rather than fabricate readings from a payload we cannot trust the
+          // shape of.
+          return reply.status(502).send({
+            error: "upstream_malformed",
+            message: "Nightscout returned glucose data in an unexpected format.",
+          });
+        }
 
-      // Defense in depth: even though `count` is already sent upstream as a
-      // query parameter, never trust an upstream (or misconfigured/malicious)
-      // Nightscout site to actually honour it — cap what we process/return
-      // to the requested count ourselves.
-      const cappedEntries = validEntries.slice(0, effectiveCount);
+        // Validate one entry at a time and drop anything malformed (see
+        // `filterValidEntries`) — a single corrupt record must not discard
+        // every other well-formed reading in the same response.
+        const validEntries = filterValidEntries(parsedShape.data);
 
-      const readings = normaliseEntries(cappedEntries, nowMs, effectiveStaleAfterMinutes);
-      return reply.send(buildResponsePayload("live", readings));
-    });
+        // Defense in depth: even though `count` is already sent upstream as a
+        // query parameter, never trust an upstream (or misconfigured/malicious)
+        // Nightscout site to actually honour it — cap what we process/return
+        // to the requested count ourselves.
+        const cappedEntries = validEntries.slice(0, effectiveCount);
+
+        const readings = normaliseEntries(cappedEntries, nowMs, effectiveStaleAfterMinutes);
+        return reply.send(buildResponsePayload("live", readings));
+      },
+    );
   };
 }

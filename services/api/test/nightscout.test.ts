@@ -1,16 +1,30 @@
-// Tests for the read-only Nightscout glucose module (Slice 6). Everything
-// here is deterministic and offline: `fetch` and the clock are injected via
-// `buildApp({ nightscout: { fetchImpl, now } })`, never real network calls.
+// Tests for the read-only Nightscout glucose module (Slice 6) and its
+// security-hardening additions (H1 — requireAuth + SSRF guard). Everything
+// here is deterministic and offline: `fetch`, the clock, and the DNS
+// resolver are all injected via `buildApp({ nightscout: { fetchImpl, now,
+// dnsLookupImpl } })`, never real network/DNS calls.
 
 import { describe, expect, it, vi } from "vitest";
+import type { FastifyInstance } from "fastify";
 import { buildApp } from "../src/app.js";
+import type { NightscoutTestOverrides } from "../src/modules/nightscout.js";
 
 const FIXED_NOW = Date.UTC(2026, 6, 13, 12, 0, 0); // 2026-07-13T12:00:00.000Z
 const SECRET_TOKEN = "super-secret-nightscout-token-do-not-leak";
+const TEST_AUTH_SECRET = "test-only-fixed-auth-secret-for-vitest-nightscout";
 
 function fixedClock(nowMs: number = FIXED_NOW): () => number {
   return () => nowMs;
 }
+
+// The existing suite (predating the H1 hardening) exercises fake hostnames
+// like "example-nightscout.test" that must never trigger a REAL DNS lookup
+// in CI. Injecting a resolver that always throws exercises the SSRF guard's
+// documented "safe fallback" path (treat an unresolvable host as not
+// blocked) deterministically and fully offline — see `../src/ssrfGuard.ts`.
+const NO_DNS = async (): Promise<never> => {
+  throw new Error("dns lookup unavailable in tests");
+};
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -19,14 +33,67 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-describe("POST /integrations/nightscout/glucose — mock mode", () => {
-  it("returns deterministic synthetic readings without touching the network", async () => {
+async function authedApp(
+  overrides: NightscoutTestOverrides = {},
+): Promise<{ app: FastifyInstance; token: string }> {
+  const app = buildApp({
+    authSecret: TEST_AUTH_SECRET,
+    nightscout: { dnsLookupImpl: NO_DNS, ...overrides },
+  });
+  const registered = await app.inject({
+    method: "POST",
+    url: "/auth/register",
+    payload: { email: "nightscout-tester@example.com", password: "correct-password-123" },
+  });
+  const token = registered.json().token as string;
+  return { app, token };
+}
+
+function authHeader(token: string): { authorization: string } {
+  return { authorization: `Bearer ${token}` };
+}
+
+describe("POST /integrations/nightscout/glucose — auth (H1)", () => {
+  it("rejects an unauthenticated request with 401 before any fetch/DNS work happens", async () => {
     const fetchImpl = vi.fn();
-    const app = buildApp({ nightscout: { fetchImpl, now: fixedClock() } });
+    const app = buildApp({
+      authSecret: TEST_AUTH_SECRET,
+      nightscout: { fetchImpl, now: fixedClock(), dnsLookupImpl: NO_DNS },
+    });
 
     const response = await app.inject({
       method: "POST",
       url: "/integrations/nightscout/glucose",
+      payload: { mock: true, count: 6 },
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("rejects a garbage bearer token with 401", async () => {
+    const app = buildApp({ authSecret: TEST_AUTH_SECRET, nightscout: { dnsLookupImpl: NO_DNS } });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/integrations/nightscout/glucose",
+      headers: { authorization: "Bearer not-a-real-token" },
+      payload: { mock: true },
+    });
+
+    expect(response.statusCode).toBe(401);
+  });
+});
+
+describe("POST /integrations/nightscout/glucose — mock mode", () => {
+  it("returns deterministic synthetic readings without touching the network", async () => {
+    const fetchImpl = vi.fn();
+    const { app, token } = await authedApp({ fetchImpl, now: fixedClock() });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/integrations/nightscout/glucose",
+      headers: authHeader(token),
       payload: { mock: true, count: 6 },
     });
 
@@ -54,16 +121,18 @@ describe("POST /integrations/nightscout/glucose — mock mode", () => {
   });
 
   it("is deterministic across repeated calls given the same injected clock", async () => {
-    const app = buildApp({ nightscout: { fetchImpl: vi.fn(), now: fixedClock() } });
+    const { app, token } = await authedApp({ fetchImpl: vi.fn(), now: fixedClock() });
 
     const first = await app.inject({
       method: "POST",
       url: "/integrations/nightscout/glucose",
+      headers: authHeader(token),
       payload: { mock: true, count: 4 },
     });
     const second = await app.inject({
       method: "POST",
       url: "/integrations/nightscout/glucose",
+      headers: authHeader(token),
       payload: { mock: true, count: 4 },
     });
 
@@ -74,10 +143,11 @@ describe("POST /integrations/nightscout/glucose — mock mode", () => {
     const originalMode = process.env["NIGHTSCOUT_MODE"];
     process.env["NIGHTSCOUT_MODE"] = "mock";
     try {
-      const app = buildApp({ nightscout: { fetchImpl: vi.fn(), now: fixedClock() } });
+      const { app, token } = await authedApp({ fetchImpl: vi.fn(), now: fixedClock() });
       const response = await app.inject({
         method: "POST",
         url: "/integrations/nightscout/glucose",
+        headers: authHeader(token),
         payload: {},
       });
 
@@ -101,11 +171,12 @@ describe("POST /integrations/nightscout/glucose — live mode", () => {
         { sgv: 118, date: FIXED_NOW - 9 * 60_000, direction: "FortyFiveUp" },
       ]),
     );
-    const app = buildApp({ nightscout: { fetchImpl, now: fixedClock() } });
+    const { app, token } = await authedApp({ fetchImpl, now: fixedClock() });
 
     const response = await app.inject({
       method: "POST",
       url: "/integrations/nightscout/glucose",
+      headers: authHeader(token),
       payload: { url: "https://example-nightscout.test", token: SECRET_TOKEN, count: 2 },
     });
 
@@ -130,11 +201,12 @@ describe("POST /integrations/nightscout/glucose — live mode", () => {
 
   it("sends the token upstream as a query parameter but never logs or returns it", async () => {
     const fetchImpl = vi.fn(async () => jsonResponse([{ sgv: 100, date: FIXED_NOW - 2 * 60_000 }]));
-    const app = buildApp({ nightscout: { fetchImpl, now: fixedClock() } });
+    const { app, token } = await authedApp({ fetchImpl, now: fixedClock() });
 
     const response = await app.inject({
       method: "POST",
       url: "/integrations/nightscout/glucose",
+      headers: authHeader(token),
       payload: { url: "https://example-nightscout.test", token: SECRET_TOKEN, count: 1 },
     });
 
@@ -150,11 +222,12 @@ describe("POST /integrations/nightscout/glucose — live mode", () => {
   });
 
   it("requires a url outside mock mode (fails closed rather than guessing a target)", async () => {
-    const app = buildApp({ nightscout: { fetchImpl: vi.fn(), now: fixedClock() } });
+    const { app, token } = await authedApp({ fetchImpl: vi.fn(), now: fixedClock() });
 
     const response = await app.inject({
       method: "POST",
       url: "/integrations/nightscout/glucose",
+      headers: authHeader(token),
       payload: { token: SECRET_TOKEN },
     });
 
@@ -166,11 +239,12 @@ describe("POST /integrations/nightscout/glucose — live mode", () => {
     const fetchImpl = vi.fn(async () => {
       throw new Error(`fetch failed for token=${SECRET_TOKEN}`);
     });
-    const app = buildApp({ nightscout: { fetchImpl, now: fixedClock() } });
+    const { app, token } = await authedApp({ fetchImpl, now: fixedClock() });
 
     const response = await app.inject({
       method: "POST",
       url: "/integrations/nightscout/glucose",
+      headers: authHeader(token),
       payload: { url: "https://example-nightscout.test", token: SECRET_TOKEN },
     });
 
@@ -181,11 +255,12 @@ describe("POST /integrations/nightscout/glucose — live mode", () => {
 
   it("returns 502 when the upstream site responds with a non-2xx status", async () => {
     const fetchImpl = vi.fn(async () => jsonResponse({ message: "not found" }, 404));
-    const app = buildApp({ nightscout: { fetchImpl, now: fixedClock() } });
+    const { app, token } = await authedApp({ fetchImpl, now: fixedClock() });
 
     const response = await app.inject({
       method: "POST",
       url: "/integrations/nightscout/glucose",
+      headers: authHeader(token),
       payload: { url: "https://example-nightscout.test", token: SECRET_TOKEN },
     });
 
@@ -196,11 +271,12 @@ describe("POST /integrations/nightscout/glucose — live mode", () => {
 
   it("fails closed with 502 on a malformed upstream payload (not an array)", async () => {
     const fetchImpl = vi.fn(async () => jsonResponse({ not: "an array of sgv entries" }));
-    const app = buildApp({ nightscout: { fetchImpl, now: fixedClock() } });
+    const { app, token } = await authedApp({ fetchImpl, now: fixedClock() });
 
     const response = await app.inject({
       method: "POST",
       url: "/integrations/nightscout/glucose",
+      headers: authHeader(token),
       payload: { url: "https://example-nightscout.test", token: SECRET_TOKEN },
     });
 
@@ -217,11 +293,12 @@ describe("POST /integrations/nightscout/glucose — live mode", () => {
         { sgv: 118, date: FIXED_NOW - 9 * 60_000, direction: "FortyFiveUp" },
       ]),
     );
-    const app = buildApp({ nightscout: { fetchImpl, now: fixedClock() } });
+    const { app, token } = await authedApp({ fetchImpl, now: fixedClock() });
 
     const response = await app.inject({
       method: "POST",
       url: "/integrations/nightscout/glucose",
+      headers: authHeader(token),
       payload: { url: "https://example-nightscout.test" },
     });
 
@@ -236,11 +313,12 @@ describe("POST /integrations/nightscout/glucose — live mode", () => {
 
   it("fails closed with 502 when every upstream entry is malformed and the top-level shape is not an array", async () => {
     const fetchImpl = vi.fn(async () => jsonResponse({ sgv: 110, date: FIXED_NOW }));
-    const app = buildApp({ nightscout: { fetchImpl, now: fixedClock() } });
+    const { app, token } = await authedApp({ fetchImpl, now: fixedClock() });
 
     const response = await app.inject({
       method: "POST",
       url: "/integrations/nightscout/glucose",
+      headers: authHeader(token),
       payload: { url: "https://example-nightscout.test" },
     });
 
@@ -255,11 +333,12 @@ describe("POST /integrations/nightscout/glucose — live mode", () => {
         { sgv: -5, date: FIXED_NOW }, // sgv must be positive
       ]),
     );
-    const app = buildApp({ nightscout: { fetchImpl, now: fixedClock() } });
+    const { app, token } = await authedApp({ fetchImpl, now: fixedClock() });
 
     const response = await app.inject({
       method: "POST",
       url: "/integrations/nightscout/glucose",
+      headers: authHeader(token),
       payload: { url: "https://example-nightscout.test" },
     });
 
@@ -278,11 +357,12 @@ describe("POST /integrations/nightscout/glucose — live mode", () => {
           headers: { "content-type": "application/json" },
         }),
     );
-    const app = buildApp({ nightscout: { fetchImpl, now: fixedClock() } });
+    const { app, token } = await authedApp({ fetchImpl, now: fixedClock() });
 
     const response = await app.inject({
       method: "POST",
       url: "/integrations/nightscout/glucose",
+      headers: authHeader(token),
       payload: { url: "https://example-nightscout.test", token: SECRET_TOKEN },
     });
 
@@ -299,11 +379,12 @@ describe("POST /integrations/nightscout/glucose — live mode", () => {
         { sgv: 118, date: FIXED_NOW - 14 * 60_000 },
       ]),
     );
-    const app = buildApp({ nightscout: { fetchImpl, now: fixedClock() } });
+    const { app, token } = await authedApp({ fetchImpl, now: fixedClock() });
 
     const response = await app.inject({
       method: "POST",
       url: "/integrations/nightscout/glucose",
+      headers: authHeader(token),
       payload: { url: "https://example-nightscout.test", count: 2 },
     });
 
@@ -320,11 +401,12 @@ describe("POST /integrations/nightscout/glucose — live mode", () => {
         { sgv: 108, date: FIXED_NOW - 45 * 60_000 },
       ]),
     );
-    const app = buildApp({ nightscout: { fetchImpl, now: fixedClock() } });
+    const { app, token } = await authedApp({ fetchImpl, now: fixedClock() });
 
     const response = await app.inject({
       method: "POST",
       url: "/integrations/nightscout/glucose",
+      headers: authHeader(token),
       payload: { url: "https://example-nightscout.test", token: SECRET_TOKEN },
     });
 
@@ -339,11 +421,12 @@ describe("POST /integrations/nightscout/glucose — live mode", () => {
 
   it("treats an empty upstream list as a 'no fresh glucose' state, not an error", async () => {
     const fetchImpl = vi.fn(async () => jsonResponse([]));
-    const app = buildApp({ nightscout: { fetchImpl, now: fixedClock() } });
+    const { app, token } = await authedApp({ fetchImpl, now: fixedClock() });
 
     const response = await app.inject({
       method: "POST",
       url: "/integrations/nightscout/glucose",
+      headers: authHeader(token),
       payload: { url: "https://example-nightscout.test" },
     });
 
@@ -356,11 +439,12 @@ describe("POST /integrations/nightscout/glucose — live mode", () => {
 
   it("respects a custom staleAfterMinutes threshold", async () => {
     const fetchImpl = vi.fn(async () => jsonResponse([{ sgv: 100, date: FIXED_NOW - 20 * 60_000 }]));
-    const app = buildApp({ nightscout: { fetchImpl, now: fixedClock() } });
+    const { app, token } = await authedApp({ fetchImpl, now: fixedClock() });
 
     const response = await app.inject({
       method: "POST",
       url: "/integrations/nightscout/glucose",
+      headers: authHeader(token),
       payload: { url: "https://example-nightscout.test", staleAfterMinutes: 30 },
     });
 
@@ -373,11 +457,12 @@ describe("POST /integrations/nightscout/glucose — live mode", () => {
 
 describe("POST /integrations/nightscout/glucose — request validation", () => {
   it("rejects an out-of-range count with 400", async () => {
-    const app = buildApp({ nightscout: { fetchImpl: vi.fn(), now: fixedClock() } });
+    const { app, token } = await authedApp({ fetchImpl: vi.fn(), now: fixedClock() });
 
     const tooMany = await app.inject({
       method: "POST",
       url: "/integrations/nightscout/glucose",
+      headers: authHeader(token),
       payload: { mock: true, count: 289 },
     });
     expect(tooMany.statusCode).toBe(400);
@@ -386,17 +471,19 @@ describe("POST /integrations/nightscout/glucose — request validation", () => {
     const tooFew = await app.inject({
       method: "POST",
       url: "/integrations/nightscout/glucose",
+      headers: authHeader(token),
       payload: { mock: true, count: 0 },
     });
     expect(tooFew.statusCode).toBe(400);
   });
 
   it("rejects a non-numeric count with 400", async () => {
-    const app = buildApp({ nightscout: { fetchImpl: vi.fn(), now: fixedClock() } });
+    const { app, token } = await authedApp({ fetchImpl: vi.fn(), now: fixedClock() });
 
     const response = await app.inject({
       method: "POST",
       url: "/integrations/nightscout/glucose",
+      headers: authHeader(token),
       payload: { mock: true, count: "twelve" },
     });
 
@@ -405,16 +492,141 @@ describe("POST /integrations/nightscout/glucose — request validation", () => {
 
   it("rejects a malformed url with 400 rather than attempting a request", async () => {
     const fetchImpl = vi.fn();
-    const app = buildApp({ nightscout: { fetchImpl, now: fixedClock() } });
+    const { app, token } = await authedApp({ fetchImpl, now: fixedClock() });
 
     const response = await app.inject({
       method: "POST",
       url: "/integrations/nightscout/glucose",
+      headers: authHeader(token),
       payload: { url: "not-a-valid-url", token: SECRET_TOKEN },
     });
 
     expect(response.statusCode).toBe(400);
     expect(fetchImpl).not.toHaveBeenCalled();
     expect(response.body).not.toContain(SECRET_TOKEN);
+  });
+});
+
+describe("POST /integrations/nightscout/glucose — SSRF guard (H1)", () => {
+  it("blocks a non-https url", async () => {
+    const fetchImpl = vi.fn();
+    const { app, token } = await authedApp({ fetchImpl, now: fixedClock() });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/integrations/nightscout/glucose",
+      headers: authHeader(token),
+      payload: { url: "http://example-nightscout.test" },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error).toBe("invalid_url");
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("blocks the cloud metadata IP (169.254.169.254)", async () => {
+    const fetchImpl = vi.fn();
+    const { app, token } = await authedApp({ fetchImpl, now: fixedClock() });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/integrations/nightscout/glucose",
+      headers: authHeader(token),
+      payload: { url: "https://169.254.169.254/latest/meta-data/" },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error).toBe("invalid_url");
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["loopback", "https://127.0.0.1/"],
+    ["10.0.0.0/8", "https://10.1.2.3/"],
+    ["172.16.0.0/12", "https://172.20.5.5/"],
+    ["192.168.0.0/16", "https://192.168.1.10/"],
+    ["localhost by name", "https://localhost/"],
+    ["IPv6 loopback", "https://[::1]/"],
+  ])("blocks a private/loopback target (%s)", async (_label, url) => {
+    const fetchImpl = vi.fn();
+    const { app, token } = await authedApp({ fetchImpl, now: fixedClock() });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/integrations/nightscout/glucose",
+      headers: authHeader(token),
+      payload: { url },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error).toBe("invalid_url");
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("returns an identical, generic error body regardless of which rule blocked the request", async () => {
+    const { app, token } = await authedApp({ fetchImpl: vi.fn(), now: fixedClock() });
+
+    const httpResponse = await app.inject({
+      method: "POST",
+      url: "/integrations/nightscout/glucose",
+      headers: authHeader(token),
+      payload: { url: "http://example-nightscout.test" },
+    });
+    const privateIpResponse = await app.inject({
+      method: "POST",
+      url: "/integrations/nightscout/glucose",
+      headers: authHeader(token),
+      payload: { url: "https://10.0.0.5/" },
+    });
+
+    expect(httpResponse.json()).toEqual(privateIpResponse.json());
+  });
+
+  it("blocks a hostname that DNS resolves to a private/metadata address (resolve-then-check)", async () => {
+    const fetchImpl = vi.fn();
+    const dnsLookupImpl = async () => [{ address: "169.254.169.254", family: 4 }];
+    const { app, token } = await authedApp({ fetchImpl, now: fixedClock(), dnsLookupImpl });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/integrations/nightscout/glucose",
+      headers: authHeader(token),
+      payload: { url: "https://sneaky-hostname.test/" },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error).toBe("invalid_url");
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("allows a normal https host via injected fetch when DNS resolution fails (safe fallback)", async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse([{ sgv: 100, date: FIXED_NOW - 2 * 60_000 }]));
+    const { app, token } = await authedApp({ fetchImpl, now: fixedClock(), dnsLookupImpl: NO_DNS });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/integrations/nightscout/glucose",
+      headers: authHeader(token),
+      payload: { url: "https://example-nightscout.test" },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it("allows a normal https host that DNS resolves to a public address", async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse([{ sgv: 100, date: FIXED_NOW - 2 * 60_000 }]));
+    const dnsLookupImpl = async () => [{ address: "203.0.113.10", family: 4 }];
+    const { app, token } = await authedApp({ fetchImpl, now: fixedClock(), dnsLookupImpl });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/integrations/nightscout/glucose",
+      headers: authHeader(token),
+      payload: { url: "https://public-nightscout.test/" },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 });

@@ -18,7 +18,7 @@ export class InMemoryMealRepository implements MealRepository {
     return `meal-${this.sequence}`;
   }
 
-  async save(summary: MealSummary): Promise<{ id: string }> {
+  async save(summary: MealSummary, ownerId: string): Promise<{ id: string }> {
     const id = this.nextId();
     const stored: StoredMeal = {
       id,
@@ -26,6 +26,7 @@ export class InMemoryMealRepository implements MealRepository {
       // it never influences the id.
       createdAt: new Date().toISOString(),
       summary,
+      ownerId,
     };
     this.meals.set(id, stored);
     return { id };

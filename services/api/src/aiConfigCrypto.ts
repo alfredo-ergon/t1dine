@@ -67,7 +67,10 @@ export function decryptSecret(packed: string, secret: string): string {
   return plaintext.toString("utf8");
 }
 
-const DEV_FALLBACK_SETTINGS_SECRET = "t1dine-dev-only-insecure-settings-secret-change-me";
+/** Exported so `./prodGate.ts` can recognise "still the dev default" as a
+ * fail-closed-in-production condition (C1) without duplicating the literal
+ * string. */
+export const DEV_FALLBACK_SETTINGS_SECRET = "t1dine-dev-only-insecure-settings-secret-change-me";
 let warnedAboutFallbackSecret = false;
 
 /**

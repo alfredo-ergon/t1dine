@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
+import type { FastifyInstance } from "fastify";
 import { buildApp } from "../src/app.js";
+
+const TEST_AUTH_SECRET = "test-only-fixed-auth-secret-for-vitest-api";
+
+async function registerAndGetToken(app: FastifyInstance, email: string): Promise<string> {
+  const response = await app.inject({
+    method: "POST",
+    url: "/auth/register",
+    payload: { email, password: "correct-password-123" },
+  });
+  return response.json().token as string;
+}
 
 describe("GET /health", () => {
   it("reports liveness without any health/clinical data", async () => {
@@ -73,10 +85,12 @@ describe("GET /catalog/foods/:id", () => {
 
 describe("POST /meals", () => {
   it("computes correct totals for a known 2-item meal", async () => {
-    const app = buildApp();
+    const app = buildApp({ authSecret: TEST_AUTH_SECRET });
+    const token = await registerAndGetToken(app, "meals-totals@example.com");
     const response = await app.inject({
       method: "POST",
       url: "/meals",
+      headers: { authorization: `Bearer ${token}` },
       payload: {
         lines: [
           { foodId: "pt-arroz-branco-cozido", amount: 100 }, // 28.2 g carb / 130 kcal per 100g
@@ -96,10 +110,12 @@ describe("POST /meals", () => {
   });
 
   it("rejects an unknown foodId with 400", async () => {
-    const app = buildApp();
+    const app = buildApp({ authSecret: TEST_AUTH_SECRET });
+    const token = await registerAndGetToken(app, "meals-unknown-food@example.com");
     const response = await app.inject({
       method: "POST",
       url: "/meals",
+      headers: { authorization: `Bearer ${token}` },
       payload: { lines: [{ foodId: "not-a-real-food", amount: 100 }] },
     });
 
@@ -109,10 +125,12 @@ describe("POST /meals", () => {
   });
 
   it("rejects a negative amount with 400", async () => {
-    const app = buildApp();
+    const app = buildApp({ authSecret: TEST_AUTH_SECRET });
+    const token = await registerAndGetToken(app, "meals-negative-amount@example.com");
     const response = await app.inject({
       method: "POST",
       url: "/meals",
+      headers: { authorization: `Bearer ${token}` },
       payload: { lines: [{ foodId: "pt-maca", amount: -5 }] },
     });
 
@@ -120,27 +138,78 @@ describe("POST /meals", () => {
     const body = response.json();
     expect(body.error).toBe("invalid_body");
   });
+
+  it("rejects an unauthenticated request with 401 (M4)", async () => {
+    const app = buildApp({ authSecret: TEST_AUTH_SECRET });
+    const response = await app.inject({
+      method: "POST",
+      url: "/meals",
+      payload: { lines: [{ foodId: "pt-maca", amount: 100 }] },
+    });
+
+    expect(response.statusCode).toBe(401);
+  });
 });
 
 describe("GET /meals/:id", () => {
-  it("retrieves a previously stored meal", async () => {
-    const app = buildApp();
+  it("retrieves a previously stored meal for its owner", async () => {
+    const app = buildApp({ authSecret: TEST_AUTH_SECRET });
+    const token = await registerAndGetToken(app, "meals-owner@example.com");
     const created = await app.inject({
       method: "POST",
       url: "/meals",
+      headers: { authorization: `Bearer ${token}` },
       payload: { lines: [{ foodId: "pt-banana", amount: 100 }] },
     });
     const { id } = created.json();
 
-    const fetched = await app.inject({ method: "GET", url: `/meals/${id}` });
+    const fetched = await app.inject({
+      method: "GET",
+      url: `/meals/${id}`,
+      headers: { authorization: `Bearer ${token}` },
+    });
 
     expect(fetched.statusCode).toBe(200);
     expect(fetched.json().id).toBe(id);
   });
 
   it("404s for an unknown meal id", async () => {
-    const app = buildApp();
-    const response = await app.inject({ method: "GET", url: "/meals/does-not-exist" });
+    const app = buildApp({ authSecret: TEST_AUTH_SECRET });
+    const token = await registerAndGetToken(app, "meals-unknown-id@example.com");
+    const response = await app.inject({
+      method: "GET",
+      url: "/meals/does-not-exist",
+      headers: { authorization: `Bearer ${token}` },
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+
+  it("rejects an unauthenticated request with 401 (M4)", async () => {
+    const app = buildApp({ authSecret: TEST_AUTH_SECRET });
+    const response = await app.inject({ method: "GET", url: "/meals/meal-1" });
+
+    expect(response.statusCode).toBe(401);
+  });
+
+  it("404s (never 403) when a different authenticated user requests someone else's meal (M4 ownership)", async () => {
+    const app = buildApp({ authSecret: TEST_AUTH_SECRET });
+    const ownerToken = await registerAndGetToken(app, "meals-owner-2@example.com");
+    const otherToken = await registerAndGetToken(app, "meals-other-user@example.com");
+
+    const created = await app.inject({
+      method: "POST",
+      url: "/meals",
+      headers: { authorization: `Bearer ${ownerToken}` },
+      payload: { lines: [{ foodId: "pt-banana", amount: 100 }] },
+    });
+    const { id } = created.json();
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/meals/${id}`,
+      headers: { authorization: `Bearer ${otherToken}` },
+    });
 
     expect(response.statusCode).toBe(404);
   });

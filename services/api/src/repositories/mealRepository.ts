@@ -23,15 +23,23 @@ export interface StoredMeal {
    * governs id generation, not record metadata. */
   createdAt: string;
   summary: MealSummary;
+  /** The authenticated user who created this meal (security review M4 — see
+   * `../modules/meals.ts`). `GET /meals/:id` uses this to 404 (never 403)
+   * for anyone else, so ownership is enforced without ever revealing that a
+   * meal id belonging to another user exists. */
+  ownerId: string;
 }
 
 export interface MealRepository {
-  /** Persists a newly computed meal summary and returns its assigned id.
-   * Implementations must assign ids deterministically (a monotonic counter,
-   * a DB sequence, etc.) — never `Math.random()`/`Date.now()`. */
-  save(summary: MealSummary): Promise<{ id: string }>;
+  /** Persists a newly computed meal summary, owned by `ownerId`, and returns
+   * its assigned id. Implementations must assign ids deterministically (a
+   * monotonic counter, a DB sequence, etc.) — never
+   * `Math.random()`/`Date.now()`. */
+  save(summary: MealSummary, ownerId: string): Promise<{ id: string }>;
   /** Looks up a previously stored meal by id, or `null` when it does not
-   * exist (never throws for a merely-unknown id). */
+   * exist (never throws for a merely-unknown id). Callers MUST still check
+   * `.ownerId` themselves before returning a match to a caller — this method
+   * does not filter by owner. */
   get(id: string): Promise<StoredMeal | null>;
   /** Releases any held resources (e.g. a `pg` connection pool). Optional —
    * the in-memory adapter has nothing to close. */

@@ -4,12 +4,23 @@
 // `../repositories/mealRepository.ts`). This module never knows whether the
 // backing store is the in-memory adapter or Postgres — swapping the adapter
 // must never change the response shape below.
+//
+// AUTH + OWNERSHIP (security review M4): the T1Dine mobile app is
+// local-first and does not call these routes today (meal assembly happens
+// on-device) — but a public, unauthenticated write/read pair backed by a
+// real persistence layer is still a live risk (an anonymous caller could
+// otherwise fill the store, or enumerate/read any `meal-N` id). Both routes
+// now require `requireAuth`; `POST /meals` records `request.userId` as the
+// meal's owner, and `GET /meals/:id` 404s (never 403) for anyone else's meal
+// — the same "don't reveal that the id exists" convention already used by
+// `../catalogFilters.ts`'s public catalog routes for unapproved foods.
 
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { CanonicalFood } from "@t1dine/food-schema";
 import { summariseMeal } from "@t1dine/nutrition";
 import { CATALOG } from "../catalog.js";
+import { requireAuth } from "./auth.js";
 import type { MealRepository } from "../repositories/mealRepository.js";
 
 const mealLineSchema = z.object({
@@ -32,15 +43,30 @@ function findFoodById(foodId: string): CanonicalFood | undefined {
   return CATALOG.find((item) => item.id === foodId);
 }
 
+export interface MealsDeps {
+  repository: MealRepository;
+  secret: string;
+}
+
 /**
  * Builds the meals route plugin bound to a specific `MealRepository`
- * instance, mirroring the closure pattern already used by
- * `nightscoutRoutes` — this keeps the injected dependency fully typed
- * without an `unknown`-typed Fastify options bag.
+ * instance and HMAC secret, mirroring the closure pattern already used by
+ * `nightscoutRoutes`/`syncRoutes` — this keeps the injected dependencies
+ * fully typed without an `unknown`-typed Fastify options bag.
  */
-export function mealsRoutes(repository: MealRepository) {
+export function mealsRoutes(deps: MealsDeps) {
+  const { repository, secret } = deps;
+  const authPreHandler = requireAuth(secret);
+
   return async function registerMealsRoutes(app: FastifyInstance): Promise<void> {
-    app.post("/meals", async (request, reply) => {
+    app.post("/meals", { preHandler: authPreHandler }, async (request, reply) => {
+      const ownerId = request.userId;
+      if (!ownerId) {
+        // Invariant guard: `requireAuth` always sets this before the handler
+        // runs, or short-circuits with 401 first.
+        return reply.status(401).send({ error: "unauthorized", message: "Missing authenticated user." });
+      }
+
       const parsedBody = createMealBodySchema.safeParse(request.body);
       if (!parsedBody.success) {
         return reply.status(400).send({
@@ -71,12 +97,12 @@ export function mealsRoutes(repository: MealRepository) {
       }
 
       const summary = summariseMeal(resolvedLines);
-      const { id } = await repository.save(summary);
+      const { id } = await repository.save(summary, ownerId);
 
       return reply.status(201).send({ id, summary });
     });
 
-    app.get("/meals/:id", async (request, reply) => {
+    app.get("/meals/:id", { preHandler: authPreHandler }, async (request, reply) => {
       const parsedParams = mealParamsSchema.safeParse(request.params);
       if (!parsedParams.success) {
         return reply.status(400).send({
@@ -87,7 +113,9 @@ export function mealsRoutes(repository: MealRepository) {
       }
 
       const stored = await repository.get(parsedParams.data.id);
-      if (!stored) {
+      // Deliberately the SAME 404 whether the id is unknown or belongs to a
+      // different user — never reveal that another user's meal id exists.
+      if (!stored || stored.ownerId !== request.userId) {
         return reply.status(404).send({
           error: "not_found",
           message: `No meal found with id "${parsedParams.data.id}".`,

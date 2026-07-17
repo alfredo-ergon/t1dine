@@ -25,12 +25,22 @@
 // no server-side session store: `requireAuth` verifies the signature and
 // trusts the embedded `userId` — it never queries the `UserRepository`, so a
 // user row can be looked up by whichever route needs one, but authentication
-// itself has no database dependency.
+// itself has no database dependency. Because there is no session store, a
+// token also cannot be server-side revoked before it expires — `verifyToken`
+// therefore additionally rejects any token older than
+// `resolveAuthTokenMaxAgeMs()` (`AUTH_TOKEN_MAX_AGE_MS`, 30 days by default —
+// security review M1), so a leaked token has a bounded lifetime.
+//
+// `/auth/register` and `/auth/login` also carry a tighter, env-tunable rate
+// limit than the rest of the API (security review H2/M3 — see
+// `../rateLimit.ts`'s `resolveAuthRateLimit`), since they are the primary
+// brute-force/credential-stuffing surface.
 
 import { createHmac, randomBytes, scrypt as scryptCallback, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
+import { resolveAuthRateLimit } from "../rateLimit.js";
 import { UserEmailTakenError } from "../repositories/userRepository.js";
 import type { UserRepository } from "../repositories/userRepository.js";
 
@@ -83,7 +93,10 @@ const DUMMY_HASH_HEX = randomBytes(SCRYPT_KEYLEN).toString("hex");
 // Stateless signed bearer token (HMAC-SHA256 over userId + issuedAt)
 // ---------------------------------------------------------------------------
 
-const DEV_FALLBACK_AUTH_SECRET = "t1dine-dev-only-insecure-auth-secret-change-me";
+/** Exported so `../prodGate.ts` can recognise "still the dev default" as a
+ * fail-closed-in-production condition (C1) without duplicating the literal
+ * string. */
+export const DEV_FALLBACK_AUTH_SECRET = "t1dine-dev-only-insecure-auth-secret-change-me";
 let warnedAboutFallbackSecret = false;
 
 /** Resolves the server-side HMAC secret from `AUTH_SECRET`, falling back to
@@ -116,10 +129,33 @@ export interface VerifiedToken {
   issuedAt: number;
 }
 
+const DEFAULT_AUTH_TOKEN_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+/** Resolves the max token age from `AUTH_TOKEN_MAX_AGE_MS` (milliseconds),
+ * falling back to a fixed 30-day default when unset, blank, or not a finite
+ * positive number (M1 — a stateless bearer token has no server-side session
+ * to revoke, so it must expire on its own). */
+export function resolveAuthTokenMaxAgeMs(env: NodeJS.ProcessEnv = process.env): number {
+  const raw = env["AUTH_TOKEN_MAX_AGE_MS"];
+  if (raw === undefined) return DEFAULT_AUTH_TOKEN_MAX_AGE_MS;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_AUTH_TOKEN_MAX_AGE_MS;
+}
+
+export interface VerifyTokenOptions {
+  /** Reject a token whose `issuedAt` is older than this many milliseconds.
+   * Defaults to `resolveAuthTokenMaxAgeMs()` when omitted. */
+  maxAgeMs?: number;
+  /** Injectable clock — test seam only. Defaults to `Date.now`. */
+  now?: () => number;
+}
+
 /** Verifies a bearer token against `secret` using a constant-time signature
- * compare. Returns `null` for ANY malformed, mismatched, or garbage input —
- * it never throws, so callers can fail closed with a plain `401`. */
-export function verifyToken(token: string, secret: string): VerifiedToken | null {
+ * compare, AND rejects a token whose `issuedAt` is older than the max token
+ * age (M1 — see `resolveAuthTokenMaxAgeMs`). Returns `null` for ANY
+ * malformed, mismatched, expired, or garbage input — it never throws, so
+ * callers can fail closed with a plain `401`. */
+export function verifyToken(token: string, secret: string, options: VerifyTokenOptions = {}): VerifiedToken | null {
   if (typeof token !== "string" || token.length === 0) return null;
 
   const separatorIndex = token.lastIndexOf(".");
@@ -147,7 +183,12 @@ export function verifyToken(token: string, secret: string): VerifiedToken | null
   if (expectedBuffer.length !== actualBuffer.length) return null;
   if (!timingSafeEqual(expectedBuffer, actualBuffer)) return null;
 
-  return { userId, issuedAt: Number(issuedAtRaw) };
+  const issuedAt = Number(issuedAtRaw);
+  const maxAgeMs = options.maxAgeMs ?? resolveAuthTokenMaxAgeMs();
+  const now = options.now ?? Date.now;
+  if (now() - issuedAt > maxAgeMs) return null;
+
+  return { userId, issuedAt };
 }
 
 /** Fastify preHandler factory: verifies `Authorization: Bearer <token>`
@@ -228,9 +269,13 @@ export interface AuthDeps {
  */
 export function authRoutes(deps: AuthDeps) {
   const { repository, secret } = deps;
+  // Tighter, env-tunable rate limit (H2/M3 — see `../rateLimit.ts`):
+  // credential endpoints are the primary brute-force/credential-stuffing
+  // surface, so both get the same, stricter-than-global limit.
+  const authRateLimitConfig = { config: { rateLimit: resolveAuthRateLimit() } };
 
   return async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
-    app.post("/auth/register", async (request, reply) => {
+    app.post("/auth/register", authRateLimitConfig, async (request, reply) => {
       const parsedBody = credentialsSchema.safeParse(request.body);
       if (!parsedBody.success) {
         return reply.status(400).send({
@@ -270,7 +315,7 @@ export function authRoutes(deps: AuthDeps) {
       }
     });
 
-    app.post("/auth/login", async (request, reply) => {
+    app.post("/auth/login", authRateLimitConfig, async (request, reply) => {
       const parsedBody = credentialsSchema.safeParse(request.body);
       if (!parsedBody.success) {
         return reply.status(400).send({
