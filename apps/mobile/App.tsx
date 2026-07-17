@@ -32,6 +32,7 @@ import { GlucoseScreen } from "./src/screens/GlucoseScreen";
 import { HistoryScreen } from "./src/screens/HistoryScreen";
 import { MealScreen } from "./src/screens/MealScreen";
 import { ProfileScreen, type DoseProfileFormValues } from "./src/screens/ProfileScreen";
+import { RecipesScreen } from "./src/screens/RecipesScreen";
 import { SavedMealsScreen } from "./src/screens/SavedMealsScreen";
 import { SearchScreen } from "./src/screens/SearchScreen";
 import { SubmissionsScreen } from "./src/screens/SubmissionsScreen";
@@ -46,6 +47,7 @@ import {
   updateHistoryEntry,
   type HistoryEntry,
 } from "./src/mealHistory";
+import { buildRecipe, clearRecipes, deleteRecipe, loadRecipes, recipeToMealLine, saveRecipe, type Recipe, type RecipeInput } from "./src/recipes";
 import { buildSavedMealFromLines, loadSavedMeals, resolveSavedMealToLines, saveSavedMeals, type SavedMeal } from "./src/savedMeals";
 import {
   DEFAULT_STARTUP_TAB,
@@ -77,6 +79,7 @@ type Overlay =
   | { kind: "submissions" }
   | { kind: "savedMeals" }
   | { kind: "history" }
+  | { kind: "recipes" }
   | { kind: "barcodeScan" }
   | null;
 
@@ -128,6 +131,16 @@ function AppShell() {
   // from scratch, freshly logged, or loaded via "Reutilizar" (which
   // deliberately never links back — see loadHistoryEntryIntoCurrent).
   const [editingHistoryEntryId, setEditingHistoryEntryId] = useState<string | null>(null);
+
+  // "Receitas" (recipe carb calculator — Slice: Receitas) — a local-first,
+  // user-curated list, same ownership shape as `history` above: App.tsx holds
+  // the in-memory list (loaded once at startup below), but every mutation
+  // goes through ../src/recipes.ts's own read-current-then-write functions
+  // (saveRecipe/deleteRecipe/clearRecipes), which read the on-device list
+  // fresh before writing rather than trusting this in-memory mirror, and
+  // return the resulting list to sync it back. No separate "whole-array
+  // overwrite" persistence effect is needed (unlike `savedMeals` below).
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
 
   // Dose Assist clinical profile (Rácio/Fator/Alvo/Incremento/Dose
   // máxima/Limiar) — a separate, deliberately non-food AsyncStorage key
@@ -183,24 +196,38 @@ function AppShell() {
       loadSession(),
       loadSavedMeals(),
       loadHistory(),
+      loadRecipes(),
       loadStartupTab(),
     ])
-      .then(([loadedFavourites, loadedRecents, loadedCustomFoods, loadedDoseProfile, loadedSession, loadedSavedMeals, loadedHistory, loadedStartupTab]) => {
-        if (cancelled) return;
-        setFavouriteIds(loadedFavourites);
-        setRecentIds(loadedRecents);
-        setCustomFoods(loadedCustomFoods);
-        setDoseProfile(loadedDoseProfile.profile);
-        setHasSavedDoseProfile(loadedDoseProfile.hasSavedProfile);
-        setSession(loadedSession);
-        setSavedMeals(loadedSavedMeals);
-        setHistory(loadedHistory);
-        // Apply the saved landing tab as the initial view. Safe to set
-        // activeTab here (still behind the Splash until dataLoaded flips), so
-        // there's no flash of the default "search" tab first.
-        setStartupTab(loadedStartupTab);
-        setActiveTab(loadedStartupTab);
-      })
+      .then(
+        ([
+          loadedFavourites,
+          loadedRecents,
+          loadedCustomFoods,
+          loadedDoseProfile,
+          loadedSession,
+          loadedSavedMeals,
+          loadedHistory,
+          loadedRecipes,
+          loadedStartupTab,
+        ]) => {
+          if (cancelled) return;
+          setFavouriteIds(loadedFavourites);
+          setRecentIds(loadedRecents);
+          setCustomFoods(loadedCustomFoods);
+          setDoseProfile(loadedDoseProfile.profile);
+          setHasSavedDoseProfile(loadedDoseProfile.hasSavedProfile);
+          setSession(loadedSession);
+          setSavedMeals(loadedSavedMeals);
+          setHistory(loadedHistory);
+          setRecipes(loadedRecipes);
+          // Apply the saved landing tab as the initial view. Safe to set
+          // activeTab here (still behind the Splash until dataLoaded flips), so
+          // there's no flash of the default "search" tab first.
+          setStartupTab(loadedStartupTab);
+          setActiveTab(loadedStartupTab);
+        },
+      )
       .finally(() => {
         if (!cancelled) setDataLoaded(true);
       });
@@ -358,11 +385,13 @@ function AppShell() {
     setActiveSavedMealId(null);
     setHistory([]);
     setEditingHistoryEntryId(null);
+    setRecipes([]);
     void saveFavouriteIds([]);
     void saveRecentIds([]);
     void saveCustomFoods([]);
     void saveSavedMeals([]);
     void clearHistory();
+    void clearRecipes();
     void clearNightscoutConnection();
   }, []);
 
@@ -501,6 +530,35 @@ function AppShell() {
 
   const handleReuseHistoryEntry = useCallback((entry: HistoryEntry) => loadHistoryEntryIntoCurrent(entry, false), [loadHistoryEntryIntoCurrent]);
   const handleEditHistoryEntry = useCallback((entry: HistoryEntry) => loadHistoryEntryIntoCurrent(entry, true), [loadHistoryEntryIntoCurrent]);
+
+  // "Receitas" (recipe carb calculator — Slice: Receitas). `editing` is the
+  // recipe being replaced in place (from RecipesScreen's "Editar"), or `null`
+  // for a brand-new one — ../src/recipes.ts's buildRecipe() is the ONLY place
+  // that assigns a recipe's id/createdAt, mirroring buildCustomFood/
+  // buildSavedMealFromLines elsewhere in this file. saveRecipe() reads the
+  // on-device list fresh before writing, so this is safe even before
+  // `recipes` has finished hydrating from storage.
+  const handleSaveRecipe = useCallback((input: RecipeInput, editing: Recipe | null) => {
+    const recipe = buildRecipe(input, editing ?? undefined);
+    void saveRecipe(recipe).then(setRecipes);
+  }, []);
+
+  const handleDeleteRecipe = useCallback((id: string) => {
+    void deleteRecipe(id).then(setRecipes);
+  }, []);
+
+  // "Adicionar à refeição" (Usar receita) — turns `portions` portions of
+  // `recipe` into a MealLine (../src/recipes.ts's recipeToMealLine) and adds
+  // it through the EXISTING, unmodified meal-adding pipeline (handleAddToMeal
+  // above), so it merges/totals/flows into the dose review and the Diário
+  // exactly like adding any other food.
+  const handleUseRecipe = useCallback(
+    (recipe: Recipe, portions: number) => {
+      const line = recipeToMealLine(recipe, portions);
+      handleAddToMeal(line.food, line.amount);
+    },
+    [handleAddToMeal],
+  );
 
   // "Perfil clínico" save: merges the validated form values into the current
   // profile, bumps `version` (so the calculation's audit record reflects
@@ -695,6 +753,7 @@ function AppShell() {
             meal={meal}
             savedMeals={savedMeals}
             history={history}
+            recipes={recipes}
             onDeleteAll={handleDeleteAllData}
             doseProfile={doseProfile}
             hasSavedDoseProfile={hasSavedDoseProfile}
@@ -731,6 +790,10 @@ function AppShell() {
 
         {overlay?.kind === "history" && (
           <HistoryScreen history={history} onReuse={handleReuseHistoryEntry} onEdit={handleEditHistoryEntry} onDelete={handleDeleteHistoryEntry} />
+        )}
+
+        {overlay?.kind === "recipes" && (
+          <RecipesScreen recipes={recipes} allFoods={allFoods} onSave={handleSaveRecipe} onDelete={handleDeleteRecipe} onUse={handleUseRecipe} />
         )}
 
         {overlay === null && (
@@ -785,6 +848,8 @@ function AppShell() {
                 onUpdateHistoryEntry={() => {
                   if (editingHistoryEntryId) handleUpdateHistoryEntry(editingHistoryEntryId);
                 }}
+                recipesCount={recipes.length}
+                onOpenRecipes={() => setOverlay({ kind: "recipes" })}
               />
             )}
 

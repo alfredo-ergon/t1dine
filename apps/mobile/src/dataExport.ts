@@ -9,6 +9,7 @@ import type { MealLine } from "@t1dine/nutrition";
 
 import type { Language } from "./i18n";
 import type { HistoryEntry } from "./mealHistory";
+import type { Recipe } from "./recipes";
 import type { SavedMeal } from "./savedMeals";
 
 export interface DataExportBundle {
@@ -22,6 +23,9 @@ export interface DataExportBundle {
   /** The "Diário" — a dated log of meals actually eaten (../mealHistory.ts),
    * distinct from `savedMeals` above (undated, reusable templates). */
   history: HistoryEntry[];
+  /** "Receitas" — user-built recipes (ingredients + yield/portions), used to
+   * add whole portions to a meal (../recipes.ts). */
+  recipes: Recipe[];
   /** Whether a Nightscout connection is currently saved on this device
    * (../nightscoutStore.ts) — NEVER the url or the token itself. The
    * Nightscout token is a HIGH-IMPACT credential (CLAUDE.md) and must never
@@ -38,6 +42,7 @@ export interface DataExportInput {
   meal: MealLine[];
   savedMeals: SavedMeal[];
   history: HistoryEntry[];
+  recipes: Recipe[];
   nightscoutConnected: boolean;
 }
 
@@ -52,6 +57,7 @@ export function buildDataExportBundle(input: DataExportInput, now: () => string 
     meal: input.meal,
     savedMeals: input.savedMeals,
     history: input.history,
+    recipes: input.recipes,
     nightscoutConnected: input.nightscoutConnected,
   };
 }
