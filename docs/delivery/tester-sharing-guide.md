@@ -1,11 +1,20 @@
 # Sharing T1Dine with an external tester
 
-The mobile app is Expo (SDK 54). The simplest way to put it on an external
-tester's phone — especially an **Android** device like the Galaxy S24 — is an
-**EAS preview build**: a standalone `.apk` the tester installs directly (no dev
-server, works offline). This repo is already configured for it
+The mobile app is Expo (SDK 54). This repo is already configured for EAS builds
 ([`apps/mobile/eas.json`](../../apps/mobile/eas.json), camera permission +
 version in [`apps/mobile/app.json`](../../apps/mobile/app.json)).
+
+**The two platforms differ a lot in how you share with an external tester:**
+
+| | Android | iOS / Apple |
+|---|---|---|
+| How | Standalone `.apk` the tester installs from a link | **TestFlight** (Apple forbids sideloading) |
+| Cost | Free | **Apple Developer Program — $99/year** |
+| Review | None | Internal testers (≤100): none. External testers (≤10 000): one-time beta review per first build |
+| Speed | Minutes | First TestFlight build takes longer (Apple credentials + processing) |
+
+Do the **Android APK** first (quick, free), then set up **iOS/TestFlight** when you
+have the Apple Developer Program.
 
 ## One-time setup (you, with a free Expo account)
 
@@ -16,7 +25,7 @@ eas login                 # free Expo account
 eas init                  # creates the Expo project + writes its projectId into app.json
 ```
 
-## Build an installable APK and share it
+## Android — installable APK (free, minutes)
 
 ```bash
 cd apps/mobile
@@ -29,9 +38,39 @@ eas build --platform android --profile preview
   install it (Android asks to allow "install unknown apps" the first time).
 - To re-share after changes, run the same command again and send the new link.
 
-> **iOS tester?** iOS can't sideload a bare `.ipa` — it needs TestFlight, which
-> requires a paid Apple Developer account. `eas build -p ios --profile preview`
-> + `eas submit`/TestFlight is the path. Android APK is the quick win first.
+## iOS — TestFlight (needs the Apple Developer Program, $99/year)
+
+Apple does not allow sideloading for external testers, so iOS goes through
+**TestFlight**. One-time: enrol in the **Apple Developer Program**
+(developer.apple.com) and create the app record in **App Store Connect** (bundle
+id `app.t1dine.mobile`, already set in `app.json`).
+
+```bash
+cd apps/mobile
+eas build --platform ios --profile production      # EAS creates/manages the iOS credentials interactively
+eas submit --platform ios --latest                 # uploads the build to App Store Connect / TestFlight
+```
+
+Then, in **App Store Connect → TestFlight**:
+- **Internal testers** (up to 100, must be users on your App Store Connect team):
+  they get the build immediately, no review — the fastest path for a trusted tester
+  you can add as a team user.
+- **External testers** (up to 10 000, invited by email/Apple ID, grouped): the
+  first build you send to external testing needs a one-time **beta review** (usually
+  a day); after that, invited testers install via the **TestFlight** app.
+
+> Alternative without TestFlight: **ad-hoc** internal distribution
+> (`eas build -p ios --profile preview` with `distribution: "internal"`) registers
+> the tester's **device UDID** and produces an installable link — but it still needs
+> the Apple Developer Program, and you must collect each device's UDID up front.
+> TestFlight is simpler for anyone beyond one or two known devices.
+
+## Keeping both in sync
+
+Bump `version` (and, for the stores, the build number — `eas build` `autoIncrement`
+in the production profile handles it) in `app.json`, rebuild each platform, and
+re-share. Both platforms read the same JS bundle, so a feature you see on the web
+preview is what the tester gets.
 
 ## What the tester can do — offline vs online
 
