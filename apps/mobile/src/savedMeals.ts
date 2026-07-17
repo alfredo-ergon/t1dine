@@ -25,6 +25,11 @@ import { assertCanonicalFood } from "@t1dine/food-schema";
 import type { MealLine } from "@t1dine/nutrition";
 import { CARBOHYDRATE_CODE, summariseMeal } from "@t1dine/nutrition";
 
+import { getActiveProfileId, migrateLegacyKey, profileKey } from "./profiles";
+
+// Slice: caregiver profiles ("Perfis"). Saved meals are per-profile — see
+// ../mealHistory.ts's identical note. `SAVED_MEALS_KEY` below is used as the
+// "base" passed to `profileKey`/`migrateLegacyKey`.
 const SAVED_MEALS_KEY = "t1dine.savedMeals";
 
 export interface SavedMealItem {
@@ -224,7 +229,10 @@ async function readJson(key: string): Promise<unknown> {
  * boundaries.").
  */
 export async function loadSavedMeals(): Promise<SavedMeal[]> {
-  const value = await readJson(SAVED_MEALS_KEY);
+  const profileId = getActiveProfileId();
+  const key = profileKey(SAVED_MEALS_KEY, profileId);
+  await migrateLegacyKey(SAVED_MEALS_KEY, profileId, key);
+  const value = await readJson(key);
   if (!Array.isArray(value)) return [];
   return value.filter(isSavedMeal).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
@@ -235,7 +243,21 @@ export async function loadSavedMeals(): Promise<SavedMeal[]> {
  * must never surface as a blocking error in the offline-first UI. */
 export async function saveSavedMeals(meals: SavedMeal[]): Promise<void> {
   try {
-    await AsyncStorage.setItem(SAVED_MEALS_KEY, JSON.stringify(meals));
+    await AsyncStorage.setItem(profileKey(SAVED_MEALS_KEY, getActiveProfileId()), JSON.stringify(meals));
+  } catch {
+    // Best-effort persistence only.
+  }
+}
+
+/**
+ * Removes THIS SPECIFIC profile's entire saved-meals list — used when a
+ * profile is deleted (App.tsx's handleDeleteProfile) or when every profile's
+ * data is wiped ("Apagar todos os meus dados"). Takes an explicit
+ * `profileId` (not necessarily the active one).
+ */
+export async function clearProfileData(profileId: string): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(profileKey(SAVED_MEALS_KEY, profileId));
   } catch {
     // Best-effort persistence only.
   }

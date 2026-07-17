@@ -32,6 +32,11 @@ import { assertCanonicalFood } from "@t1dine/food-schema";
 import type { MealLine } from "@t1dine/nutrition";
 import { CARBOHYDRATE_CODE } from "@t1dine/nutrition";
 
+import { getActiveProfileId, migrateLegacyKey, profileKey } from "./profiles";
+
+// Slice: caregiver profiles ("Perfis"). Recipes are per-profile — see
+// ../mealHistory.ts's identical note. `RECIPES_KEY` below is used as the
+// "base" passed to `profileKey`/`migrateLegacyKey`.
 const RECIPES_KEY = "t1dine.recipes";
 
 export interface RecipeIngredient {
@@ -286,7 +291,7 @@ async function readJson(key: string): Promise<unknown> {
 
 async function persistRecipes(recipes: Recipe[]): Promise<void> {
   try {
-    await AsyncStorage.setItem(RECIPES_KEY, JSON.stringify(recipes));
+    await AsyncStorage.setItem(profileKey(RECIPES_KEY, getActiveProfileId()), JSON.stringify(recipes));
   } catch {
     // Best-effort persistence only.
   }
@@ -300,7 +305,10 @@ async function persistRecipes(recipes: Recipe[]): Promise<void> {
  * boundaries.").
  */
 export async function loadRecipes(): Promise<Recipe[]> {
-  const value = await readJson(RECIPES_KEY);
+  const profileId = getActiveProfileId();
+  const key = profileKey(RECIPES_KEY, profileId);
+  await migrateLegacyKey(RECIPES_KEY, profileId, key);
+  const value = await readJson(key);
   if (!Array.isArray(value)) return [];
   return value.filter(isRecipe).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
@@ -328,9 +336,22 @@ export async function deleteRecipe(id: string): Promise<Recipe[]> {
   return next;
 }
 
-/** Local data rights: wipes every recipe, used by "Apagar todos os meus
- * dados" (App.tsx handleDeleteAllData). Best-effort: a write failure here
- * must never surface as an error in the offline-first UI. */
+/** Local data rights: wipes the ACTIVE profile's every recipe. Best-effort: a
+ * write failure here must never surface as an error in the offline-first UI. */
 export async function clearRecipes(): Promise<void> {
   await persistRecipes([]);
+}
+
+/**
+ * Removes THIS SPECIFIC profile's entire recipe list — used when a profile
+ * is deleted (App.tsx's handleDeleteProfile) or when every profile's data is
+ * wiped ("Apagar todos os meus dados"). Takes an explicit `profileId` (not
+ * necessarily the active one), unlike `clearRecipes` above.
+ */
+export async function clearProfileData(profileId: string): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(profileKey(RECIPES_KEY, profileId));
+  } catch {
+    // Best-effort persistence only.
+  }
 }

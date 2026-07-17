@@ -10,6 +10,8 @@ import type { DoseProfile } from "../dose/profile";
 import type { Language } from "../i18n";
 import { useLanguage } from "../i18n";
 import { hasConnection } from "../nightscoutStore";
+import type { ExportedProfile } from "../dataExport";
+import type { Profile } from "../profiles";
 import { colors, elevation, fontWeights, gradients, MIN_TAP_TARGET, radius, spacing, typeScale } from "../theme";
 import type { MealLine } from "@t1dine/nutrition";
 import type { CanonicalFood } from "@t1dine/food-schema";
@@ -36,6 +38,11 @@ const STARTUP_OPTIONS: { key: TabKey; labelKey: string }[] = [
 
 export interface ProfileScreenProps {
   language: Language;
+  /** Slice: caregiver profiles ("Perfis") — the profile every field below
+   * belongs to. Noted on export so it's unambiguous which profile's data a
+   * given export bundle is (App.tsx always passes the currently ACTIVE
+   * profile here — this screen never exports any other profile's data). */
+  activeProfile: Profile;
   favouriteIds: string[];
   recentIds: string[];
   customFoods: CanonicalFood[];
@@ -61,6 +68,7 @@ export interface ProfileScreenProps {
 // in this screen makes a network call.
 export function ProfileScreen({
   language,
+  activeProfile,
   favouriteIds,
   recentIds,
   customFoods,
@@ -95,9 +103,22 @@ export function ProfileScreen({
   // export time. Only ever a boolean flows into the export bundle — never the
   // url or the token (CLAUDE.md: "Treat Nightscout tokens as high-impact
   // credentials").
+  const exportedProfile: ExportedProfile = { id: activeProfile.id, name: activeProfile.name, kind: activeProfile.kind };
+
   const handleExport = () => {
     void hasConnection().then((nightscoutConnected) => {
-      const bundle = buildDataExportBundle({ language, favouriteIds, recentIds, customFoods, meal, savedMeals, history, recipes, nightscoutConnected });
+      const bundle = buildDataExportBundle({
+        profile: exportedProfile,
+        language,
+        favouriteIds,
+        recentIds,
+        customFoods,
+        meal,
+        savedMeals,
+        history,
+        recipes,
+        nightscoutConnected,
+      });
       setExportJson(formatDataExportJson(bundle));
     });
   };
@@ -156,6 +177,7 @@ export function ProfileScreen({
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>{t("profile.exportTitle")}</Text>
           <Text style={styles.body}>{t("profile.exportBody")}</Text>
+          <Text style={styles.exportProfileNote}>{t("profile.exportProfileNote", { name: activeProfile.name })}</Text>
           {/* Food-side (non-clinical) primary action — emerald brand gradient.
               The clinical "Guardar perfil clínico" button below deliberately
               stays on the steel/non-brand style to keep the two apart. */}
@@ -454,6 +476,7 @@ const styles = StyleSheet.create({
   },
   dangerTitle: { color: colors.danger },
   body: { fontSize: 14, color: colors.textSecondary, marginBottom: spacing.md, lineHeight: 20 },
+  exportProfileNote: { fontSize: 13, fontWeight: "700", color: colors.textMuted, marginTop: -spacing.sm, marginBottom: spacing.md },
   startupRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   startupOption: {
     minHeight: MIN_TAP_TARGET,

@@ -9,11 +9,20 @@ import type { MealLine } from "@t1dine/nutrition";
 
 import type { Language } from "./i18n";
 import type { HistoryEntry } from "./mealHistory";
+import type { Profile } from "./profiles";
 import type { Recipe } from "./recipes";
 import type { SavedMeal } from "./savedMeals";
 
+/** The minimal profile identity noted on an export — never the whole
+ * ../profiles.ts list, just which ONE profile's data this bundle is. */
+export type ExportedProfile = Pick<Profile, "id" | "name" | "kind">;
+
 export interface DataExportBundle {
   exportedAt: string;
+  /** Slice: caregiver profiles ("Perfis") — every field below belongs to
+   * THIS profile only; a caregiver switching profiles and exporting again
+   * gets a separate bundle for each one. */
+  profile: ExportedProfile;
   language: Language;
   favourites: string[];
   recents: string[];
@@ -35,6 +44,7 @@ export interface DataExportBundle {
 }
 
 export interface DataExportInput {
+  profile: ExportedProfile;
   language: Language;
   favouriteIds: string[];
   recentIds: string[];
@@ -50,6 +60,7 @@ export interface DataExportInput {
 export function buildDataExportBundle(input: DataExportInput, now: () => string = () => new Date().toISOString()): DataExportBundle {
   return {
     exportedAt: now(),
+    profile: input.profile,
     language: input.language,
     favourites: input.favouriteIds,
     recents: input.recentIds,

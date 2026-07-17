@@ -18,9 +18,20 @@ import { TabBar, type TabKey } from "./src/components/TabBar";
 import { CATALOG } from "./src/catalog";
 import { buildCustomFood, type CustomFoodInput } from "./src/customFood";
 import { DEFAULT_DOSE_PROFILE, type DoseProfile } from "./src/dose/profile";
-import { bumpProfileVersion, loadDoseProfile, saveDoseProfile } from "./src/dose/profileStorage";
+import { bumpProfileVersion, clearProfileData as clearDoseProfileData, loadDoseProfile, saveDoseProfile } from "./src/dose/profileStorage";
 import { LanguageProvider, useLanguage } from "./src/i18n";
-import { clearConnection as clearNightscoutConnection } from "./src/nightscoutStore";
+import { clearProfileData as clearNightscoutProfileData } from "./src/nightscoutStore";
+import {
+  addProfile,
+  DEFAULT_PROFILE_ID,
+  deleteProfile,
+  loadProfiles,
+  renameProfile,
+  resetToDefaultProfile,
+  setActiveProfile,
+  type Profile,
+  type ProfileKind,
+} from "./src/profiles";
 import { displayName, searchFoods } from "./src/search";
 import { AccountScreen } from "./src/screens/AccountScreen";
 import { BarcodeScanScreen } from "./src/screens/BarcodeScanScreen";
@@ -32,13 +43,14 @@ import { GlucoseScreen } from "./src/screens/GlucoseScreen";
 import { HistoryScreen } from "./src/screens/HistoryScreen";
 import { MealScreen } from "./src/screens/MealScreen";
 import { ProfileScreen, type DoseProfileFormValues } from "./src/screens/ProfileScreen";
+import { ProfilesScreen } from "./src/screens/ProfilesScreen";
 import { RecipesScreen } from "./src/screens/RecipesScreen";
 import { SavedMealsScreen } from "./src/screens/SavedMealsScreen";
 import { SearchScreen } from "./src/screens/SearchScreen";
 import { SubmissionsScreen } from "./src/screens/SubmissionsScreen";
 import {
   buildHistoryEntryFromLines,
-  clearHistory,
+  clearProfileData as clearHistoryProfileData,
   deleteHistoryEntry,
   historyEntryLabel,
   loadHistory,
@@ -47,9 +59,26 @@ import {
   updateHistoryEntry,
   type HistoryEntry,
 } from "./src/mealHistory";
-import { buildRecipe, clearRecipes, deleteRecipe, loadRecipes, recipeToMealLine, saveRecipe, type Recipe, type RecipeInput } from "./src/recipes";
-import { buildSavedMealFromLines, loadSavedMeals, resolveSavedMealToLines, saveSavedMeals, type SavedMeal } from "./src/savedMeals";
 import {
+  buildRecipe,
+  clearProfileData as clearRecipesProfileData,
+  deleteRecipe,
+  loadRecipes,
+  recipeToMealLine,
+  saveRecipe,
+  type Recipe,
+  type RecipeInput,
+} from "./src/recipes";
+import {
+  buildSavedMealFromLines,
+  clearProfileData as clearSavedMealsProfileData,
+  loadSavedMeals,
+  resolveSavedMealToLines,
+  saveSavedMeals,
+  type SavedMeal,
+} from "./src/savedMeals";
+import {
+  clearProfileData as clearStorageProfileData,
   DEFAULT_STARTUP_TAB,
   loadCustomFoods,
   loadFavouriteIds,
@@ -61,6 +90,7 @@ import {
   saveRecentIds,
   saveStartupTab,
 } from "./src/storage";
+import { clearProfileData as clearSubmissionsProfileData } from "./src/submissions";
 import { mergeSyncState, type SyncStatus } from "./src/sync";
 import { colors, gradients, spacing } from "./src/theme";
 
@@ -74,6 +104,7 @@ type Overlay =
   | { kind: "detail"; food: CanonicalFood }
   | { kind: "create"; barcode?: string }
   | { kind: "profile" }
+  | { kind: "profiles" }
   | { kind: "account" }
   | { kind: "doseReview" }
   | { kind: "submissions" }
@@ -84,7 +115,18 @@ type Overlay =
   | null;
 
 function AppShell() {
-  const { isLoaded: languageLoaded, language } = useLanguage();
+  const { isLoaded: languageLoaded, language, t } = useLanguage();
+
+  // Slice: caregiver profiles ("Perfis") — one device, several LOCAL
+  // profiles (the caregiver's own "self" profile + any dependents they
+  // manage), each with its OWN local data (see ./src/profiles.ts, and every
+  // store it namespaces). `activeProfileId` mirrors ./src/profiles.ts's
+  // synchronous `getActiveProfileId()` cache, which every OTHER per-profile
+  // store reads internally — this state exists purely for the UI (the
+  // Header chip + ProfilesScreen) to know what to render; it is never read
+  // by any store itself.
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [activeProfileId, setActiveProfileIdState] = useState<string>(DEFAULT_PROFILE_ID);
 
   const [activeTab, setActiveTab] = useState<TabKey>(DEFAULT_STARTUP_TAB);
   // User-configurable landing tab (Perfil → "Página inicial"). Persisted
@@ -186,55 +228,74 @@ function AppShell() {
   // Load everything once at startup. Until this resolves we must not write
   // back to storage — otherwise an empty initial state would clobber what
   // was persisted from a previous session (see the `dataLoaded` guards below).
+  //
+  // `loadProfiles` is deliberately AWAITED FIRST, before the Promise.all
+  // below — every other store's load function reads
+  // ./src/profiles.ts's synchronous `getActiveProfileId()` cache the instant
+  // it starts running (before its own first `await`), so that cache must
+  // already reflect the persisted active profile id BEFORE any of those
+  // calls are even made. Running `loadProfiles()` inside the same
+  // Promise.all as the rest would race: `Promise.all` calls every function
+  // in the array synchronously (up to each one's own first `await`) before
+  // `loadProfiles()` has had a chance to update the cache, which would
+  // silently read the wrong profile's data on every app restart after a
+  // profile switch. Gated on `languageLoaded` so the localized default
+  // profile name ("Eu"/"Me") is seeded correctly on a genuine first run.
   useEffect(() => {
+    if (!languageLoaded) return;
     let cancelled = false;
-    Promise.all([
-      loadFavouriteIds(),
-      loadRecentIds(),
-      loadCustomFoods(),
-      loadDoseProfile(),
-      loadSession(),
-      loadSavedMeals(),
-      loadHistory(),
-      loadRecipes(),
-      loadStartupTab(),
-    ])
-      .then(
-        ([
-          loadedFavourites,
-          loadedRecents,
-          loadedCustomFoods,
-          loadedDoseProfile,
-          loadedSession,
-          loadedSavedMeals,
-          loadedHistory,
-          loadedRecipes,
-          loadedStartupTab,
-        ]) => {
-          if (cancelled) return;
-          setFavouriteIds(loadedFavourites);
-          setRecentIds(loadedRecents);
-          setCustomFoods(loadedCustomFoods);
-          setDoseProfile(loadedDoseProfile.profile);
-          setHasSavedDoseProfile(loadedDoseProfile.hasSavedProfile);
-          setSession(loadedSession);
-          setSavedMeals(loadedSavedMeals);
-          setHistory(loadedHistory);
-          setRecipes(loadedRecipes);
-          // Apply the saved landing tab as the initial view. Safe to set
-          // activeTab here (still behind the Splash until dataLoaded flips), so
-          // there's no flash of the default "search" tab first.
-          setStartupTab(loadedStartupTab);
-          setActiveTab(loadedStartupTab);
-        },
-      )
-      .finally(() => {
-        if (!cancelled) setDataLoaded(true);
-      });
+
+    (async () => {
+      const loadedProfiles = await loadProfiles(t("profiles.defaultName"));
+      if (cancelled) return;
+      setProfiles(loadedProfiles.profiles);
+      setActiveProfileIdState(loadedProfiles.activeProfileId);
+
+      const [
+        loadedFavourites,
+        loadedRecents,
+        loadedCustomFoods,
+        loadedDoseProfile,
+        loadedSession,
+        loadedSavedMeals,
+        loadedHistory,
+        loadedRecipes,
+        loadedStartupTab,
+      ] = await Promise.all([
+        loadFavouriteIds(),
+        loadRecentIds(),
+        loadCustomFoods(),
+        loadDoseProfile(),
+        loadSession(),
+        loadSavedMeals(),
+        loadHistory(),
+        loadRecipes(),
+        loadStartupTab(),
+      ]);
+      if (cancelled) return;
+      setFavouriteIds(loadedFavourites);
+      setRecentIds(loadedRecents);
+      setCustomFoods(loadedCustomFoods);
+      setDoseProfile(loadedDoseProfile.profile);
+      setHasSavedDoseProfile(loadedDoseProfile.hasSavedProfile);
+      setSession(loadedSession);
+      setSavedMeals(loadedSavedMeals);
+      setHistory(loadedHistory);
+      setRecipes(loadedRecipes);
+      // Apply the saved landing tab as the initial view. Safe to set
+      // activeTab here (still behind the Splash until dataLoaded flips), so
+      // there's no flash of the default "search" tab first.
+      setStartupTab(loadedStartupTab);
+      setActiveTab(loadedStartupTab);
+    })().finally(() => {
+      if (!cancelled) setDataLoaded(true);
+    });
+
     return () => {
       cancelled = true;
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [languageLoaded]);
 
   useEffect(() => {
     if (!dataLoaded) return;
@@ -369,13 +430,17 @@ function AppShell() {
   }, []);
 
   // Slice 5 — local data rights: "Apagar todos os meus dados". Resets every
-  // piece of locally persisted state (favourites, recents, custom foods,
-  // saved meals) via the same storage helpers used to save them, clears the
-  // in-memory meal (which has no separate persistence key of its own), and
-  // clears any saved Nightscout connection (../src/nightscoutStore.ts — a
-  // separate secure store, never AsyncStorage, but still local data this
-  // device holds and must remove here). GlucoseScreen re-reads that store on
-  // every mount, so it always reflects this as "not connected" afterwards.
+  // piece of locally persisted state for the ACTIVE profile immediately (so
+  // the UI reflects the wipe instantly), then — Slice: caregiver profiles
+  // ("Perfis") — clears EVERY profile's data across every store (favourites/
+  // recents/custom foods, Diário, saved meals, recipes, my submissions, the
+  // Nightscout connection, and the clinical Dose Assist profile — each a
+  // separate AsyncStorage/SecureStore namespace; see ./src/profiles.ts's
+  // `clearProfileData` convention), and finally collapses the profile LIST
+  // back to a single, fresh default profile (CLAUDE.md/task: "clears ALL
+  // profiles' data and resets to a single default profile"). GlucoseScreen
+  // re-reads its store on every mount, so it always reflects "not connected"
+  // afterwards.
   const handleDeleteAllData = useCallback(() => {
     setFavouriteIds([]);
     setRecentIds([]);
@@ -386,13 +451,104 @@ function AppShell() {
     setHistory([]);
     setEditingHistoryEntryId(null);
     setRecipes([]);
+    setDoseProfile(DEFAULT_DOSE_PROFILE);
+    setHasSavedDoseProfile(false);
     void saveFavouriteIds([]);
     void saveRecentIds([]);
     void saveCustomFoods([]);
     void saveSavedMeals([]);
-    void clearHistory();
-    void clearRecipes();
-    void clearNightscoutConnection();
+
+    void (async () => {
+      const idsToClear = profiles.map((profile) => profile.id);
+      await Promise.all(
+        idsToClear.flatMap((id) => [
+          clearStorageProfileData(id),
+          clearHistoryProfileData(id),
+          clearSavedMealsProfileData(id),
+          clearRecipesProfileData(id),
+          clearSubmissionsProfileData(id),
+          clearNightscoutProfileData(id),
+          clearDoseProfileData(id),
+        ]),
+      );
+      const reset = await resetToDefaultProfile(t("profiles.defaultName"));
+      setProfiles(reset.profiles);
+      setActiveProfileIdState(reset.activeProfileId);
+    })();
+  }, [profiles, t]);
+
+  // Slice: caregiver profiles ("Perfis") — add/rename/delete the profile
+  // LIST. Deleting refuses (returns the list unchanged, defended again at the
+  // ./src/profiles.ts layer) for the ACTIVE profile and for the LAST
+  // remaining profile — see deleteProfile's own doc comment. Only on an
+  // ACTUAL deletion do we also clear that profile's data in every other
+  // store; a refused delete must never wipe anything.
+  const handleAddProfile = useCallback((name: string, kind: ProfileKind) => {
+    void addProfile(name, kind).then(setProfiles);
+  }, []);
+
+  const handleRenameProfile = useCallback((id: string, name: string) => {
+    void renameProfile(id, name).then(setProfiles);
+  }, []);
+
+  const handleDeleteProfile = useCallback((id: string) => {
+    void (async () => {
+      const nextProfiles = await deleteProfile(id);
+      setProfiles(nextProfiles);
+      const wasActuallyDeleted = !nextProfiles.some((profile) => profile.id === id);
+      if (!wasActuallyDeleted) return;
+      await Promise.all([
+        clearStorageProfileData(id),
+        clearHistoryProfileData(id),
+        clearSavedMealsProfileData(id),
+        clearRecipesProfileData(id),
+        clearSubmissionsProfileData(id),
+        clearNightscoutProfileData(id),
+        clearDoseProfileData(id),
+      ]);
+    })();
+  }, []);
+
+  // Slice: caregiver profiles ("Perfis") — the actual profile switch, called
+  // by ../src/screens/ProfilesScreen.tsx only AFTER its own inline "Mudar
+  // para «Nome»?" confirmation. SAFETY (cross-profile isolation): persists +
+  // updates ./src/profiles.ts's active-id cache FIRST, THEN reloads every
+  // per-profile store fresh for the newly active profile — never trusting
+  // in-memory state carried over from the previous profile — and clears any
+  // in-progress current meal / "edit this saved meal or Diário entry in
+  // place" link, since those belong to the PREVIOUS profile's session.
+  // Closes whatever overlay is open (the profiles switcher itself), so the
+  // tab underneath remounts against the newly active profile.
+  const handleSwitchProfile = useCallback((id: string) => {
+    void (async () => {
+      await setActiveProfile(id);
+      setActiveProfileIdState(id);
+
+      const [loadedFavourites, loadedRecents, loadedCustomFoods, loadedDoseProfile, loadedSavedMeals, loadedHistory, loadedRecipes] =
+        await Promise.all([
+          loadFavouriteIds(),
+          loadRecentIds(),
+          loadCustomFoods(),
+          loadDoseProfile(),
+          loadSavedMeals(),
+          loadHistory(),
+          loadRecipes(),
+        ]);
+
+      setFavouriteIds(loadedFavourites);
+      setRecentIds(loadedRecents);
+      setCustomFoods(loadedCustomFoods);
+      setDoseProfile(loadedDoseProfile.profile);
+      setHasSavedDoseProfile(loadedDoseProfile.hasSavedProfile);
+      setSavedMeals(loadedSavedMeals);
+      setHistory(loadedHistory);
+      setRecipes(loadedRecipes);
+
+      setMeal([]);
+      setActiveSavedMealId(null);
+      setEditingHistoryEntryId(null);
+      setOverlay(null);
+    })();
   }, []);
 
   // "Guardar refeição" (Slice: refeições repetidas). Builds a snapshot of the
@@ -704,6 +860,13 @@ function AppShell() {
   }
 
   const showBack = overlay !== null;
+  // By the time any UI renders (behind the Splash gate above), `profiles`
+  // always has at least the default one — this fallback only guards the
+  // type, never a real runtime path, mirroring ../src/dose/profile.ts's
+  // DEFAULT_DOSE_PROFILE "fail closed to a safe default" convention.
+  const activeProfile: Profile =
+    profiles.find((profile) => profile.id === activeProfileId) ??
+    ({ id: DEFAULT_PROFILE_ID, name: t("profiles.defaultName"), kind: "self", createdAt: new Date(0).toISOString() } as Profile);
 
   return (
     <View style={styles.safe}>
@@ -714,6 +877,8 @@ function AppShell() {
         onCreateFood={() => setOverlay({ kind: "create" })}
         onOpenProfile={() => setOverlay({ kind: "profile" })}
         onOpenAccount={() => setOverlay({ kind: "account" })}
+        activeProfileName={activeProfile.name}
+        onOpenProfiles={() => setOverlay({ kind: "profiles" })}
       />
 
       <LinearGradient colors={gradients.mist.colors} start={gradients.mist.start} end={gradients.mist.end} style={styles.body}>
@@ -747,6 +912,7 @@ function AppShell() {
         {overlay?.kind === "profile" && (
           <ProfileScreen
             language={language}
+            activeProfile={activeProfile}
             favouriteIds={favouriteIds}
             recentIds={recentIds}
             customFoods={customFoods}
@@ -760,6 +926,17 @@ function AppShell() {
             onSaveDoseProfile={handleSaveDoseProfile}
             startupTab={startupTab}
             onChangeStartupTab={handleChangeStartupTab}
+          />
+        )}
+
+        {overlay?.kind === "profiles" && (
+          <ProfilesScreen
+            profiles={profiles}
+            activeProfileId={activeProfileId}
+            onAddProfile={handleAddProfile}
+            onRenameProfile={handleRenameProfile}
+            onDeleteProfile={handleDeleteProfile}
+            onSwitchProfile={handleSwitchProfile}
           />
         )}
 

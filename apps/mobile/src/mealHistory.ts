@@ -28,6 +28,13 @@ import { assertCanonicalFood } from "@t1dine/food-schema";
 import type { MealLine } from "@t1dine/nutrition";
 import { CARBOHYDRATE_CODE, summariseMeal } from "@t1dine/nutrition";
 
+import { getActiveProfileId, migrateLegacyKey, profileKey } from "./profiles";
+
+// Slice: caregiver profiles ("Perfis"). The Diário is per-profile — a
+// caregiver's own meal history must never leak into a dependent's, and vice
+// versa. `HISTORY_KEY` below is used as the "base" passed to
+// `profileKey`/`migrateLegacyKey`; the pre-profiles Diário that used to live
+// directly under it is inherited, non-destructively, by the default profile.
 const HISTORY_KEY = "t1dine.mealHistory";
 
 export interface HistoryItem {
@@ -262,14 +269,17 @@ async function readJson(key: string): Promise<unknown> {
  * boundaries.").
  */
 export async function loadHistory(): Promise<HistoryEntry[]> {
-  const value = await readJson(HISTORY_KEY);
+  const profileId = getActiveProfileId();
+  const key = profileKey(HISTORY_KEY, profileId);
+  await migrateLegacyKey(HISTORY_KEY, profileId, key);
+  const value = await readJson(key);
   if (!Array.isArray(value)) return [];
   return value.filter(isHistoryEntry).sort((a, b) => b.loggedAt.localeCompare(a.loggedAt));
 }
 
 async function persistHistory(entries: HistoryEntry[]): Promise<void> {
   try {
-    await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(entries));
+    await AsyncStorage.setItem(profileKey(HISTORY_KEY, getActiveProfileId()), JSON.stringify(entries));
   } catch {
     // Best-effort persistence only.
   }
@@ -315,9 +325,23 @@ export async function deleteHistoryEntry(id: string): Promise<HistoryEntry[]> {
   return next;
 }
 
-/** Slice 5 — local data rights: wipes the entire Diário, used by "Apagar
- * todos os meus dados" (App.tsx handleDeleteAllData). Best-effort: a write
- * failure here must never surface as an error in the offline-first UI. */
+/** Slice 5 — local data rights: wipes the ACTIVE profile's entire Diário.
+ * Best-effort: a write failure here must never surface as an error in the
+ * offline-first UI. */
 export async function clearHistory(): Promise<void> {
   await persistHistory([]);
+}
+
+/**
+ * Removes THIS SPECIFIC profile's entire Diário — used when a profile is
+ * deleted (App.tsx's handleDeleteProfile) or when every profile's data is
+ * wiped ("Apagar todos os meus dados"). Takes an explicit `profileId` (not
+ * necessarily the active one), unlike `clearHistory` above.
+ */
+export async function clearProfileData(profileId: string): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(profileKey(HISTORY_KEY, profileId));
+  } catch {
+    // Best-effort persistence only.
+  }
 }
