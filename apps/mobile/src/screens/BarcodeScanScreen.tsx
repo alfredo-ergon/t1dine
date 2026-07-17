@@ -6,14 +6,20 @@
 //     numeric-entry fallback, which shares the exact same lookup as a native
 //     scan. The whole feature is therefore fully usable on web.
 //
-// A scanned/typed code is looked up ONLY in the catalog already loaded on
+// A scanned/typed code is looked up FIRST in the catalog already loaded on
 // this device (`foods` — App.tsx's `allFoods`, i.e. every food this app
 // currently knows about, unfiltered by area, so a scan never "misses" a food
 // just because an area/cuisine filter happens to be active elsewhere in the
-// app). There is NO Open Food Facts / external lookup in this version (v1 —
-// a licence decision is still open; see the barcode ADR/product note before
-// adding one). A miss offers a clear, explicit "not found" state that hands
-// the code off to CreateFoodScreen's pre-fill, never silently discarding it.
+// app). A catalog miss offers an explicit Open Food Facts (OFF) fallback
+// lookup (`../api`'s `fetchOffProduct`, proxied through the T1Dine API) —
+// ALWAYS presented as a clearly LOW-CONFIDENCE, attributed candidate the user
+// must explicitly confirm (add to the meal, or review/correct and save as
+// their own food), never as an authoritative catalog entry (CLAUDE.md:
+// "User-created and AI-estimated foods must display uncertainty and
+// provenance" — the same bar applies to any third-party-sourced candidate).
+// A miss on BOTH the catalog and OFF falls through to the existing "not
+// found" state, which hands the code off to CreateFoodScreen's pre-fill,
+// never silently discarding it.
 //
 // This screen is pure food/catalog UI — it has no connection whatsoever to
 // `@t1dine/dose-engine` or `src/dose/*` (CLAUDE.md: keep clinical calculation
@@ -25,10 +31,14 @@ import { LinearGradient } from "expo-linear-gradient";
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from "expo-camera";
 import type { CanonicalFood } from "@t1dine/food-schema";
 
+import { ApiError, fetchOffProduct, isConnectivityError, type OffLookupResult } from "../api";
+import { ConfidenceBadge } from "../components/ConfidenceBadge";
 import { FadeIn } from "../components/FadeIn";
 import { Mascot } from "../components/Mascot";
 import { PressableScale } from "../components/PressableScale";
+import { Skeleton } from "../components/Skeleton";
 import { useLanguage } from "../i18n";
+import { carbPer100g, displayName, nutrient } from "../search";
 import { colors, elevation, fontWeights, gradients, MIN_TAP_TARGET, radius, spacing, typeScale } from "../theme";
 
 export interface BarcodeScanScreenProps {
@@ -39,6 +49,38 @@ export interface BarcodeScanScreenProps {
   onFound: (food: CanonicalFood) => void;
   onNotFound: (barcode: string) => void;
   onCancel: () => void;
+  /** Adds an Open Food Facts LOW-CONFIDENCE candidate straight to the current
+   * meal — the SAME add-to-meal path used everywhere else in the app
+   * (App.tsx's `handleAddToMeal`), so it merges/totals into the Diário and
+   * dose review exactly like any other food, carrying its
+   * `confidence: "unverified"` nutrient with it (MealScreen's uncertainty
+   * banner already reacts to that). This candidate is never silently saved
+   * as the user's own food — see `onSaveOffCandidate` below for that
+   * separate, explicit action. */
+  onAddOffCandidate: (food: CanonicalFood) => void;
+  /** Routes to CreateFoodScreen with the OFF candidate's barcode/name/carbs
+   * PRE-FILLED but fully editable — "Guardar como o meu alimento" never
+   * silently trusts OFF data; the user reviews and explicitly saves it as
+   * their own (unverified, candidate) food, exactly like any other custom
+   * food (see ../customFood.ts). */
+  onSaveOffCandidate: (barcode: string, food: CanonicalFood) => void;
+}
+
+type OffLookupState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "found"; result: OffLookupResult }
+  | { status: "not_found" }
+  | { status: "error"; messageKey: string };
+
+/** Maps a failed `fetchOffProduct()` call to an i18n key for a fail-closed,
+ * user-facing message — NEVER the server's raw `message`/`error` text.
+ * `not_found` (HTTP 404) is handled separately by the caller as its own
+ * `OffLookupState`, not as an error. */
+function offLookupErrorKey(error: unknown): string {
+  if (isConnectivityError(error)) return "barcode.offOfflineError";
+  if (error instanceof ApiError && error.code === "off_unavailable") return "barcode.offUnavailableError";
+  return "barcode.offGenericError";
 }
 
 // EAN-13/EAN-8/UPC-A/UPC-E cover the retail barcodes a packaged food is
@@ -101,7 +143,104 @@ function ManualEntryForm({ onSubmit }: { onSubmit: (code: string) => void }) {
   );
 }
 
-export function BarcodeScanScreen({ foods, onFound, onNotFound, onCancel }: BarcodeScanScreenProps) {
+/**
+ * Presents a successful Open Food Facts lookup as an explicit,
+ * user-confirmable LOW-CONFIDENCE candidate — never as an authoritative
+ * catalog entry. Confidence is conveyed by colour + icon + text together
+ * (`ConfidenceBadge`, never colour alone — WCAG 2.2), and the OFF attribution
+ * is always visible alongside it (ODbL requirement). The two actions are
+ * deliberately distinct: adding to the meal never persists this candidate
+ * anywhere, while "Guardar como o meu alimento" routes to CreateFoodScreen so
+ * the user reviews/corrects it before it is ever saved as their own food.
+ */
+function OffCandidateCard({
+  food,
+  attribution,
+  onAdd,
+  onSave,
+  onScanAnother,
+  onCancel,
+}: {
+  food: CanonicalFood;
+  attribution: string;
+  onAdd: () => void;
+  onSave: () => void;
+  onScanAnother: () => void;
+  onCancel: () => void;
+}) {
+  const { t, language } = useLanguage();
+  const carb = nutrient(food, "CHOAVL");
+  const carbValue = carbPer100g(food);
+  const name = displayName(food, language);
+
+  return (
+    <View style={styles.screen}>
+      <FadeIn>
+        <View style={styles.center}>
+          <Mascot size={72} />
+          <Text style={styles.title}>{t("barcode.offCandidateTitle")}</Text>
+
+          <View style={styles.offCandidateCard}>
+            <Text style={styles.offCandidateName}>{name}</Text>
+            <ConfidenceBadge food={food} />
+            <Text style={styles.offUncertaintyNote}>{t("barcode.offUncertaintyNote")}</Text>
+
+            <View style={styles.offCarbRow}>
+              <Text style={styles.offCarbLabel}>{t("barcode.offCarbLabel")}</Text>
+              <Text style={styles.offCarbValue}>
+                {carbValue !== undefined ? carbValue : "—"} <Text style={styles.offCarbUnit}>{carb?.unit ?? "g"}</Text>
+              </Text>
+            </View>
+
+            <View
+              style={styles.offAttributionRow}
+              accessible
+              accessibilityLabel={`${t("barcode.offAttributionPrefix")} ${attribution}`}
+            >
+              <Text style={styles.offAttributionText}>
+                {t("barcode.offAttributionPrefix")} {attribution}
+              </Text>
+            </View>
+          </View>
+
+          <PressableScale
+            onPress={onAdd}
+            accessibilityRole="button"
+            accessibilityLabel={`${t("detail.addButton")}: ${name}`}
+            style={styles.primaryButtonWrap}
+          >
+            <LinearGradient colors={gradients.brand.colors} start={gradients.brand.start} end={gradients.brand.end} style={styles.primaryButtonGradient}>
+              <Text style={styles.primaryButtonText}>{t("detail.addButton")}</Text>
+            </LinearGradient>
+          </PressableScale>
+
+          <PressableScale
+            onPress={onSave}
+            accessibilityRole="button"
+            accessibilityLabel={`${t("barcode.offSaveAsMyFoodCta")}: ${name}`}
+            style={styles.secondaryButton}
+          >
+            <Text style={styles.secondaryButtonText}>{t("barcode.offSaveAsMyFoodCta")}</Text>
+          </PressableScale>
+
+          <PressableScale
+            onPress={onScanAnother}
+            accessibilityRole="button"
+            accessibilityLabel={t("barcode.scanAnotherCta")}
+            style={styles.linkButton}
+          >
+            <Text style={styles.linkButtonText}>{t("barcode.scanAnotherCta")}</Text>
+          </PressableScale>
+          <PressableScale onPress={onCancel} accessibilityRole="button" accessibilityLabel={t("barcode.cancel")} style={styles.linkButton}>
+            <Text style={styles.linkButtonText}>{t("barcode.cancel")}</Text>
+          </PressableScale>
+        </View>
+      </FadeIn>
+    </View>
+  );
+}
+
+export function BarcodeScanScreen({ foods, onFound, onNotFound, onCancel, onAddOffCandidate, onSaveOffCandidate }: BarcodeScanScreenProps) {
   const { t } = useLanguage();
   const isWeb = Platform.OS === "web";
 
@@ -114,6 +253,11 @@ export function BarcodeScanScreen({ foods, onFound, onNotFound, onCancel }: Barc
   // while the camera keeps streaming frames. Reset by "Ler outro código".
   const scanLockRef = useRef(false);
   const [notFoundCode, setNotFoundCode] = useState<string | null>(null);
+  // OFF fallback lookup state for the current `notFoundCode` — reset
+  // whenever a NEW code is scanned/typed (see `handleCode` below) or the user
+  // taps "Ler outro código" (`handleScanAgain`), so a stale result/error from
+  // a PREVIOUS code can never bleed into the next one.
+  const [offState, setOffState] = useState<OffLookupState>({ status: "idle" });
 
   const handleCode = useCallback(
     (code: string) => {
@@ -121,6 +265,7 @@ export function BarcodeScanScreen({ foods, onFound, onNotFound, onCancel }: Barc
       if (match) {
         onFound(match);
       } else {
+        setOffState({ status: "idle" });
         setNotFoundCode(code);
       }
     },
@@ -139,10 +284,44 @@ export function BarcodeScanScreen({ foods, onFound, onNotFound, onCancel }: Barc
   const handleScanAgain = useCallback(() => {
     scanLockRef.current = false;
     setNotFoundCode(null);
+    setOffState({ status: "idle" });
   }, []);
+
+  // Explicit, user-initiated OFF lookup (the "Procurar no Open Food Facts"
+  // button below) — never automatic, so a catalog miss never silently
+  // triggers a network request the user did not ask for (offline-first).
+  const handleLookupOff = useCallback(() => {
+    if (!notFoundCode) return;
+    setOffState({ status: "loading" });
+    fetchOffProduct(notFoundCode)
+      .then((result) => setOffState({ status: "found", result }))
+      .catch((error: unknown) => {
+        if (error instanceof ApiError && error.code === "not_found") {
+          setOffState({ status: "not_found" });
+          return;
+        }
+        setOffState({ status: "error", messageKey: offLookupErrorKey(error) });
+      });
+  }, [notFoundCode]);
 
   // --- Not-found state — shared by the camera path and the manual-entry path. ---
   if (notFoundCode) {
+    // A successful OFF lookup replaces this whole block with the dedicated
+    // low-confidence candidate card (its own actions/attribution — see below)
+    // rather than being folded into the "not found" layout.
+    if (offState.status === "found") {
+      return (
+        <OffCandidateCard
+          food={offState.result.food}
+          attribution={offState.result.attribution}
+          onAdd={() => onAddOffCandidate(offState.result.food)}
+          onSave={() => onSaveOffCandidate(notFoundCode, offState.result.food)}
+          onScanAnother={handleScanAgain}
+          onCancel={onCancel}
+        />
+      );
+    }
+
     return (
       <View style={styles.screen}>
         <FadeIn>
@@ -150,15 +329,48 @@ export function BarcodeScanScreen({ foods, onFound, onNotFound, onCancel }: Barc
             <Mascot size={84} />
             <Text style={styles.title}>{t("barcode.notFoundTitle")}</Text>
             <Text style={styles.body}>{t("barcode.notFoundBody", { code: notFoundCode })}</Text>
+
+            {offState.status === "not_found" && (
+              <View style={styles.noticeBox} accessible accessibilityLabel={t("barcode.offNotFoundNotice")}>
+                <Text style={styles.noticeIcon}>ⓘ</Text>
+                <Text style={styles.noticeText}>{t("barcode.offNotFoundNotice")}</Text>
+              </View>
+            )}
+
+            {offState.status === "error" && (
+              <View style={styles.errorBox} accessible accessibilityLabel={t(offState.messageKey)}>
+                <Text style={styles.errorIcon}>▲</Text>
+                <Text style={styles.errorText}>{t(offState.messageKey)}</Text>
+              </View>
+            )}
+
+            {offState.status === "loading" && (
+              <View style={styles.offLoadingWrap} accessible accessibilityLabel={t("barcode.offLookupLoading")} accessibilityLiveRegion="polite">
+                <Skeleton height={MIN_TAP_TARGET} radius={radius.pill} />
+                <Text style={styles.offLoadingText}>{t("barcode.offLookupLoading")}</Text>
+              </View>
+            )}
+
+            {(offState.status === "idle" || offState.status === "error") && (
+              <PressableScale
+                onPress={handleLookupOff}
+                accessibilityRole="button"
+                accessibilityLabel={offState.status === "error" ? t("barcode.offRetryCta") : t("barcode.offLookupCta")}
+                style={styles.primaryButtonWrap}
+              >
+                <LinearGradient colors={gradients.brand.colors} start={gradients.brand.start} end={gradients.brand.end} style={styles.primaryButtonGradient}>
+                  <Text style={styles.primaryButtonText}>{offState.status === "error" ? t("barcode.offRetryCta") : t("barcode.offLookupCta")}</Text>
+                </LinearGradient>
+              </PressableScale>
+            )}
+
             <PressableScale
               onPress={() => onNotFound(notFoundCode)}
               accessibilityRole="button"
               accessibilityLabel={t("barcode.notFoundCta")}
-              style={styles.primaryButtonWrap}
+              style={styles.secondaryButton}
             >
-              <LinearGradient colors={gradients.brand.colors} start={gradients.brand.start} end={gradients.brand.end} style={styles.primaryButtonGradient}>
-                <Text style={styles.primaryButtonText}>{t("barcode.notFoundCta")}</Text>
-              </LinearGradient>
+              <Text style={styles.secondaryButtonText}>{t("barcode.notFoundCta")}</Text>
             </PressableScale>
             <PressableScale
               onPress={handleScanAgain}
@@ -309,6 +521,48 @@ const styles = StyleSheet.create({
   },
   noticeIcon: { color: colors.confidenceMedium, fontSize: 16, fontWeight: "700" },
   noticeText: { flex: 1, fontSize: 13, color: colors.textSecondary },
+  errorBox: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    backgroundColor: colors.confidenceLowBg,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    marginTop: spacing.md,
+    marginBottom: spacing.xs,
+    alignItems: "flex-start",
+    width: "100%",
+  },
+  errorIcon: { color: colors.confidenceLow, fontSize: 16, fontWeight: "700" },
+  errorText: { flex: 1, fontSize: 13, color: colors.textSecondary },
+  offLoadingWrap: { width: "100%", marginTop: spacing.md, alignItems: "center" },
+  offLoadingText: { fontSize: 13, color: colors.textMuted, marginTop: spacing.sm },
+  offCandidateCard: {
+    width: "100%",
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    padding: spacing.md,
+    marginTop: spacing.md,
+    alignItems: "flex-start",
+    ...elevation.sm.native,
+  },
+  offCandidateName: { fontSize: typeScale.subheading.size, fontWeight: fontWeights.bold, color: colors.textPrimary, marginBottom: 2 },
+  offUncertaintyNote: { fontSize: 13, color: colors.textSecondary, marginTop: spacing.xs, textAlign: "left" },
+  offCarbRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "100%",
+    marginTop: spacing.md,
+    paddingTop: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+  },
+  offCarbLabel: { fontSize: 14, color: colors.textMuted },
+  offCarbValue: { fontSize: 16, fontWeight: "700", color: colors.textPrimary, fontVariant: ["tabular-nums"] },
+  offCarbUnit: { fontSize: 13, fontWeight: "600", color: colors.textMuted },
+  offAttributionRow: { marginTop: spacing.sm, width: "100%" },
+  offAttributionText: { fontSize: 11, color: colors.textFaint },
   manualEntryIntro: { fontSize: 13, color: colors.textMuted, marginTop: spacing.lg, marginBottom: spacing.xs, textAlign: "center" },
   manualForm: { width: "100%", marginTop: spacing.xs },
   label: {

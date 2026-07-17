@@ -32,7 +32,7 @@ import {
   type Profile,
   type ProfileKind,
 } from "./src/profiles";
-import { displayName, searchFoods } from "./src/search";
+import { carbPer100g, displayName, searchFoods } from "./src/search";
 import { AccountScreen } from "./src/screens/AccountScreen";
 import { BarcodeScanScreen } from "./src/screens/BarcodeScanScreen";
 import { CreateFoodScreen } from "./src/screens/CreateFoodScreen";
@@ -102,7 +102,17 @@ import { colors, gradients, spacing } from "./src/theme";
 // already does.
 type Overlay =
   | { kind: "detail"; food: CanonicalFood }
-  | { kind: "create"; barcode?: string }
+  | {
+      kind: "create";
+      barcode?: string;
+      /** Set only via the barcode scanner's Open Food Facts (OFF) fallback
+       * ("Guardar como o meu alimento") — pre-fills this candidate's name and
+       * carbohydrate as normal, fully EDITABLE starting values (never
+       * read-only, unlike `barcode`), since OFF data is never trusted as-is.
+       * Absent for every other route into "create". */
+      prefillNamePt?: string;
+      prefillCarbPer100g?: number;
+    }
   | { kind: "profile" }
   | { kind: "profiles" }
   | { kind: "account" }
@@ -414,9 +424,10 @@ function AppShell() {
 
   // Barcode scanning (Slice: barcode scanning). A match against `allFoods`
   // (catalog + the user's own custom foods, unfiltered by area) opens Detail
-  // exactly like a normal search selection; a miss hands the scanned/typed
-  // code to CreateFoodScreen's pre-fill rather than silently discarding it —
-  // there is no external (e.g. Open Food Facts) lookup in this version.
+  // exactly like a normal search selection; a miss on THIS device's catalog
+  // offers BarcodeScanScreen's own Open Food Facts (OFF) fallback lookup, and
+  // only a miss on BOTH hands the scanned/typed code to CreateFoodScreen's
+  // pre-fill rather than silently discarding it.
   const handleBarcodeFound = useCallback(
     (food: CanonicalFood) => {
       recordRecent(food.id);
@@ -427,6 +438,28 @@ function AppShell() {
 
   const handleBarcodeNotFound = useCallback((barcode: string) => {
     setOverlay({ kind: "create", barcode });
+  }, []);
+
+  // "Adicionar à refeição" on an OFF LOW-CONFIDENCE candidate (barcode
+  // scanning — OFF fallback). Deliberately the SAME add-to-meal path as
+  // everywhere else (`handleAddToMeal` below) — the candidate is never
+  // persisted to the catalog or to the user's own custom foods, it only ever
+  // becomes a line in the CURRENT meal, carrying its `confidence:
+  // "unverified"` nutrient with it (MealScreen already reacts to that).
+  const handleAddOffCandidate = useCallback(
+    (food: CanonicalFood) => {
+      handleAddToMeal(food);
+    },
+    [handleAddToMeal],
+  );
+
+  // "Guardar como o meu alimento" on an OFF candidate — routes to
+  // CreateFoodScreen with the candidate's barcode/name/carbs PRE-FILLED but
+  // fully editable (never silently trusted: the user must review/correct and
+  // explicitly save, exactly like any other custom food — see
+  // ./src/customFood.ts).
+  const handleSaveOffCandidate = useCallback((barcode: string, food: CanonicalFood) => {
+    setOverlay({ kind: "create", barcode, prefillNamePt: displayName(food, "pt"), prefillCarbPer100g: carbPer100g(food) });
   }, []);
 
   // Slice 5 — local data rights: "Apagar todos os meus dados". Resets every
@@ -897,7 +930,13 @@ function AppShell() {
         )}
 
         {overlay?.kind === "create" && (
-          <CreateFoodScreen onCancel={() => setOverlay(null)} onSubmit={handleCreateFood} prefillBarcode={overlay.barcode ?? null} />
+          <CreateFoodScreen
+            onCancel={() => setOverlay(null)}
+            onSubmit={handleCreateFood}
+            prefillBarcode={overlay.barcode ?? null}
+            prefillNamePt={overlay.prefillNamePt ?? null}
+            prefillCarbPer100g={overlay.prefillCarbPer100g ?? null}
+          />
         )}
 
         {overlay?.kind === "barcodeScan" && (
@@ -906,6 +945,8 @@ function AppShell() {
             onFound={handleBarcodeFound}
             onNotFound={handleBarcodeNotFound}
             onCancel={() => setOverlay(null)}
+            onAddOffCandidate={handleAddOffCandidate}
+            onSaveOffCandidate={handleSaveOffCandidate}
           />
         )}
 

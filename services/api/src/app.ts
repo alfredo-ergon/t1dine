@@ -91,6 +91,11 @@ export interface BuildAppOptions {
    * fake `createAnthropicProvider`/`envApiKey` for fully offline tests.
    * Ignored when `aiProvider` is supplied. */
   aiProviderResolutionDeps?: ResolveAiProviderDeps;
+  /** Injectable fetch adapter for `GET /catalog/off-lookup` (see
+   * `./openFoodFacts.ts` / `./modules/catalog.ts`) — lets tests exercise the
+   * Open Food Facts barcode lookup fully offline. Defaults to real global
+   * `fetch`. */
+  offFetchImpl?: typeof fetch;
 }
 
 export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
@@ -107,7 +112,13 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const adminEmails = options.adminEmails ?? resolveAdminEmails();
 
   void app.register(healthRoutes);
-  void app.register(catalogRoutes({ foodRepository, secret: authSecret }));
+  void app.register(
+    catalogRoutes({
+      foodRepository,
+      secret: authSecret,
+      ...(options.offFetchImpl ? { offFetchImpl: options.offFetchImpl } : {}),
+    }),
+  );
   void app.register(
     aiConfigRoutes({
       settingsRepository,

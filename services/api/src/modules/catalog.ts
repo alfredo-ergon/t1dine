@@ -23,6 +23,7 @@ import type { CatalogFilter } from "../catalogFilters.js";
 import { FoodIdTakenError } from "../repositories/foodRepository.js";
 import type { FoodRepository } from "../repositories/foodRepository.js";
 import { optionalAuth } from "./auth.js";
+import { lookupOffProduct, OFF_BARCODE_PATTERN } from "../openFoodFacts.js";
 
 const searchQuerySchema = z.object({
   q: z.string().trim().min(1, "q must be a non-empty string when provided").optional(),
@@ -41,12 +42,23 @@ const foodParamsSchema = z.object({
 // `collectCanonicalFoodErrors` check below.
 const submissionBodySchema = z.record(z.unknown());
 
+const offLookupQuerySchema = z.object({
+  barcode: z
+    .string({ required_error: "barcode is required" })
+    .trim()
+    .regex(OFF_BARCODE_PATTERN, "barcode must be 8 to 14 digits"),
+});
+
 export interface CatalogDeps {
   foodRepository: FoodRepository;
   /** HMAC secret used only to OPTIONALLY authenticate `POST
    * /catalog/submissions` (see `optionalAuth` in `./auth.js`) — a missing or
    * invalid token never rejects the request, it just submits anonymously. */
   secret: string;
+  /** Injectable Open Food Facts fetch adapter (see `../openFoodFacts.js`) for
+   * `GET /catalog/off-lookup` — lets tests exercise the route fully offline.
+   * Defaults to real global `fetch`. */
+  offFetchImpl?: typeof fetch;
 }
 
 /**
@@ -56,6 +68,7 @@ export interface CatalogDeps {
  */
 export function catalogRoutes(deps: CatalogDeps) {
   const optionalAuthPreHandler = optionalAuth(deps.secret);
+  const offFetchImpl = deps.offFetchImpl ?? fetch;
 
   return async function registerCatalogRoutes(app: FastifyInstance): Promise<void> {
     app.get("/catalog/foods", async (request, reply) => {
@@ -112,6 +125,36 @@ export function catalogRoutes(deps: CatalogDeps) {
 
     app.get("/catalog/regions", async (_request, reply) => {
       return reply.send(AREA_TAXONOMY);
+    });
+
+    // Open Food Facts barcode lookup — PUBLIC, like the rest of `/catalog`.
+    // GOVERNANCE (see `../openFoodFacts.ts` for the full contract): this
+    // route NEVER returns anything other than a `status: "candidate"` food.
+    // It does not store the result anywhere itself — a caller wanting to
+    // keep it must submit it through `POST /catalog/submissions` (or the
+    // future OFF-specific confirm flow) like any other user-supplied
+    // candidate, so it goes through the normal review queue rather than
+    // being trusted just because it came back from this endpoint.
+    app.get("/catalog/off-lookup", async (request, reply) => {
+      const parsedQuery = offLookupQuerySchema.safeParse(request.query);
+      if (!parsedQuery.success) {
+        return reply.status(400).send({
+          error: "invalid_barcode",
+          message: "barcode query parameter failed validation.",
+          issues: parsedQuery.error.issues.map((issue) => issue.message),
+        });
+      }
+
+      const result = await lookupOffProduct(parsedQuery.data.barcode, { fetchImpl: offFetchImpl });
+
+      if (result.status === "error") {
+        return reply.status(502).send({ error: "off_unavailable" });
+      }
+      if (result.status === "not_found") {
+        return reply.status(404).send({ error: "not_found" });
+      }
+
+      return reply.send({ source: "openfoodfacts", food: result.food, attribution: result.attribution });
     });
 
     app.post("/catalog/submissions", { preHandler: optionalAuthPreHandler }, async (request, reply) => {
