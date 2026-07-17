@@ -17,6 +17,16 @@ export interface CreateFoodScreenProps {
    * entry point, which has no barcode context. Shown read-only — the user
    * cannot edit a scanned code from this form. */
   prefillBarcode?: string | null;
+  /** Pre-fills the Portuguese name field from an Open Food Facts
+   * LOW-CONFIDENCE candidate ("Guardar como o meu alimento" —
+   * BarcodeScanScreen's OFF fallback). Shown as a normal EDITABLE starting
+   * value — unlike `prefillBarcode`, this is never read-only: OFF data is
+   * never trusted as-is, so the user must review/correct it before saving.
+   * `null`/undefined for every other entry point into this screen. */
+  prefillNamePt?: string | null;
+  /** Same OFF-candidate pre-fill contract as `prefillNamePt`, for the
+   * carbohydrate-per-100g field. */
+  prefillCarbPer100g?: number | null;
 }
 
 interface FormErrors {
@@ -25,11 +35,22 @@ interface FormErrors {
   energy?: string;
 }
 
-export function CreateFoodScreen({ onCancel, onSubmit, prefillBarcode = null }: CreateFoodScreenProps) {
+export function CreateFoodScreen({
+  onCancel,
+  onSubmit,
+  prefillBarcode = null,
+  prefillNamePt = null,
+  prefillCarbPer100g = null,
+}: CreateFoodScreenProps) {
   const { t } = useLanguage();
-  const [namePt, setNamePt] = useState("");
+  // Prefilled from an OFF candidate when present — still a normal, fully
+  // editable starting value (see the props doc comment above), never
+  // read-only like `prefillBarcode`.
+  const [namePt, setNamePt] = useState(prefillNamePt ?? "");
   const [nameEn, setNameEn] = useState("");
-  const [carbText, setCarbText] = useState("");
+  const [carbText, setCarbText] = useState(
+    prefillCarbPer100g !== null && prefillCarbPer100g !== undefined ? String(prefillCarbPer100g) : "",
+  );
   const [energyText, setEnergyText] = useState("");
   const [errors, setErrors] = useState<FormErrors>({});
 
@@ -62,6 +83,13 @@ export function CreateFoodScreen({ onCancel, onSubmit, prefillBarcode = null }: 
           <Text style={styles.noticeIcon}>◌</Text>
           <Text style={styles.noticeText}>{t("create.unverifiedNotice")}</Text>
         </View>
+
+        {(prefillNamePt || (prefillCarbPer100g !== null && prefillCarbPer100g !== undefined)) && (
+          <View style={styles.notice} accessible accessibilityLabel={t("create.offPrefillNote")}>
+            <Text style={styles.noticeIcon}>◌</Text>
+            <Text style={styles.noticeText}>{t("create.offPrefillNote")}</Text>
+          </View>
+        )}
 
         {prefillBarcode && (
           <View

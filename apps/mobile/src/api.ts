@@ -159,6 +159,56 @@ export async function fetchCatalog(filter: CatalogFetchFilter = {}): Promise<Can
 }
 
 // ---------------------------------------------------------------------------
+// Open Food Facts fallback lookup (Slice: barcode scanning — OFF fallback)
+// ---------------------------------------------------------------------------
+//
+// Used ONLY after a scanned/typed barcode misses this app's own loaded
+// catalog (see BarcodeScanScreen) — never a replacement for the catalog
+// lookup, and never presented as authoritative. The API's contract
+// guarantees the returned food is always `status: "candidate"` with every
+// nutrient at `confidence: "unverified"` (CLAUDE.md: "User-created and
+// AI-estimated foods must display uncertainty and provenance" — the same bar
+// applies to a third-party-sourced candidate). This module never logs the
+// barcode, the returned food, or the server's raw error text.
+
+export interface OffLookupResult {
+  food: CanonicalFood;
+  /** Attribution string the API/Open Food Facts requires to be shown
+   * wherever this product's data appears (ODbL) — always render this
+   * alongside the candidate, never drop it. */
+  attribution: string;
+}
+
+/**
+ * `GET /catalog/off-lookup?barcode=<code>` — looks up a barcode this app's
+ * own catalog does not recognise via the API's Open Food Facts proxy.
+ * Throws a typed `ApiError` the caller branches on:
+ *   - `code: "not_found"` (HTTP 404) — Open Food Facts has no product for
+ *     this barcode either.
+ *   - `code: "off_unavailable"` (HTTP 502) — Open Food Facts itself is
+ *     unreachable, erroring, or returned something unusable.
+ *   - `isConnectivityError(error)` (network/timeout) — THIS device has no
+ *     connectivity to the T1Dine API at all, as distinct from an
+ *     authoritative "not found"/"unavailable" response.
+ * The returned food is re-validated against the canonical contract
+ * (untrusted external data, CLAUDE.md) — a malformed shape throws
+ * `invalid_response` rather than being trusted as-is.
+ */
+export async function fetchOffProduct(barcode: string): Promise<OffLookupResult> {
+  const { status, json } = await rawFetch(`/catalog/off-lookup?barcode=${encodeURIComponent(barcode)}`);
+
+  if (status === 200) {
+    if (!isRecord(json) || !isCanonicalFood(json["food"]) || typeof json["attribution"] !== "string") {
+      throw new ApiError("invalid_response", "T1Dine API returned an unexpected Open Food Facts response shape.");
+    }
+    return { food: json["food"], attribution: json["attribution"] };
+  }
+
+  const code = isRecord(json) && typeof json["error"] === "string" ? json["error"] : undefined;
+  throw new ApiError("http", `T1Dine Open Food Facts lookup failed (HTTP ${status}).`, status, code);
+}
+
+// ---------------------------------------------------------------------------
 // Browse-by-area taxonomy (Slice: browse by area)
 // ---------------------------------------------------------------------------
 
