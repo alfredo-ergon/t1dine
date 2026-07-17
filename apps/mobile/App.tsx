@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { Platform, SafeAreaView, StyleSheet, View } from "react-native";
+import { Platform, StyleSheet, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import type { CanonicalFood, ContinentGroup } from "@t1dine/food-schema";
 import { AREA_TAXONOMY } from "@t1dine/food-schema";
@@ -28,11 +29,23 @@ import { DetailScreen } from "./src/screens/DetailScreen";
 import { DoseReviewScreen } from "./src/screens/DoseReviewScreen";
 import { FavouritesScreen } from "./src/screens/FavouritesScreen";
 import { GlucoseScreen } from "./src/screens/GlucoseScreen";
+import { HistoryScreen } from "./src/screens/HistoryScreen";
 import { MealScreen } from "./src/screens/MealScreen";
 import { ProfileScreen, type DoseProfileFormValues } from "./src/screens/ProfileScreen";
 import { SavedMealsScreen } from "./src/screens/SavedMealsScreen";
 import { SearchScreen } from "./src/screens/SearchScreen";
 import { SubmissionsScreen } from "./src/screens/SubmissionsScreen";
+import {
+  buildHistoryEntryFromLines,
+  clearHistory,
+  deleteHistoryEntry,
+  historyEntryLabel,
+  loadHistory,
+  logMeal,
+  resolveHistoryEntryToLines,
+  updateHistoryEntry,
+  type HistoryEntry,
+} from "./src/mealHistory";
 import { buildSavedMealFromLines, loadSavedMeals, resolveSavedMealToLines, saveSavedMeals, type SavedMeal } from "./src/savedMeals";
 import {
   DEFAULT_STARTUP_TAB,
@@ -63,6 +76,7 @@ type Overlay =
   | { kind: "doseReview" }
   | { kind: "submissions" }
   | { kind: "savedMeals" }
+  | { kind: "history" }
   | { kind: "barcodeScan" }
   | null;
 
@@ -95,6 +109,25 @@ function AppShell() {
   // built from scratch or cloned ("Clonar e ajustar"), so those only ever
   // save a brand-new record — keeping the saved original untouched.
   const [activeSavedMealId, setActiveSavedMealId] = useState<string | null>(null);
+
+  // "Diário" (meal HISTORY — a dated log of meals actually eaten), distinct
+  // from `savedMeals` above (reusable, undated TEMPLATES). Same local-first
+  // ownership shape as `savedMeals`: App.tsx holds the in-memory list (loaded
+  // once at startup below), but — unlike savedMeals' single "overwrite the
+  // whole array" persistence effect — every mutation here goes through
+  // ../src/mealHistory.ts's own read-current-then-write functions (logMeal/
+  // updateHistoryEntry/deleteHistoryEntry/clearHistory), which read the
+  // on-device list fresh before writing rather than trusting this in-memory
+  // mirror, and return the resulting list to sync it back.
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
+
+  // When the current meal was loaded from a Diário entry via "Editar", this
+  // holds that entry's id so the Meal screen can offer "Atualizar registo"
+  // (correct it in place, preserving its original logged date/time)
+  // alongside "Registar como nova". Null when the current meal was built
+  // from scratch, freshly logged, or loaded via "Reutilizar" (which
+  // deliberately never links back — see loadHistoryEntryIntoCurrent).
+  const [editingHistoryEntryId, setEditingHistoryEntryId] = useState<string | null>(null);
 
   // Dose Assist clinical profile (Rácio/Fator/Alvo/Incremento/Dose
   // máxima/Limiar) — a separate, deliberately non-food AsyncStorage key
@@ -142,8 +175,17 @@ function AppShell() {
   // was persisted from a previous session (see the `dataLoaded` guards below).
   useEffect(() => {
     let cancelled = false;
-    Promise.all([loadFavouriteIds(), loadRecentIds(), loadCustomFoods(), loadDoseProfile(), loadSession(), loadSavedMeals(), loadStartupTab()])
-      .then(([loadedFavourites, loadedRecents, loadedCustomFoods, loadedDoseProfile, loadedSession, loadedSavedMeals, loadedStartupTab]) => {
+    Promise.all([
+      loadFavouriteIds(),
+      loadRecentIds(),
+      loadCustomFoods(),
+      loadDoseProfile(),
+      loadSession(),
+      loadSavedMeals(),
+      loadHistory(),
+      loadStartupTab(),
+    ])
+      .then(([loadedFavourites, loadedRecents, loadedCustomFoods, loadedDoseProfile, loadedSession, loadedSavedMeals, loadedHistory, loadedStartupTab]) => {
         if (cancelled) return;
         setFavouriteIds(loadedFavourites);
         setRecentIds(loadedRecents);
@@ -152,6 +194,7 @@ function AppShell() {
         setHasSavedDoseProfile(loadedDoseProfile.hasSavedProfile);
         setSession(loadedSession);
         setSavedMeals(loadedSavedMeals);
+        setHistory(loadedHistory);
         // Apply the saved landing tab as the initial view. Safe to set
         // activeTab here (still behind the Splash until dataLoaded flips), so
         // there's no flash of the default "search" tab first.
@@ -210,6 +253,14 @@ function AppShell() {
   // Single source of truth for meal totals — same summariseMeal() used here
   // for the quick-glance search bar and in MealScreen for the full breakdown.
   const mealSummary = useMemo(() => summariseMeal(meal), [meal]);
+
+  // Display label for the Diário entry the current meal is linked to (see
+  // `editingHistoryEntryId` above), or null — passed to MealScreen so it can
+  // offer "Atualizar registo «label»" only when such a link exists.
+  const editingHistoryEntryLabel = useMemo(() => {
+    const entry = history.find((candidate) => candidate.id === editingHistoryEntryId);
+    return entry ? historyEntryLabel(entry) : null;
+  }, [history, editingHistoryEntryId]);
 
   function resolveFoods(ids: string[]): CanonicalFood[] {
     return ids
@@ -305,10 +356,13 @@ function AppShell() {
     setMeal([]);
     setSavedMeals([]);
     setActiveSavedMealId(null);
+    setHistory([]);
+    setEditingHistoryEntryId(null);
     void saveFavouriteIds([]);
     void saveRecentIds([]);
     void saveCustomFoods([]);
     void saveSavedMeals([]);
+    void clearHistory();
     void clearNightscoutConnection();
   }, []);
 
@@ -386,6 +440,67 @@ function AppShell() {
 
   const handleUseSavedMeal = useCallback((savedMeal: SavedMeal) => loadSavedMealIntoCurrent(savedMeal, true), [loadSavedMealIntoCurrent]);
   const handleCloneSavedMeal = useCallback((savedMeal: SavedMeal) => loadSavedMealIntoCurrent(savedMeal, false), [loadSavedMealIntoCurrent]);
+
+  // "Registar no diário" (Slice: meal history / Diário). Builds a snapshot of
+  // the CURRENT meal — never a reference to it — so later edits to the
+  // current meal, or to the underlying foods, never retroactively change a
+  // meal that was already logged as eaten (CLAUDE.md: "Preserve original
+  // source values and transformation history"). Always creates a brand-new,
+  // dated entry; ../src/mealHistory.ts's logMeal() reads the on-device
+  // Diário fresh before writing, so this is safe even if `history` hasn't
+  // finished hydrating from storage yet. Links the current meal to the
+  // freshly-logged entry so an immediate correction can use "Atualizar
+  // registo" instead of hunting for it in the Diário.
+  const handleLogMeal = useCallback(
+    (name?: string) => {
+      const entry = buildHistoryEntryFromLines(meal, (food) => displayName(food, language), name);
+      setEditingHistoryEntryId(entry.id);
+      void logMeal(entry).then(setHistory);
+    },
+    [meal, language],
+  );
+
+  // "Atualizar registo «label»" — corrects the linked Diário entry's
+  // items/total from the CURRENT meal, preserving its id, name, and original
+  // loggedAt (so fixing a mistake never makes it look like the meal was
+  // eaten at a different time). This is the ONLY in-place mutation of a
+  // history entry's contents; every other log path (buildHistoryEntryFromLines
+  // via handleLogMeal) mints a brand-new, freshly-dated entry.
+  const handleUpdateHistoryEntry = useCallback(
+    (id: string) => {
+      const existing = history.find((entry) => entry.id === id);
+      if (!existing) return;
+      const rebuilt = buildHistoryEntryFromLines(meal, (food) => displayName(food, language), existing.name, existing.loggedAt);
+      const updated: HistoryEntry = { ...rebuilt, id: existing.id };
+      void updateHistoryEntry(updated).then(setHistory);
+    },
+    [history, meal, language],
+  );
+
+  const handleDeleteHistoryEntry = useCallback((id: string) => {
+    void deleteHistoryEntry(id).then(setHistory);
+    setEditingHistoryEntryId((currentId) => (currentId === id ? null : currentId));
+  }, []);
+
+  // "Reutilizar" and "Editar" both replace the CURRENT meal with a fresh
+  // reconstruction of the Diário entry (never a reference to the entry's own
+  // item objects), then switch to the editable Meal screen — mirroring
+  // loadSavedMealIntoCurrent above. "Editar" links back (so "Atualizar
+  // registo" can correct that exact entry in place); "Reutilizar" deliberately
+  // does not, so adjustments are logged as a brand-new, separately-dated
+  // entry and the original historical record is left untouched.
+  const loadHistoryEntryIntoCurrent = useCallback(
+    (entry: HistoryEntry, linkForEditing: boolean) => {
+      setMeal(resolveHistoryEntryToLines(entry, allFoods));
+      setEditingHistoryEntryId(linkForEditing ? entry.id : null);
+      setOverlay(null);
+      setActiveTab("meal");
+    },
+    [allFoods],
+  );
+
+  const handleReuseHistoryEntry = useCallback((entry: HistoryEntry) => loadHistoryEntryIntoCurrent(entry, false), [loadHistoryEntryIntoCurrent]);
+  const handleEditHistoryEntry = useCallback((entry: HistoryEntry) => loadHistoryEntryIntoCurrent(entry, true), [loadHistoryEntryIntoCurrent]);
 
   // "Perfil clínico" save: merges the validated form values into the current
   // profile, bumps `version` (so the calculation's audit record reflects
@@ -533,7 +648,7 @@ function AppShell() {
   const showBack = overlay !== null;
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <View style={styles.safe}>
       <StatusBar style="dark" />
       <Header
         showBack={showBack}
@@ -579,6 +694,7 @@ function AppShell() {
             customFoods={customFoods}
             meal={meal}
             savedMeals={savedMeals}
+            history={history}
             onDeleteAll={handleDeleteAllData}
             doseProfile={doseProfile}
             hasSavedDoseProfile={hasSavedDoseProfile}
@@ -611,6 +727,10 @@ function AppShell() {
             onRename={handleRenameSavedMeal}
             onDelete={handleDeleteSavedMeal}
           />
+        )}
+
+        {overlay?.kind === "history" && (
+          <HistoryScreen history={history} onReuse={handleReuseHistoryEntry} onEdit={handleEditHistoryEntry} onDelete={handleDeleteHistoryEntry} />
         )}
 
         {overlay === null && (
@@ -658,6 +778,13 @@ function AppShell() {
                 onUpdateSavedMeal={() => {
                   if (activeSavedMealId) handleUpdateSavedMeal(activeSavedMealId);
                 }}
+                historyCount={history.length}
+                onOpenHistory={() => setOverlay({ kind: "history" })}
+                onLogMeal={handleLogMeal}
+                editingHistoryEntryLabel={editingHistoryEntryLabel}
+                onUpdateHistoryEntry={() => {
+                  if (editingHistoryEntryId) handleUpdateHistoryEntry(editingHistoryEntryId);
+                }}
               />
             )}
 
@@ -676,7 +803,7 @@ function AppShell() {
           </>
         )}
       </LinearGradient>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -700,11 +827,13 @@ function WebFrame({ children }: { children: ReactNode }) {
 
 export default function App() {
   return (
-    <LanguageProvider>
-      <WebFrame>
-        <AppShell />
-      </WebFrame>
-    </LanguageProvider>
+    <SafeAreaProvider>
+      <LanguageProvider>
+        <WebFrame>
+          <AppShell />
+        </WebFrame>
+      </LanguageProvider>
+    </SafeAreaProvider>
   );
 }
 
