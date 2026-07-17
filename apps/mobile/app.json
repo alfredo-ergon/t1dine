@@ -2,7 +2,7 @@
   "expo": {
     "name": "T1Dine",
     "slug": "t1dine",
-    "version": "0.0.0",
+    "version": "0.1.0",
     "orientation": "portrait",
     "scheme": "t1dine",
     "userInterfaceStyle": "automatic",
@@ -22,6 +22,14 @@
     "web": {
       "bundler": "metro",
       "output": "single"
-    }
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "O T1Dine usa a câmara apenas para ler códigos de barras de alimentos."
+        }
+      ]
+    ]
   }
 }
