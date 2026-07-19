@@ -338,10 +338,15 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     ...elevation.xs.native,
   },
-  stepper: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  // Tight, proven-to-fit layout (matches the Meal screen, which fits on a
+  // narrow phone even with an extra "Remover" button): small gaps and
+  // min-tap-target buttons that never shrink, so the "+" can't be pushed off
+  // the right edge on a narrow device.
+  stepper: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   stepperButton: {
-    width: 48,
-    height: 48,
+    width: MIN_TAP_TARGET,
+    height: MIN_TAP_TARGET,
+    flexShrink: 0,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: colors.brandTint,
@@ -350,6 +355,7 @@ const styles = StyleSheet.create({
   stepperButtonText: { fontSize: 22, fontWeight: "800", color: colors.brandDark },
   amountInput: {
     flex: 1,
+    minWidth: 0,
     minHeight: MIN_TAP_TARGET,
     borderWidth: 1,
     borderColor: colors.borderStrong,
