@@ -120,6 +120,7 @@ export class InMemoryFoodRepository implements FoodRepository {
   }
 
   async seedApproved(foods: CanonicalFood[]): Promise<void> {
+    const seededIds = new Set(foods.map((food) => food.id));
     for (const food of foods) {
       const existing = this.records.get(food.id);
       const stored: StoredFood = {
@@ -133,6 +134,16 @@ export class InMemoryFoodRepository implements FoodRepository {
         reviewedAt: existing?.reviewedAt ?? null,
       };
       this.records.set(food.id, stored);
+    }
+
+    // Reconcile REMOVALS (parity with PostgresFoodRepository.seedApproved):
+    // retire any previously-seeded food no longer present in the catalog, so a
+    // food removed from the code catalog stops being served. Scoped to
+    // `source === "seed"` — never touches user/admin/ai foods.
+    for (const [id, stored] of this.records) {
+      if (stored.source === "seed" && stored.status === "approved" && !seededIds.has(id)) {
+        this.records.set(id, { ...stored, status: "retired", food: withStatus(stored.food, "retired") });
+      }
     }
   }
 }

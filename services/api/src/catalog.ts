@@ -19,7 +19,7 @@
 import { createHash } from "node:crypto";
 import type { NutrientObservation, SourceReference } from "@t1dine/domain";
 import type { CanonicalFood, LocalisedName } from "@t1dine/food-schema";
-import { collectCanonicalFoodErrors } from "@t1dine/food-schema";
+import { collectCanonicalFoodErrors, normaliseSearchText } from "@t1dine/food-schema";
 import type { FoodInput, NamesInput } from "./catalogTypes.js";
 import { PT_DISHES } from "./catalogData/portugalDishes.js";
 import { PT_INSA } from "./catalogData/portugalInsa.js";
@@ -98,6 +98,73 @@ function food(input: FoodInput): CanonicalFood {
     nutrients: nutrients(input.id, market, input.carbGrams, input.energyKcal, input.confidence, input.method),
     status: input.status ?? "approved",
   };
+}
+
+// ---------------------------------------------------------------------------
+// De-duplication: real INSA records win over synthetic placeholders
+// ---------------------------------------------------------------------------
+//
+// INSA (`PT_INSA`) is PT-only, real analytical composition data. The
+// synthetic seed catalog above/below independently covers some of the same
+// Portuguese dishes (development-only placeholders, honestly labelled
+// "estimated"/"calculated" — see the file banner). Where a PT synthetic food
+// and a real INSA food share a display name, the placeholder must not win:
+// the same client-visible dish name would otherwise resolve to two records
+// with different (and clearly non-analytical) nutrient values, which reads
+// as "the values don't look real". `dedupePreferInsa` drops the synthetic
+// record and keeps the INSA one. Non-PT synthetic foods (ES/IT/GR/FR/DE/GB/
+// PL) are never eligible to be dropped — INSA has no data for them, so they
+// can never collide.
+
+/** Sentinel `source.sourceId` the synthetic `food()` mapper assigns to every
+ * PT-market synthetic record (see `source()` above: `SYNTH-T1DINE-${market}`
+ * with `market = input.countries[0] ?? "PT"`). Used — rather than
+ * `countries`/`markets` — because it is the field the mapper actually derives
+ * "market" from, so it can't drift from what a food is really tagged as. */
+const SYNTHETIC_PT_SOURCE_ID = "SYNTH-T1DINE-PT";
+
+/** A food's pt-PT display name, or `undefined` if it has none (every entry in
+ * this catalog carries one, but this stays defensive rather than throwing). */
+function ptDisplayName(entry: CanonicalFood): string | undefined {
+  return entry.names.find((localisedName) => localisedName.language === "pt-PT")?.name;
+}
+
+/** Case-/accent-insensitive, whitespace-collapsed key for PT dish-name
+ * matching. Builds on the shared `normaliseSearchText` (the same case- and
+ * diacritic-folding rule used platform-wide for search, see
+ * `@t1dine/food-schema`) and additionally collapses internal whitespace runs,
+ * since dish names are hand-authored across independent data files and may
+ * differ only by incidental spacing. */
+function ptNameKey(name: string): string {
+  return normaliseSearchText(name).replace(/\s+/g, " ");
+}
+
+/**
+ * Drop any PT-market synthetic food whose pt-PT display name matches (after
+ * `ptNameKey` normalisation) a real INSA food's pt-PT display name — INSA is
+ * the real, analytically measured source, so it always wins over a synthetic
+ * placeholder for the same dish. Non-PT-market synthetic foods pass through
+ * unchanged (INSA is PT-only, so they can never collide). Pure: never
+ * mutates either input, and never touches `insa`.
+ */
+export function dedupePreferInsa(synthetic: CanonicalFood[], insa: CanonicalFood[]): CanonicalFood[] {
+  const insaNameKeys = new Set<string>();
+  for (const insaFood of insa) {
+    const name = ptDisplayName(insaFood);
+    if (name) insaNameKeys.add(ptNameKey(name));
+  }
+
+  return synthetic.filter((food) => {
+    const isSyntheticPt = food.nutrients.some(
+      (nutrient) => nutrient.source.sourceId === SYNTHETIC_PT_SOURCE_ID,
+    );
+    if (!isSyntheticPt) return true;
+
+    const name = ptDisplayName(food);
+    if (!name) return true;
+
+    return !insaNameKeys.has(ptNameKey(name));
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -1519,8 +1586,14 @@ const CATALOG_INPUTS: FoodInput[] = [
 
 // Synthetic seed (curated dishes + wider Europe) plus the real INSA BDCA v7.1
 // per-100 g composition for Portugal (see ./catalogData/insaBuilder.ts for the
-// mandatory INSA/PortFIR attribution).
-export const CATALOG: CanonicalFood[] = [...CATALOG_INPUTS.map(food), ...PT_INSA];
+// mandatory INSA/PortFIR attribution). Synthetic PT foods that collide by
+// display name with a real INSA food are dropped first (see
+// `dedupePreferInsa` above) so INSA — not the synthetic placeholder — is the
+// single record callers resolve for that dish.
+export const CATALOG: CanonicalFood[] = [
+  ...dedupePreferInsa(CATALOG_INPUTS.map(food), PT_INSA),
+  ...PT_INSA,
+];
 
 // Guard: ids must be globally unique. The food store upserts by id, so a
 // duplicate id would silently overwrite an earlier record (and shrink the
