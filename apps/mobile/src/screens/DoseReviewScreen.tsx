@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { FadeIn } from "../components/FadeIn";
@@ -83,6 +83,14 @@ export function DoseReviewScreen({ totalCarbGrams, profile }: DoseReviewScreenPr
   const [glucoseError, setGlucoseError] = useState<string | null>(null);
   const [result, setResult] = useState<DoseEstimateResult | null>(null);
 
+  // The result renders below the "Calcular estimativa" button, which sits near
+  // the bottom of the viewport on a phone — so a freshly computed estimate is
+  // off-screen and the user can't tell anything happened without scrolling.
+  // After computing we scroll the result into view. `resultAnchorY` is the
+  // result section's y-offset within the scroll content (captured on layout).
+  const scrollRef = useRef<ScrollView>(null);
+  const resultAnchorY = useRef(0);
+
   const handleCalculate = () => {
     const trimmedGlucose = glucoseText.trim();
     if (trimmedGlucose.length === 0) {
@@ -109,13 +117,20 @@ export function DoseReviewScreen({ totalCarbGrams, profile }: DoseReviewScreenPr
       calculatedAtIso: nowIso,
     });
     setResult(nextResult);
+
+    // Bring the just-computed result into view (it lays out below the button).
+    // Deferred a tick so the result has laid out before we scroll to its
+    // anchor. Presentation only — never changes what was computed.
+    setTimeout(() => {
+      scrollRef.current?.scrollTo({ y: Math.max(0, resultAnchorY.current - spacing.md), animated: true });
+    }, 60);
   };
 
   const quickCarbRows = buildQuickCarbTable(profile.carbGramsPerUnit);
   const quickCorrectionRows = buildQuickCorrectionTable(profile.targetGlucose, profile.glucosePerCorrectionUnit);
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <ScrollView ref={scrollRef} style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <FadeIn>
         <View style={styles.clinicalChip}>
           <Text style={styles.clinicalChipText}>T1Dine Dose Assist</Text>
@@ -171,11 +186,21 @@ export function DoseReviewScreen({ totalCarbGrams, profile }: DoseReviewScreenPr
           </PressableScale>
         </View>
 
-        {result === null && <Text style={styles.pendingText}>{t("dose.resultPending")}</Text>}
+        {/* Result section — its top y is captured so `handleCalculate` can
+            scroll it into view; `accessibilityLiveRegion` makes a screen
+            reader announce the outcome the moment it appears. */}
+        <View
+          onLayout={(event) => {
+            resultAnchorY.current = event.nativeEvent.layout.y;
+          }}
+          accessibilityLiveRegion="polite"
+        >
+          {result === null && <Text style={styles.pendingText}>{t("dose.resultPending")}</Text>}
 
-        {result !== null && result.status === "blocked" && <BlockedResult result={result} language={language} t={t} />}
+          {result !== null && result.status === "blocked" && <BlockedResult result={result} language={language} t={t} />}
 
-        {result !== null && result.status === "estimate" && <EstimateResult result={result} t={t} />}
+          {result !== null && result.status === "estimate" && <EstimateResult result={result} t={t} />}
+        </View>
 
         <Text style={styles.quickTablesTitle}>{t("dose.quickTablesTitle")}</Text>
         <View style={styles.quickTablesRow}>
