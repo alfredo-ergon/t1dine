@@ -40,9 +40,10 @@ export interface BuildAppOptions {
   /** Injectable fetch/clock/DNS-resolver overrides for the read-only
    * Nightscout module — lets tests exercise it deterministically and fully
    * offline. Defaults to real `fetch`/`Date.now`/DNS resolution when
-   * omitted, so existing callers are unaffected. The HMAC secret backing
-   * that route's `requireAuth` always comes from `authSecret` below, never
-   * from this bag — see `NightscoutDeps` in `./modules/nightscout.ts`. */
+   * omitted, so existing callers are unaffected. The route is
+   * account-optional (no bearer token required — see `NightscoutDeps` in
+   * `./modules/nightscout.ts`); its live path is protected by the SSRF guard
+   * plus rate limiting, not by an account. */
   nightscout?: NightscoutTestOverrides;
   /** Injectable meal persistence PORT. Defaults to a fresh
    * `InMemoryMealRepository` per app instance — the same deterministic
@@ -177,7 +178,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     }),
   );
   void app.register(mealsRoutes({ repository: mealRepository, secret: authSecret }));
-  void app.register(nightscoutRoutes({ secret: authSecret, ...(options.nightscout ?? {}) }));
+  void app.register(nightscoutRoutes({ ...(options.nightscout ?? {}) }));
   void app.register(authRoutes({ repository: userRepository, secret: authSecret }));
   void app.register(syncRoutes({ repository: userDataRepository, secret: authSecret }));
 

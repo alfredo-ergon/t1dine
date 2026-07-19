@@ -1,5 +1,6 @@
 // Tests for the read-only Nightscout glucose module (Slice 6) and its
-// security-hardening additions (H1 — requireAuth + SSRF guard). Everything
+// security-hardening additions (H1 — SSRF guard; the route is
+// account-optional, so no bearer token is required). Everything
 // here is deterministic and offline: `fetch`, the clock, and the DNS
 // resolver are all injected via `buildApp({ nightscout: { fetchImpl, now,
 // dnsLookupImpl } })`, never real network/DNS calls.
@@ -53,11 +54,10 @@ function authHeader(token: string): { authorization: string } {
   return { authorization: `Bearer ${token}` };
 }
 
-describe("POST /integrations/nightscout/glucose — auth (H1)", () => {
-  it("rejects an unauthenticated request with 401 before any fetch/DNS work happens", async () => {
+describe("POST /integrations/nightscout/glucose — account-optional (no bearer token)", () => {
+  it("serves the mock demo with no bearer token, making no network call", async () => {
     const fetchImpl = vi.fn();
     const app = buildApp({
-      authSecret: TEST_AUTH_SECRET,
       nightscout: { fetchImpl, now: fixedClock(), dnsLookupImpl: NO_DNS },
     });
 
@@ -67,21 +67,44 @@ describe("POST /integrations/nightscout/glucose — auth (H1)", () => {
       payload: { mock: true, count: 6 },
     });
 
-    expect(response.statusCode).toBe(401);
+    expect(response.statusCode).toBe(200);
+    expect(response.json().source).toBe("mock");
+    expect(response.json().readings.length).toBe(6);
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
-  it("rejects a garbage bearer token with 401", async () => {
-    const app = buildApp({ authSecret: TEST_AUTH_SECRET, nightscout: { dnsLookupImpl: NO_DNS } });
+  it("serves a live read with no bearer token (SSRF guard still applies)", async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse([{ sgv: 100, date: FIXED_NOW - 2 * 60_000 }]));
+    const app = buildApp({
+      nightscout: { fetchImpl, now: fixedClock(), dnsLookupImpl: NO_DNS },
+    });
 
     const response = await app.inject({
       method: "POST",
       url: "/integrations/nightscout/glucose",
-      headers: { authorization: "Bearer not-a-real-token" },
-      payload: { mock: true },
+      payload: { url: "https://example-nightscout.test", token: SECRET_TOKEN, count: 1 },
     });
 
-    expect(response.statusCode).toBe(401);
+    expect(response.statusCode).toBe(200);
+    expect(response.json().source).toBe("live");
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it("still blocks an SSRF target even with no bearer token", async () => {
+    const fetchImpl = vi.fn();
+    const app = buildApp({
+      nightscout: { fetchImpl, now: fixedClock(), dnsLookupImpl: NO_DNS },
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/integrations/nightscout/glucose",
+      payload: { url: "https://127.0.0.1/" },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error).toBe("invalid_url");
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 });
 

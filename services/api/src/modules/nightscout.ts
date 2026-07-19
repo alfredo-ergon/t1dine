@@ -27,19 +27,21 @@
 //   5. Glucose readings are health data. They must never be written to
 //      server logs — this handler never calls `console.*`/`app.log.*` with
 //      reading values, and relies on the app-wide logger being disabled.
-//   6. AUTH + SSRF (security review H1): this route requires a valid bearer
-//      token (`requireAuth`, see `./auth.ts`) — an unauthenticated caller
-//      never reaches the fetch logic below at all. Outside mock mode, the
-//      caller-supplied `url` is validated by `../ssrfGuard.ts` BEFORE any
-//      request is made: non-`https` urls and hosts that are (or resolve to)
-//      a loopback/private/link-local/metadata address are rejected with a
+//   6. SSRF (security review H1): this route is ACCOUNT-OPTIONAL — it requires
+//      no bearer token, because the app is local-first and account-optional
+//      (glucose display, including the offline "Ver exemplo" demo, must work
+//      for a signed-out user). The SSRF-sensitive LIVE path is instead
+//      protected by `../ssrfGuard.ts` PLUS the route's rate limit: outside
+//      mock mode the caller-supplied `url` is validated BEFORE any request is
+//      made — non-`https` urls and hosts that are (or resolve to) a
+//      loopback/private/link-local/metadata address are rejected with a
 //      GENERIC error that reveals nothing about internal reachability. This
 //      prevents the endpoint being used as a blind proxy into this
-//      deployment's own network.
+//      deployment's own network. Mock mode issues no outbound request at all
+//      (zero SSRF surface).
 
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { requireAuth } from "./auth.js";
 import { resolveNightscoutRateLimit } from "../rateLimit.js";
 import { defaultDnsLookup, isBlockedTarget } from "../ssrfGuard.js";
 import type { DnsLookupImpl } from "../ssrfGuard.js";
@@ -292,11 +294,11 @@ export interface NightscoutTestOverrides {
   dnsLookupImpl?: DnsLookupImpl;
 }
 
-export interface NightscoutDeps extends NightscoutTestOverrides {
-  /** HMAC secret backing `requireAuth` on this route (H1) — always
-   * required, unlike the test-only overrides above. */
-  secret: string;
-}
+/** Dependencies for the Nightscout route. The route is account-optional, so
+ * (unlike other authed routes) it needs no HMAC `secret` — everything it
+ * accepts is a test-only injection seam. Kept as a named alias for the
+ * test-override bag so existing references read clearly. */
+export type NightscoutDeps = NightscoutTestOverrides;
 
 /**
  * Builds the Nightscout route plugin. Returns a plain Fastify plugin function
@@ -304,16 +306,18 @@ export interface NightscoutDeps extends NightscoutTestOverrides {
  * injected `fetchImpl`/`now`/`dnsLookupImpl` are captured in a closure with
  * full type safety, with no need for an `unknown`-typed Fastify options bag.
  */
-export function nightscoutRoutes(deps: NightscoutDeps) {
+export function nightscoutRoutes(deps: NightscoutDeps = {}) {
   const fetchImpl = deps.fetchImpl ?? fetch;
   const now = deps.now ?? (() => Date.now());
   const dnsLookupImpl = deps.dnsLookupImpl ?? defaultDnsLookup;
-  const authPreHandler = requireAuth(deps.secret);
 
   return async function registerNightscoutRoutes(app: FastifyInstance): Promise<void> {
+    // Account-optional (see safety rule 6): no auth preHandler. The live path
+    // is guarded by the SSRF check inside the handler plus this rate limit;
+    // mock mode makes no outbound request at all.
     app.post(
       "/integrations/nightscout/glucose",
-      { preHandler: authPreHandler, config: { rateLimit: resolveNightscoutRateLimit() } },
+      { config: { rateLimit: resolveNightscoutRateLimit() } },
       async (request, reply) => {
         const parsedBody = glucoseRequestSchema.safeParse(request.body ?? {});
         if (!parsedBody.success) {
