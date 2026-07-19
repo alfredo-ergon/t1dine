@@ -1053,6 +1053,7 @@ function AppShell() {
                 lines={meal}
                 onChangeAmount={handleChangeAmount}
                 onRemove={handleRemoveFromMeal}
+                onAddFoods={() => setActiveTab("search")}
                 onEstimateDose={() => setOverlay({ kind: "doseReview" })}
                 savedMealsCount={savedMeals.length}
                 latestSavedMeal={savedMeals[0] ?? null}

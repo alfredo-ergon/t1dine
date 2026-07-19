@@ -19,6 +19,11 @@ export interface MealScreenProps {
   lines: MealLine[];
   onChangeAmount: (foodId: string, amountGrams: number) => void;
   onRemove: (foodId: string) => void;
+  /** Switches to the Procurar (search) tab so the user can quickly add more
+   * foods to the current meal — the primary action of this screen. Kept
+   * front-and-centre so "build my meal" never means hunting for a way back to
+   * search. */
+  onAddFoods: () => void;
   /** Opens the "Estimativa de dose" screen with this meal's confirmed carbohydrate total. */
   onEstimateDose: () => void;
   /** Count for the "Refeições guardadas" entry point badge — always reachable, even with an empty current meal. */
@@ -163,85 +168,52 @@ function MealLineRow({ line, onChangeAmount, onRemove }: MealLineRowProps) {
   );
 }
 
-// Entry point to "Refeições guardadas" (Slice: refeições repetidas) — kept
-// visible regardless of whether the current meal has any items, since
-// browsing/reusing a saved meal is often exactly how a meal gets its first
-// item (mirrors FavouritesScreen's "As minhas contribuições" entry card).
-interface SavedMealsEntryCardProps {
-  count: number;
-  onPress: () => void;
-}
-
-function SavedMealsEntryCard({ count, onPress }: SavedMealsEntryCardProps) {
+// The primary action of this screen: jump back to Procurar to add more foods.
+// A solid brand button so "add more" is unmistakable and one tap away, whether
+// the meal is empty or already has items — this is what the screen is FOR.
+function AddFoodsButton({ onPress }: { onPress: () => void }) {
   const { t } = useLanguage();
-  const label = count > 0 ? `${t("meal.savedMealsOpenCta")} (${count})` : t("meal.savedMealsOpenCta");
-
   return (
-    <PressableScale onPress={onPress} accessibilityRole="button" accessibilityLabel={label} style={styles.savedMealsCard}>
-      <View style={styles.savedMealsIconWrap}>
-        <Text style={styles.savedMealsIcon}>⟲</Text>
+    <PressableScale
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={t("meal.addFoods")}
+      style={styles.addFoodsButton}
+    >
+      <View style={styles.addFoodsPlus} accessible={false} importantForAccessibility="no-hide-descendants">
+        <Text style={styles.addFoodsPlusText}>＋</Text>
       </View>
-      <Text style={styles.savedMealsText}>
-        {t("meal.savedMealsOpenCta")}
-        {count > 0 ? ` (${count})` : ""}
-      </Text>
-      <Text style={styles.savedMealsChevron}>›</Text>
+      <Text style={styles.addFoodsText}>{t("meal.addFoods")}</Text>
     </PressableScale>
   );
 }
 
-// Entry point to "Diário" (meal HISTORY — a dated log of meals actually
-// eaten, distinct from "Refeições guardadas" above, which are reusable
-// TEMPLATES with no date). Kept visible regardless of whether the current
-// meal has any items, exactly like SavedMealsEntryCard, since browsing past
-// entries is a normal thing to do independent of what's currently being
-// built.
-interface HistoryEntryCardProps {
+// Compact secondary navigation chip, grouped three-across under the "Mais"
+// heading at the very bottom of the screen. Deliberately quiet (muted surface,
+// small) so it never competes with the food list or the add-foods action —
+// these are places you occasionally go, not the meal you're building now.
+interface MoreChipProps {
+  icon: string;
+  label: string;
   count: number;
   onPress: () => void;
 }
 
-function DiaryEntryCard({ count, onPress }: HistoryEntryCardProps) {
-  const { t } = useLanguage();
-  const label = count > 0 ? `${t("meal.historyOpenCta")} (${count})` : t("meal.historyOpenCta");
-
+function MoreChip({ icon, label, count, onPress }: MoreChipProps) {
+  const accessibilityLabel = count > 0 ? `${label} (${count})` : label;
   return (
-    <PressableScale onPress={onPress} accessibilityRole="button" accessibilityLabel={label} style={styles.savedMealsCard}>
-      <View style={styles.savedMealsIconWrap}>
-        <Text style={styles.savedMealsIcon}>📖</Text>
+    <PressableScale onPress={onPress} accessibilityRole="button" accessibilityLabel={accessibilityLabel} style={styles.moreChip}>
+      <View style={styles.moreChipIconWrap} accessible={false} importantForAccessibility="no-hide-descendants">
+        <Text style={styles.moreChipIcon}>{icon}</Text>
+        {count > 0 && (
+          <View style={styles.moreChipCount}>
+            <Text style={styles.moreChipCountText}>{count}</Text>
+          </View>
+        )}
       </View>
-      <Text style={styles.savedMealsText}>
-        {t("meal.historyOpenCta")}
-        {count > 0 ? ` (${count})` : ""}
+      <Text style={styles.moreChipLabel} numberOfLines={2}>
+        {label}
       </Text>
-      <Text style={styles.savedMealsChevron}>›</Text>
-    </PressableScale>
-  );
-}
-
-// Entry point to "Receitas" (recipe carb calculator — Slice: Receitas). Same
-// always-visible shape as SavedMealsEntryCard/DiaryEntryCard above: browsing
-// or building a recipe is a normal thing to do independent of the current
-// meal's contents, so this never hides behind "add a food first".
-interface RecipesEntryCardProps {
-  count: number;
-  onPress: () => void;
-}
-
-function RecipesEntryCard({ count, onPress }: RecipesEntryCardProps) {
-  const { t } = useLanguage();
-  const label = count > 0 ? `${t("meal.recipesOpenCta")} (${count})` : t("meal.recipesOpenCta");
-
-  return (
-    <PressableScale onPress={onPress} accessibilityRole="button" accessibilityLabel={label} style={styles.savedMealsCard}>
-      <View style={styles.savedMealsIconWrap}>
-        <Text style={styles.savedMealsIcon}>🍲</Text>
-      </View>
-      <Text style={styles.savedMealsText}>
-        {t("meal.recipesOpenCta")}
-        {count > 0 ? ` (${count})` : ""}
-      </Text>
-      <Text style={styles.savedMealsChevron}>›</Text>
     </PressableScale>
   );
 }
@@ -250,7 +222,7 @@ function RecipesEntryCard({ count, onPress }: RecipesEntryCardProps) {
 // common "repeat my usual meal" case is a single tap ("Usar") instead of
 // drilling into the full list first. Only shown when the current meal is
 // empty (so a one-tap load never silently replaces a meal in progress); the
-// full list stays one tap away via the entry card below.
+// full list stays one tap away via the "Mais" row below.
 function LatestSavedMealCard({ meal, onUse }: { meal: SavedMeal; onUse: (meal: SavedMeal) => void }) {
   const { t } = useLanguage();
   return (
@@ -577,6 +549,7 @@ export function MealScreen({
   lines,
   onChangeAmount,
   onRemove,
+  onAddFoods,
   onEstimateDose,
   savedMealsCount,
   latestSavedMeal,
@@ -598,34 +571,29 @@ export function MealScreen({
   // no clinical authority, just food carbohydrate/energy totals.
   const summary = useMemo(() => summariseMeal(lines), [lines]);
   const aggregateStyle = confidenceStyle(summary.aggregateConfidence);
+  const hasItems = summary.itemCount > 0;
 
-  return (
-    <View style={styles.screen}>
+  // The whole screen scrolls as ONE list: the foods are the spine (the focus),
+  // with the title + quick "add foods" action pinned above them as the list
+  // header, and the totals / save-log / secondary navigation below as the
+  // footer. This keeps the foods immediately visible instead of buried under
+  // navigation cards, and avoids nesting a scroll view inside a scroll view.
+  const header = (
+    <View>
       <Text style={styles.h1}>{t("meal.title")}</Text>
       <Text style={styles.meta}>{tPlural(t, "meal.items", summary.itemCount)}</Text>
 
-      {summary.itemCount === 0 && latestSavedMeal && <LatestSavedMealCard meal={latestSavedMeal} onUse={onUseSavedMeal} />}
+      <AddFoodsButton onPress={onAddFoods} />
 
-      <SavedMealsEntryCard count={savedMealsCount} onPress={onOpenSavedMeals} />
-      <DiaryEntryCard count={historyCount} onPress={onOpenHistory} />
-      <RecipesEntryCard count={recipesCount} onPress={onOpenRecipes} />
+      {!hasItems && latestSavedMeal && <LatestSavedMealCard meal={latestSavedMeal} onUse={onUseSavedMeal} />}
 
-      <FlatList
-        data={summary.lines}
-        keyExtractor={(line) => line.food.id}
-        ListEmptyComponent={
-          <FadeIn>
-            <View style={styles.empty}>
-              <Mascot size={84} />
-              <Text style={styles.emptyTitle}>{t("meal.emptyTitle")}</Text>
-              <Text style={styles.emptyBody}>{t("meal.emptyBody")}</Text>
-            </View>
-          </FadeIn>
-        }
-        renderItem={({ item }) => <MealLineRow line={item} onChangeAmount={onChangeAmount} onRemove={onRemove} />}
-      />
+      {hasItems && <Text style={styles.sectionLabel}>{t("meal.inThisMeal")}</Text>}
+    </View>
+  );
 
-      {summary.itemCount > 0 && (
+  const footer = (
+    <View>
+      {hasItems && (
         <InkSurface style={styles.totals} contentStyle={styles.totalsContent}>
           <View style={styles.totalsRow}>
             <Text style={styles.totalsLabel}>{t("meal.totalsCarb")}</Text>
@@ -649,42 +617,99 @@ export function MealScreen({
         </InkSurface>
       )}
 
-      {summary.itemCount > 0 && (
-        <SaveMealCard onSaveNew={onSaveMeal} editingSavedMealName={editingSavedMealName} onUpdate={onUpdateSavedMeal} />
-      )}
-
-      {summary.itemCount > 0 && (
-        <LogMealCard onLogNew={onLogMeal} editingHistoryEntryLabel={editingHistoryEntryLabel} onUpdate={onUpdateHistoryEntry} />
-      )}
-
-      <PressableScale
-        onPress={onEstimateDose}
-        disabled={summary.itemCount === 0}
-        accessibilityRole="button"
-        accessibilityLabel={t("meal.estimateDoseCta")}
-        accessibilityState={{ disabled: summary.itemCount === 0 }}
-        style={summary.itemCount === 0 ? styles.estimateDoseButtonDisabled : styles.estimateDoseButtonWrap}
-      >
-        {summary.itemCount === 0 ? (
-          <Text style={[styles.estimateDoseButtonText, styles.estimateDoseButtonTextDisabled]}>{t("meal.estimateDoseCta")}</Text>
-        ) : (
+      {hasItems && (
+        <PressableScale
+          onPress={onEstimateDose}
+          accessibilityRole="button"
+          accessibilityLabel={t("meal.estimateDoseCta")}
+          style={styles.estimateDoseButtonWrap}
+        >
           <LinearGradient colors={gradients.brand.colors} start={gradients.brand.start} end={gradients.brand.end} style={styles.estimateDoseButtonGradient}>
             <Text style={styles.estimateDoseButtonText}>{t("meal.estimateDoseCta")}</Text>
           </LinearGradient>
-        )}
-      </PressableScale>
-      {summary.itemCount === 0 && <Text style={styles.estimateDoseDisabledHint}>{t("meal.estimateDoseDisabledHint")}</Text>}
+        </PressableScale>
+      )}
+
+      {hasItems && <SaveMealCard onSaveNew={onSaveMeal} editingSavedMealName={editingSavedMealName} onUpdate={onUpdateSavedMeal} />}
+
+      {hasItems && <LogMealCard onLogNew={onLogMeal} editingHistoryEntryLabel={editingHistoryEntryLabel} onUpdate={onUpdateHistoryEntry} />}
+
+      {/* Secondary navigation, demoted to the bottom and compacted so the food
+          list stays the focus. Always reachable, even with an empty meal —
+          browsing a saved meal/recipe is often how a meal gets its first item. */}
+      <Text style={[styles.sectionLabel, styles.moreLabel]}>{t("meal.moreSection")}</Text>
+      <View style={styles.moreRow}>
+        <MoreChip icon="⟲" label={t("meal.savedMealsOpenCta")} count={savedMealsCount} onPress={onOpenSavedMeals} />
+        <MoreChip icon="📖" label={t("meal.historyOpenCta")} count={historyCount} onPress={onOpenHistory} />
+        <MoreChip icon="🍲" label={t("meal.recipesOpenCta")} count={recipesCount} onPress={onOpenRecipes} />
+      </View>
     </View>
+  );
+
+  return (
+    <FlatList
+      style={styles.screen}
+      contentContainerStyle={styles.listContent}
+      data={summary.lines}
+      keyExtractor={(line) => line.food.id}
+      ListHeaderComponent={header}
+      ListFooterComponent={footer}
+      ListEmptyComponent={
+        <FadeIn>
+          <View style={styles.empty}>
+            <Mascot size={84} />
+            <Text style={styles.emptyTitle}>{t("meal.emptyTitle")}</Text>
+            <Text style={styles.emptyBody}>{t("meal.emptyBody")}</Text>
+          </View>
+        </FadeIn>
+      }
+      renderItem={({ item }) => <MealLineRow line={item} onChangeAmount={onChangeAmount} onRemove={onRemove} />}
+    />
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, paddingHorizontal: spacing.xl },
+  screen: { flex: 1 },
+  listContent: { paddingHorizontal: spacing.xl, paddingBottom: spacing.xxl },
   h1: { fontSize: typeScale.heading.size, fontWeight: fontWeights.extrabold, color: colors.textPrimary },
-  meta: { fontSize: 13, color: colors.textMuted, marginTop: 2, marginBottom: 10 },
+  meta: { fontSize: 13, color: colors.textMuted, marginTop: 2, marginBottom: spacing.md },
+  sectionLabel: {
+    fontSize: typeScale.overline.size,
+    fontWeight: typeScale.overline.weight,
+    color: colors.textFaint,
+    textTransform: "uppercase",
+    letterSpacing: typeScale.overline.letterSpacing,
+    marginTop: spacing.md,
+    marginBottom: spacing.xs,
+  },
   empty: { padding: spacing.xxl, alignItems: "center" },
   emptyTitle: { fontSize: typeScale.heading.size, fontWeight: fontWeights.bold, color: colors.textPrimary, marginTop: spacing.md },
   emptyBody: { fontSize: 14, color: colors.textMuted, marginTop: 4, textAlign: "center" },
+
+  // Primary action — a solid brand button so "add more foods" is the loudest,
+  // clearest thing on the screen after the foods themselves.
+  addFoodsButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.sm,
+    minHeight: MIN_TAP_TARGET + 6,
+    borderRadius: radius.pill,
+    backgroundColor: colors.brand,
+    marginBottom: spacing.md,
+    ...elevation.sm.native,
+  },
+  addFoodsPlus: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: "rgba(255,255,255,0.22)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  addFoodsPlusText: { color: colors.onBrand, fontSize: 18, fontWeight: "800", lineHeight: 20 },
+  addFoodsText: { color: colors.onBrand, fontSize: 16, fontWeight: "800" },
+
   line: {
     backgroundColor: colors.surfaceElevated,
     borderRadius: radius.lg,
@@ -710,8 +735,12 @@ const styles = StyleSheet.create({
   lineSub: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
   miniBadge: { alignSelf: "flex-start", borderRadius: radius.pill, paddingHorizontal: spacing.sm, paddingVertical: 3, marginTop: spacing.xs },
   miniBadgeText: { fontSize: 11, fontWeight: "700" },
-  lineControls: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  stepper: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
+  lineControls: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  // flex:1 so the stepper takes exactly the space left after the (fixed-width)
+  // Remove button — the amount field then fills the middle instead of
+  // stretching to a browser-default width and shoving "Remover" off-screen on
+  // narrow phones.
+  stepper: { flex: 1, flexDirection: "row", alignItems: "center", gap: spacing.xs },
   stepperButton: {
     minWidth: MIN_TAP_TARGET,
     minHeight: MIN_TAP_TARGET,
@@ -722,7 +751,8 @@ const styles = StyleSheet.create({
   },
   stepperButtonText: { fontSize: 20, fontWeight: "700", color: colors.brandDark },
   amountInput: {
-    minWidth: 56,
+    flex: 1,
+    minWidth: 48,
     minHeight: MIN_TAP_TARGET,
     borderWidth: 1,
     borderColor: colors.borderStrong,
@@ -734,15 +764,17 @@ const styles = StyleSheet.create({
   },
   gramsUnit: { fontSize: 13, color: colors.textMuted },
   removeButton: {
+    flexShrink: 0,
     minHeight: MIN_TAP_TARGET,
     paddingHorizontal: spacing.md,
+    alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.sm,
     borderWidth: 1,
     borderColor: colors.danger,
   },
   removeButtonText: { color: colors.danger, fontWeight: "700", fontSize: 13 },
-  totals: { marginTop: spacing.sm, marginBottom: spacing.md },
+  totals: { marginTop: spacing.md, marginBottom: spacing.md },
   totalsContent: { padding: spacing.md },
   totalsRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 4 },
   totalsLabel: { fontSize: 14, color: "rgba(255,255,255,0.72)" },
@@ -751,21 +783,9 @@ const styles = StyleSheet.create({
   uncertaintyBanner: { flexDirection: "row", gap: spacing.sm, borderRadius: radius.md, padding: spacing.sm, marginTop: spacing.sm, alignItems: "flex-start" },
   uncertaintyIcon: { fontSize: 16, fontWeight: "700" },
   uncertaintyText: { flex: 1, fontSize: 13, color: colors.textSecondary },
-  estimateDoseButtonWrap: { borderRadius: radius.pill, marginBottom: spacing.xs, ...elevation.glow.native },
+  estimateDoseButtonWrap: { borderRadius: radius.pill, marginBottom: spacing.sm, ...elevation.glow.native },
   estimateDoseButtonGradient: { minHeight: MIN_TAP_TARGET, alignItems: "center", justifyContent: "center", borderRadius: radius.pill },
-  estimateDoseButtonDisabled: {
-    minHeight: MIN_TAP_TARGET,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: radius.pill,
-    backgroundColor: colors.surfaceSunken,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: spacing.xs,
-  },
   estimateDoseButtonText: { color: colors.onBrand, fontSize: 16, fontWeight: "700" },
-  estimateDoseButtonTextDisabled: { color: colors.textFaint },
-  estimateDoseDisabledHint: { fontSize: 12.5, color: colors.textMuted, textAlign: "center", marginBottom: spacing.md },
 
   // Highlighted "most recent saved meal" card — a subtle brand accent + a
   // slightly stronger elevation so it reads as the featured shortcut.
@@ -808,30 +828,47 @@ const styles = StyleSheet.create({
     ...elevation.sm.native,
   },
   latestUseButtonText: { color: colors.onBrand, fontSize: 15, fontWeight: "800" },
-  savedMealsCard: {
-    flexDirection: "row",
+
+  // Compact secondary-navigation row ("Mais"), three chips across.
+  moreLabel: { marginTop: spacing.lg },
+  moreRow: { flexDirection: "row", gap: spacing.sm },
+  moreChip: {
+    flex: 1,
     alignItems: "center",
-    gap: spacing.sm,
+    justifyContent: "flex-start",
+    gap: spacing.xs,
+    minHeight: 78,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xs,
     backgroundColor: colors.surfaceElevated,
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.hairline,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-    minHeight: MIN_TAP_TARGET,
     ...elevation.sm.native,
   },
-  savedMealsIconWrap: {
-    width: 36,
-    height: 36,
+  moreChipIconWrap: {
+    width: 34,
+    height: 34,
     borderRadius: radius.md,
     backgroundColor: colors.brandTint,
     alignItems: "center",
     justifyContent: "center",
   },
-  savedMealsIcon: { fontSize: 16, color: colors.brandDark },
-  savedMealsText: { flex: 1, fontSize: 15, fontWeight: "700", color: colors.textPrimary },
-  savedMealsChevron: { fontSize: 20, color: colors.textFaint },
+  moreChipIcon: { fontSize: 16, color: colors.brandDark },
+  moreChipCount: {
+    position: "absolute",
+    top: -5,
+    right: -5,
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 4,
+    borderRadius: 9,
+    backgroundColor: colors.brand,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  moreChipCountText: { color: colors.onBrand, fontSize: 11, fontWeight: "800" },
+  moreChipLabel: { fontSize: 12, fontWeight: "700", color: colors.textSecondary, textAlign: "center" },
 
   saveMealOpenButton: {
     minHeight: MIN_TAP_TARGET,
