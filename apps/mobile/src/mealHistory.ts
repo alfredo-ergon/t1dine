@@ -26,7 +26,7 @@ import type { NutrientObservation, SourceReference } from "@t1dine/domain";
 import type { CanonicalFood } from "@t1dine/food-schema";
 import { assertCanonicalFood } from "@t1dine/food-schema";
 import type { MealLine } from "@t1dine/nutrition";
-import { CARBOHYDRATE_CODE, summariseMeal } from "@t1dine/nutrition";
+import { CARBOHYDRATE_CODE, ENERGY_CODE, summariseMeal } from "@t1dine/nutrition";
 
 import { getActiveProfileId, migrateLegacyKey, profileKey } from "./profiles";
 
@@ -46,6 +46,15 @@ export interface HistoryItem {
   quantityGrams: number;
   /** Carbohydrate (g) per 100 g/ml of this food, captured at log time. */
   carbPer100g: number;
+  /**
+   * Energy (kcal) per 100 g/ml of this food, captured at log time — optional
+   * because it was added after carbPer100g and older persisted entries won't
+   * have it (never backfilled; see buildFallbackFood). When present, lets a
+   * reused/edited entry whose original food can no longer be found
+   * (buildFallbackFood) still report real energy instead of the 0 kcal a
+   * carb-only placeholder would otherwise show.
+   */
+  energyPer100g?: number;
 }
 
 export interface HistoryEntry {
@@ -72,7 +81,8 @@ function isHistoryItem(value: unknown): value is HistoryItem {
     typeof item.name === "string" &&
     isFiniteNumber(item.quantityGrams) &&
     item.quantityGrams >= 0 &&
-    isFiniteNumber(item.carbPer100g)
+    isFiniteNumber(item.carbPer100g) &&
+    (item.energyPer100g === undefined || isFiniteNumber(item.energyPer100g))
   );
 }
 
@@ -117,12 +127,19 @@ export function buildHistoryEntryFromLines(
   loggedAt: string = new Date().toISOString(),
 ): HistoryEntry {
   const summary = summariseMeal(lines);
-  const items: HistoryItem[] = summary.lines.map((line) => ({
-    foodId: line.food.id,
-    name: resolveName(line.food),
-    quantityGrams: line.amount,
-    carbPer100g: line.amount > 0 ? round1((line.carbGrams / line.amount) * 100) : 0,
-  }));
+  const items: HistoryItem[] = summary.lines.map((line) => {
+    const energyPer100g =
+      line.amount > 0 && Number.isFinite(line.energyKcal) && line.energyKcal > 0
+        ? round1((line.energyKcal / line.amount) * 100)
+        : undefined;
+    return {
+      foodId: line.food.id,
+      name: resolveName(line.food),
+      quantityGrams: line.amount,
+      carbPer100g: line.amount > 0 ? round1((line.carbGrams / line.amount) * 100) : 0,
+      ...(energyPer100g !== undefined ? { energyPer100g } : {}),
+    };
+  });
 
   const trimmedName = name?.trim();
 
@@ -171,6 +188,24 @@ export function buildFallbackFood(item: HistoryItem): CanonicalFood {
     source: fallbackSourceReference(item.foodId),
   };
 
+  // Energy is only present on entries logged after this field was
+  // introduced (see HistoryItem.energyPer100g) — never fabricated for
+  // older persisted entries that genuinely lack it (CLAUDE.md: never
+  // fabricate a value that is unknown).
+  const energyObservation: NutrientObservation | undefined =
+    item.energyPer100g !== undefined && Number.isFinite(item.energyPer100g)
+      ? {
+          nutrientCode: ENERGY_CODE,
+          value: item.energyPer100g,
+          unit: "kcal",
+          basisQuantity: 100,
+          basisUnit: "g",
+          method: "estimated",
+          confidence: "unverified",
+          source: fallbackSourceReference(item.foodId),
+        }
+      : undefined;
+
   const food: CanonicalFood = {
     id: `history-missing-${item.foodId}`,
     type: "custom",
@@ -185,7 +220,7 @@ export function buildFallbackFood(item: HistoryItem): CanonicalFood {
     dietaryPatternTags: [],
     mealContextTags: [],
     clinicalBehaviourTags: [],
-    nutrients: [carbObservation],
+    nutrients: energyObservation ? [carbObservation, energyObservation] : [carbObservation],
     status: "candidate",
   };
 

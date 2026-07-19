@@ -159,7 +159,7 @@ describe("GET /meals/:id", () => {
       method: "POST",
       url: "/meals",
       headers: { authorization: `Bearer ${token}` },
-      payload: { lines: [{ foodId: "pt-banana", amount: 100 }] },
+      payload: { lines: [{ foodId: "pt-maca", amount: 100 }] },
     });
     const { id } = created.json();
 
@@ -201,7 +201,7 @@ describe("GET /meals/:id", () => {
       method: "POST",
       url: "/meals",
       headers: { authorization: `Bearer ${ownerToken}` },
-      payload: { lines: [{ foodId: "pt-banana", amount: 100 }] },
+      payload: { lines: [{ foodId: "pt-maca", amount: 100 }] },
     });
     const { id } = created.json();
 

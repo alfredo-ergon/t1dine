@@ -192,6 +192,21 @@ export class PostgresFoodRepository implements FoodRepository {
         [food.id, JSON.stringify(withStatus(food, "approved"))],
       );
     }
+
+    // Reconcile REMOVALS: retire any previously-seeded food that is no longer
+    // in the catalog — e.g. a synthetic placeholder now superseded by a real
+    // source (see `dedupePreferInsa` in `../catalog.ts`). Without this, an
+    // idempotent upsert leaves orphaned rows behind forever, so a food removed
+    // from the code catalog would keep showing up in a persisted database.
+    // Scoped to `source = 'seed'` ONLY — user submissions, admin-added, and AI
+    // candidates (sources 'user'/'admin'/'ai') are never touched.
+    await this.pool.query(
+      `UPDATE foods
+         SET status = 'retired',
+             record = jsonb_set(record, '{status}', '"retired"')
+       WHERE source = 'seed' AND status = 'approved' AND NOT (id = ANY($1::text[]))`,
+      [foods.map((food) => food.id)],
+    );
   }
 
   async close(): Promise<void> {

@@ -23,7 +23,7 @@ import type { NutrientObservation, SourceReference } from "@t1dine/domain";
 import type { CanonicalFood } from "@t1dine/food-schema";
 import { assertCanonicalFood } from "@t1dine/food-schema";
 import type { MealLine } from "@t1dine/nutrition";
-import { CARBOHYDRATE_CODE, summariseMeal } from "@t1dine/nutrition";
+import { CARBOHYDRATE_CODE, ENERGY_CODE, summariseMeal } from "@t1dine/nutrition";
 
 import { getActiveProfileId, migrateLegacyKey, profileKey } from "./profiles";
 
@@ -41,6 +41,15 @@ export interface SavedMealItem {
   quantityGrams: number;
   /** Carbohydrate (g) per 100 g/ml of this food, captured at save time. */
   carbPer100g: number;
+  /**
+   * Energy (kcal) per 100 g/ml of this food, captured at save time — optional
+   * because it was added after carbPer100g and older persisted items won't
+   * have it (never backfilled; see buildFallbackFood). When present, lets a
+   * reused/cloned item whose original food can no longer be found
+   * (buildFallbackFood) still report real energy instead of the 0 kcal a
+   * carb-only placeholder would otherwise show.
+   */
+  energyPer100g?: number;
 }
 
 export interface SavedMeal {
@@ -65,7 +74,8 @@ function isSavedMealItem(value: unknown): value is SavedMealItem {
     typeof item.name === "string" &&
     isFiniteNumber(item.quantityGrams) &&
     item.quantityGrams >= 0 &&
-    isFiniteNumber(item.carbPer100g)
+    isFiniteNumber(item.carbPer100g) &&
+    (item.energyPer100g === undefined || isFiniteNumber(item.energyPer100g))
   );
 }
 
@@ -106,12 +116,19 @@ function round1(value: number): number {
  */
 export function buildSavedMealFromLines(name: string, lines: MealLine[], resolveName: (food: CanonicalFood) => string): SavedMeal {
   const summary = summariseMeal(lines);
-  const items: SavedMealItem[] = summary.lines.map((line) => ({
-    foodId: line.food.id,
-    name: resolveName(line.food),
-    quantityGrams: line.amount,
-    carbPer100g: line.amount > 0 ? round1((line.carbGrams / line.amount) * 100) : 0,
-  }));
+  const items: SavedMealItem[] = summary.lines.map((line) => {
+    const energyPer100g =
+      line.amount > 0 && Number.isFinite(line.energyKcal) && line.energyKcal > 0
+        ? round1((line.energyKcal / line.amount) * 100)
+        : undefined;
+    return {
+      foodId: line.food.id,
+      name: resolveName(line.food),
+      quantityGrams: line.amount,
+      carbPer100g: line.amount > 0 ? round1((line.carbGrams / line.amount) * 100) : 0,
+      ...(energyPer100g !== undefined ? { energyPer100g } : {}),
+    };
+  });
 
   return {
     id: createSavedMealId(),
@@ -157,6 +174,24 @@ export function buildFallbackFood(item: SavedMealItem): CanonicalFood {
     source: fallbackSourceReference(item.foodId),
   };
 
+  // Energy is only present on items saved after this field was introduced
+  // (see SavedMealItem.energyPer100g) — never fabricated for older
+  // persisted items that genuinely lack it (CLAUDE.md: never fabricate a
+  // value that is unknown).
+  const energyObservation: NutrientObservation | undefined =
+    item.energyPer100g !== undefined && Number.isFinite(item.energyPer100g)
+      ? {
+          nutrientCode: ENERGY_CODE,
+          value: item.energyPer100g,
+          unit: "kcal",
+          basisQuantity: 100,
+          basisUnit: "g",
+          method: "estimated",
+          confidence: "unverified",
+          source: fallbackSourceReference(item.foodId),
+        }
+      : undefined;
+
   const food: CanonicalFood = {
     id: `saved-missing-${item.foodId}`,
     type: "custom",
@@ -171,7 +206,7 @@ export function buildFallbackFood(item: SavedMealItem): CanonicalFood {
     dietaryPatternTags: [],
     mealContextTags: [],
     clinicalBehaviourTags: [],
-    nutrients: [carbObservation],
+    nutrients: energyObservation ? [carbObservation, energyObservation] : [carbObservation],
     status: "candidate",
   };
 
