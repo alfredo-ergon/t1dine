@@ -25,6 +25,18 @@ export const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? "http://loca
 
 const DEFAULT_TIMEOUT_MS = 4000;
 
+/**
+ * Timeout for the ONE-TIME startup load of the full online catalog
+ * (`fetchCatalog()` with no query). That response is large (~1500 foods with
+ * full nutrient detail, downloaded once so search can run fully client-side
+ * and offline afterwards), so it needs a far more generous budget than the
+ * 4 s used for interactive calls — otherwise a perfectly healthy API is
+ * abandoned mid-download and the app silently falls back to its tiny bundled
+ * offline catalog. This is a background enhancement, never on any blocking
+ * path, so a long timeout costs the user nothing.
+ */
+export const FULL_CATALOG_TIMEOUT_MS = 20000;
+
 export type ApiErrorKind = "network" | "timeout" | "http" | "invalid_response";
 
 /**
@@ -136,8 +148,13 @@ export interface CatalogFetchFilter {
  * is silently dropped (never crashes, never trusted as-is) rather than
  * surfaced as a partial failure — callers treat the whole call as either
  * "have an online catalog" or "fall back to the offline bundled one".
+ *
+ * `timeoutMs` overrides the default 4 s budget — pass
+ * `FULL_CATALOG_TIMEOUT_MS` for the unfiltered startup load of the whole
+ * catalog (a large, one-time, background download), leaving the short
+ * default for interactive query-scoped fetches.
  */
-export async function fetchCatalog(filter: CatalogFetchFilter = {}): Promise<CanonicalFood[]> {
+export async function fetchCatalog(filter: CatalogFetchFilter = {}, timeoutMs?: number): Promise<CanonicalFood[]> {
   const params = new URLSearchParams();
   if (filter.query && filter.query.trim().length > 0) {
     params.set("q", filter.query.trim());
@@ -149,7 +166,7 @@ export async function fetchCatalog(filter: CatalogFetchFilter = {}): Promise<Can
     params.set("cuisine", filter.cuisine.trim());
   }
   const suffix = params.toString();
-  const json = await fetchJson(`/catalog/foods${suffix ? `?${suffix}` : ""}`);
+  const json = await fetchJson(`/catalog/foods${suffix ? `?${suffix}` : ""}`, {}, timeoutMs);
 
   if (!isRecord(json) || !Array.isArray(json["foods"])) {
     throw new ApiError("invalid_response", "T1Dine API returned an unexpected catalog response shape.");

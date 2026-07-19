@@ -8,7 +8,7 @@ import { AREA_TAXONOMY } from "@t1dine/food-schema";
 import type { MealLine } from "@t1dine/nutrition";
 import { summariseMeal } from "@t1dine/nutrition";
 
-import { fetchCatalog, getSyncState, isConnectivityError, login, putSyncState, register, type SyncState } from "./src/api";
+import { fetchCatalog, FULL_CATALOG_TIMEOUT_MS, getSyncState, isConnectivityError, login, putSyncState, register, type SyncState } from "./src/api";
 import { availableCuisineTags, filterByArea } from "./src/areaFilter";
 import { clearSession, loadSession, saveSession, type StoredSession } from "./src/auth";
 import { AuroraBackground } from "./src/components/AuroraBackground";
@@ -225,7 +225,11 @@ function AppShell() {
 
   const refreshCatalog = useCallback(() => {
     setCatalogLoading(true);
-    fetchCatalog()
+    // The unfiltered full-catalog download is large and one-time; give it a
+    // generous timeout (see `FULL_CATALOG_TIMEOUT_MS`) so it isn't abandoned
+    // mid-download on a slower connection — otherwise the app silently shows
+    // only its tiny bundled offline catalog even though the API is healthy.
+    fetchCatalog({}, FULL_CATALOG_TIMEOUT_MS)
       .then((foods) => setRemoteFoods(foods))
       .catch(() => setRemoteFoods(null))
       .finally(() => setCatalogLoading(false));
