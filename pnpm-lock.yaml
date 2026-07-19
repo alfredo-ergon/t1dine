@@ -84,6 +84,9 @@ importers:
       '@t1dine/nutrition':
         specifier: workspace:*
         version: link:../../packages/nutrition
+      '@zxing/browser':
+        specifier: 0.2.1
+        version: 0.2.1(@zxing/library@0.23.0)
       expo:
         specifier: ~54.0.0
         version: 54.0.35(@babel/core@7.29.7)(@expo/metro-runtime@6.1.2)(react-native@0.81.5(@babel/core@7.29.7)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
@@ -701,7 +704,7 @@ packages:
     engines: {node: '>=6.9.0'}
 
   '@babel/traverse@7.29.7':
-    resolution: {integrity: sha1-xHsHpBuV2gkH0Ca13YlNmN59Ly0=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/traverse/-/traverse-7.29.7.tgz}
+    resolution: {integrity: sha1-xHsHpBuV2gkH0Ca13YlNmN59Ly0=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@babel/traverse/-/traverse-7.29.7.tgz}
     engines: {node: '>=6.9.0'}
 
   '@babel/types@7.29.7':
@@ -1894,6 +1897,18 @@ packages:
   '@xmldom/xmldom@0.9.10':
     resolution: {integrity: sha1-oK1aJv6KqZYxCHBybhcEl392ne4=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@xmldom/xmldom/-/xmldom-0.9.10.tgz}
     engines: {node: '>=14.6'}
+
+  '@zxing/browser@0.2.1':
+    resolution: {integrity: sha1-QcoLgGSNEx3sXYzBjvvWL65GRuc=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@zxing/browser/-/browser-0.2.1.tgz}
+    peerDependencies:
+      '@zxing/library': ^0.23.0
+
+  '@zxing/library@0.23.0':
+    resolution: {integrity: sha1-zBo0HwZLNvwkYxzBN5e80ynjbKc=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@zxing/library/-/library-0.23.0.tgz}
+    engines: {node: '>= 24.0.0'}
+
+  '@zxing/text-encoding@0.9.0':
+    resolution: {integrity: sha1-+1D/q8bHxmoMlrTAPj2b50hktws=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/@zxing/text-encoding/-/text-encoding-0.9.0.tgz}
 
   abort-controller@3.0.0:
     resolution: {integrity: sha1-6vVNU7YrrkE46AnKIlyEOabvs5I=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/abort-controller/-/abort-controller-3.0.0.tgz}
@@ -4047,7 +4062,7 @@ packages:
     engines: {node: '>=8.0'}
 
   toad-cache@3.7.4:
-    resolution: {integrity: sha1-IR5yYFu3hi38aOHA350P49wt7Ac=, tarball: https://ms-feed-2.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/toad-cache/-/toad-cache-3.7.4.tgz}
+    resolution: {integrity: sha1-IR5yYFu3hi38aOHA350P49wt7Ac=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/toad-cache/-/toad-cache-3.7.4.tgz}
     engines: {node: '>=20'}
 
   toidentifier@1.0.1:
@@ -4065,6 +4080,10 @@ packages:
     engines: {node: '>=18.12'}
     peerDependencies:
       typescript: '>=4.8.4'
+
+  ts-custom-error@3.3.1:
+    resolution: {integrity: sha1-i9PI/GuNyOHLMpJnxFIA8eF6ZdE=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/ts-custom-error/-/ts-custom-error-3.3.1.tgz}
+    engines: {node: '>=14.0.0'}
 
   ts-interface-checker@0.1.13:
     resolution: {integrity: sha1-eE/T1nlyK8EDsbS4AwvN212yppk=, tarball: https://ms-feed-12.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/ts-interface-checker/-/ts-interface-checker-0.1.13.tgz}
@@ -6239,6 +6258,21 @@ snapshots:
   '@xmldom/xmldom@0.8.13': {}
 
   '@xmldom/xmldom@0.9.10': {}
+
+  '@zxing/browser@0.2.1(@zxing/library@0.23.0)':
+    dependencies:
+      '@zxing/library': 0.23.0
+    optionalDependencies:
+      '@zxing/text-encoding': 0.9.0
+
+  '@zxing/library@0.23.0':
+    dependencies:
+      ts-custom-error: 3.3.1
+    optionalDependencies:
+      '@zxing/text-encoding': 0.9.0
+
+  '@zxing/text-encoding@0.9.0':
+    optional: true
 
   abort-controller@3.0.0:
     dependencies:
@@ -8637,6 +8671,8 @@ snapshots:
   ts-api-utils@2.5.0(typescript@5.9.3):
     dependencies:
       typescript: 5.9.3
+
+  ts-custom-error@3.3.1: {}
 
   ts-interface-checker@0.1.13: {}
 

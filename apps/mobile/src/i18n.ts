@@ -194,7 +194,15 @@ const pt: Dictionary = {
   "barcode.openSettingsCta": "Abrir definições",
   "barcode.scanningHint": "Aponte a câmara para o código de barras do produto.",
   "barcode.scanAgainCta": "Ler novamente",
-  "barcode.webNotice": "A leitura em direto funciona na aplicação (iOS/Android). Neste navegador, introduza o código manualmente.",
+  // Live camera scanning on web (see WebBarcodeScanner.web.tsx): a framed
+  // preview + hint mirrors native's scanningHint, plus two explicit
+  // escape hatches — switch to manual entry any time, or (if the camera
+  // turned out to be unusable) a one-line explanation instead of a silent
+  // dead camera view.
+  "barcode.webScanHint": "Aponte a câmara ao código de barras",
+  "barcode.webUseManual": "Introduzir manualmente",
+  "barcode.webUseCamera": "Ler com a câmara",
+  "barcode.webCameraUnavailable": "Câmara indisponível neste navegador — introduza o código manualmente.",
   "barcode.manualEntryIntro": "Ou introduza o código manualmente:",
   "barcode.manualEntryLabel": "Código de barras",
   "barcode.manualEntryPlaceholder": "ex. 5601234567890",
@@ -700,7 +708,10 @@ const en: Dictionary = {
   "barcode.openSettingsCta": "Open settings",
   "barcode.scanningHint": "Point the camera at the product's barcode.",
   "barcode.scanAgainCta": "Scan again",
-  "barcode.webNotice": "Live scanning works in the app (iOS/Android). In this browser, enter the code manually.",
+  "barcode.webScanHint": "Point the camera at the barcode",
+  "barcode.webUseManual": "Enter manually",
+  "barcode.webUseCamera": "Scan with the camera",
+  "barcode.webCameraUnavailable": "Camera unavailable in this browser — enter the code manually.",
   "barcode.manualEntryIntro": "Or enter the code manually:",
   "barcode.manualEntryLabel": "Barcode",
   "barcode.manualEntryPlaceholder": "e.g. 5601234567890",

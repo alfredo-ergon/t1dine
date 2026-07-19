@@ -1,10 +1,15 @@
 // Barcode lookup (Slice: barcode scanning). Two entry paths into the SAME
 // lookup logic:
 //   - Native (iOS/Android): a live `expo-camera` `CameraView` scan.
-//   - Web (`Platform.OS === "web"`): live camera scanning is unreliable in a
-//     browser preview, so this never renders a camera there — only a manual
-//     numeric-entry fallback, which shares the exact same lookup as a native
-//     scan. The whole feature is therefore fully usable on web.
+//   - Web (`Platform.OS === "web"`): a live camera scan too, via
+//     `WebBarcodeScanner` (browser `BarcodeDetector` where available, else
+//     `@zxing/browser`) — see that component for the full decode strategy
+//     and cleanup story. Manual numeric entry is always one tap away
+//     (`webMode`, below), and is what `WebBarcodeScanner` itself falls back
+//     to whenever the camera turns out to be unusable (no camera,
+//     permission denied, unsupported browser). Either path calls the exact
+//     same `handleCode`, so the whole feature is fully usable on web
+//     regardless of camera support.
 //
 // A scanned/typed code is looked up FIRST in the catalog already loaded on
 // this device (`foods` — App.tsx's `allFoods`, i.e. every food this app
@@ -37,6 +42,7 @@ import { FadeIn } from "../components/FadeIn";
 import { Mascot } from "../components/Mascot";
 import { PressableScale } from "../components/PressableScale";
 import { Skeleton } from "../components/Skeleton";
+import { WebBarcodeScanner } from "../components/WebBarcodeScanner";
 import { useLanguage } from "../i18n";
 import { carbPer100g, displayName, nutrient } from "../search";
 import { colors, elevation, fontWeights, gradients, MIN_TAP_TARGET, radius, spacing, typeScale } from "../theme";
@@ -245,9 +251,27 @@ export function BarcodeScanScreen({ foods, onFound, onNotFound, onCancel, onAddO
   const isWeb = Platform.OS === "web";
 
   // Always call the hook (rules of hooks) — only its RESULT is used
-  // conditionally on `isWeb` below (the camera itself is never rendered on
-  // web; see the module note above).
+  // conditionally below, and only on native: `expo-camera`'s own permission
+  // gate has no equivalent meaning on web, where `WebBarcodeScanner` drives
+  // the browser's native getUserMedia permission prompt instead (see the
+  // module note above).
   const [permission, requestPermission] = useCameraPermissions();
+
+  // Web only: which of the two web-specific views to show. Starts on
+  // "camera" so live scanning is the default, matching native — manual
+  // entry is always one tap away via `webUseManual`/`webUseCamera` below,
+  // and is where `WebBarcodeScanner`'s `onUnavailable` lands automatically
+  // (see `handleWebCameraUnavailable`) if the camera turns out unusable.
+  const [webMode, setWebMode] = useState<"camera" | "manual">("camera");
+  // Set once `WebBarcodeScanner` reports the camera/decoder can't be used
+  // at all — sticky for the rest of this screen visit (never offered back
+  // to "camera" mode after that, and shown as an explicit notice rather
+  // than the user silently landing on manual entry with no explanation).
+  const [webCameraUnavailable, setWebCameraUnavailable] = useState(false);
+  const handleWebCameraUnavailable = useCallback(() => {
+    setWebCameraUnavailable(true);
+    setWebMode("manual");
+  }, []);
 
   // Guards against `onBarcodeScanned` firing repeatedly for the same code
   // while the camera keeps streaming frames. Reset by "Ler outro código".
@@ -389,18 +413,61 @@ export function BarcodeScanScreen({ foods, onFound, onNotFound, onCancel, onAddO
     );
   }
 
-  // --- Web fallback: manual entry only, no camera (see the module note above). ---
+  // --- Web: live camera scan by default, manual entry always reachable (see the module note above). ---
   if (isWeb) {
+    if (webMode === "camera") {
+      return (
+        <View style={styles.screen}>
+          <Text style={styles.title}>{t("barcode.title")}</Text>
+          <View style={styles.cameraWrap}>
+            <WebBarcodeScanner onDetected={handleCode} onUnavailable={handleWebCameraUnavailable} />
+            <View style={styles.scanFrame} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" />
+          </View>
+          <Text style={styles.scanHint} accessible accessibilityLabel={t("barcode.webScanHint")}>
+            {t("barcode.webScanHint")}
+          </Text>
+          <PressableScale
+            onPress={() => setWebMode("manual")}
+            accessibilityRole="button"
+            accessibilityLabel={t("barcode.webUseManual")}
+            style={styles.secondaryButton}
+          >
+            <Text style={styles.secondaryButtonText}>{t("barcode.webUseManual")}</Text>
+          </PressableScale>
+          <PressableScale onPress={onCancel} accessibilityRole="button" accessibilityLabel={t("barcode.cancel")} style={styles.linkButton}>
+            <Text style={styles.linkButtonText}>{t("barcode.cancel")}</Text>
+          </PressableScale>
+        </View>
+      );
+    }
+
+    // webMode === "manual" — either the user chose it, or WebBarcodeScanner
+    // reported the camera/decoder is unusable (`webCameraUnavailable`),
+    // in which case the "back to camera" escape hatch below is withheld
+    // rather than offering a retry that's already known to fail.
     return (
       <View style={styles.screen}>
         <FadeIn>
           <Text style={styles.title}>{t("barcode.title")}</Text>
-          <View style={styles.noticeBox} accessible accessibilityLabel={t("barcode.webNotice")}>
-            <Text style={styles.noticeIcon}>ⓘ</Text>
-            <Text style={styles.noticeText}>{t("barcode.webNotice")}</Text>
-          </View>
+          {webCameraUnavailable && (
+            <View style={styles.noticeBox} accessible accessibilityLabel={t("barcode.webCameraUnavailable")}>
+              <Text style={styles.noticeIcon}>ⓘ</Text>
+              <Text style={styles.noticeText}>{t("barcode.webCameraUnavailable")}</Text>
+            </View>
+          )}
 
           <ManualEntryForm onSubmit={handleCode} />
+
+          {!webCameraUnavailable && (
+            <PressableScale
+              onPress={() => setWebMode("camera")}
+              accessibilityRole="button"
+              accessibilityLabel={t("barcode.webUseCamera")}
+              style={styles.linkButton}
+            >
+              <Text style={styles.linkButtonText}>{t("barcode.webUseCamera")}</Text>
+            </PressableScale>
+          )}
 
           <PressableScale onPress={onCancel} accessibilityRole="button" accessibilityLabel={t("barcode.cancel")} style={styles.linkButton}>
             <Text style={styles.linkButtonText}>{t("barcode.cancel")}</Text>
