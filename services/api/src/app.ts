@@ -10,6 +10,7 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
+import { registerCompression } from "./compression.js";
 import { healthRoutes } from "./modules/health.js";
 import { catalogRoutes } from "./modules/catalog.js";
 import { adminRoutes, resolveAdminEmails } from "./modules/admin.js";
@@ -107,6 +108,17 @@ export interface BuildAppOptions {
 
 export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const app = Fastify({ logger: false });
+
+  // Response compression (gzip/deflate). The full food catalog
+  // (`GET /catalog/foods`) is a ~32 MB JSON payload (≈1500 foods × ~48
+  // nutrients each) which the offline-first mobile/web client downloads once
+  // at startup to search it fully client-side. Uncompressed, that download
+  // exceeds the client's catalog-load timeout on typical connections and the
+  // app silently falls back to its tiny bundled offline catalog. Gzip shrinks
+  // the JSON by ~10×, so the real catalog actually loads. Implemented with
+  // Node's built-in `zlib` (no new dependency — keeps the Docker build's
+  // `--frozen-lockfile` valid) via an `onSend` hook — see `./compression.ts`.
+  registerCompression(app);
 
   // CORS allowlist (security review M2): permissive in dev/test (unchanged
   // from before this hardening pass), an env-driven allowlist in prod — see
